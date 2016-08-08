@@ -79,24 +79,8 @@ service FacebookService {
   map<string, string> getOptions(),
 
   /**
-   * Returns a CPU profile over the given time interval (client and server
-   * must agree on the profile format).
-   */
-  string getCpuProfile(1: i32 profileDurationInSec),
-
-  /**
    * Returns the unix time that the server has been running since
    */
   i64 aliveSince(),
-
-  /**
-   * Tell the server to reload its configuration, reopen log files, etc
-   */
-  oneway void reinitialize(),
-
-  /**
-   * Suggest a shutdown to the server
-   */
-  oneway void shutdown(),
 
 }
