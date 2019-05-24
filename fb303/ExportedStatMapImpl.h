@@ -20,9 +20,6 @@
 namespace facebook {
 namespace fb303 {
 
-// TODO: Remove this when ExportedStatMap is moved into fb303.
-using fb303::MinuteTenMinuteHourTimeSeries;
-
 class ExportedStatMapImpl : public ExportedStatMap {
  public:
   /*

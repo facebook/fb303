@@ -17,20 +17,18 @@
 
 #include "common/init/Init.h"
 
+#include <fb303/ExportedHistogramMapImpl.h>
 #include <fb303/ExportedStatMapImpl.h>
 #include <folly/Benchmark.h>
 #include <functional>
 
 #include "common/base/MultithreadedBenchmark.h"
-#include "common/stats/ExportedHistogramMapImpl.h"
 #include "common/time/Time.h"
 
 using namespace std;
 using namespace facebook;
 using namespace facebook::fb303;
 using namespace folly;
-using facebook::stats::ExportedHistogram;
-using facebook::stats::ExportedHistogramMapImpl;
 
 void ExportedPerformace(int numUpdates, bool useStatPtr) {
   BenchmarkSuspender braces;
