@@ -15,8 +15,8 @@
  */
 #pragma once
 
+#include <folly/SharedMutex.h>
 #include <folly/experimental/StringKeyedUnorderedMap.h>
-#include <thrift/lib/cpp/concurrency/Mutex.h>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -125,7 +125,6 @@ class SynchMap {
       lock_.reset();
       ptr_.reset();
     }
-
    private:
     std::shared_ptr<std::mutex> lock_;
     std::shared_ptr<V> ptr_;
@@ -249,7 +248,7 @@ class SynchMap {
    */
   static LockedValuePtr createLockedValuePtr(
       LockAndItem* item,
-      apache::thrift::concurrency::RWGuard* guard = nullptr) {
+      folly::SharedMutex::ReadHolder* guard = nullptr) {
     UniqueValuePtr ret = createUniqueValuePtr(item, guard);
 
     return LockedValuePtr(std::move(ret));
@@ -267,7 +266,7 @@ class SynchMap {
 
   static UniqueValuePtr createUniqueValuePtr(
       LockAndItem* item,
-      apache::thrift::concurrency::RWGuard* = nullptr);
+      folly::SharedMutex::ReadHolder* guard = nullptr);
 
   /**
    * Call a function on each element in the map.
@@ -303,7 +302,7 @@ class SynchMap {
   typedef typename Traits::MapType MapType;
 
   MapType map_;
-  apache::thrift::concurrency::ReadWriteMutex lock_;
+  folly::SharedMutex lock_;
 };
 
 } // namespace fb303

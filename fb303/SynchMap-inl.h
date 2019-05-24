@@ -29,16 +29,14 @@ SynchMap<K, V, T>::~SynchMap() {}
 
 template <class K, class V, class T>
 bool SynchMap<K, V, T>::contains(LookupType key) const {
-  apache::thrift::concurrency::RWGuard g(
-      lock_, apache::thrift::concurrency::RW_READ);
+  folly::SharedMutex::ReadHolder g(lock_);
   return map_.find(key) != map_.end();
 }
 
 template <class K, class V, class T>
 typename SynchMap<K, V, T>::LockedValuePtr SynchMap<K, V, T>::get(
     LookupType key) {
-  apache::thrift::concurrency::RWGuard g(
-      lock_, apache::thrift::concurrency::RW_READ);
+  folly::SharedMutex::ReadHolder g(lock_);
   typename MapType::iterator it = map_.find(key);
   if (it == map_.end()) {
     return createLockedValuePtr(nullptr, &g);
@@ -68,8 +66,7 @@ SynchMap<K, V, T>::emplace(LookupType key, bool* createdPtr, Args&&... args) {
 
   // Attempt #1: see if it's already there
   {
-    apache::thrift::concurrency::RWGuard g(
-        lock_, apache::thrift::concurrency::RW_READ);
+    folly::SharedMutex::ReadHolder g(lock_);
     typename MapType::iterator it = map_.find(key);
     if (it != map_.end()) {
       LockAndItem* value = &it->second;
@@ -84,14 +81,14 @@ SynchMap<K, V, T>::emplace(LookupType key, bool* createdPtr, Args&&... args) {
       std::make_shared<std::mutex>(),
       std::make_shared<V>(std::forward<Args>(args)...));
 
-  apache::thrift::concurrency::RWGuard g(
-      lock_, apache::thrift::concurrency::RW_WRITE);
+  folly::SharedMutex::WriteHolder g(lock_);
   auto insertResult = map_.emplace(key, std::move(mapped));
   LockAndItem* value = &insertResult.first->second;
   if (!insertResult.second) {
     // Someone just inserted it. Oh well.
     CHECK(value->first && value->second);
-    return createLockedValuePtr(value, &g);
+    folly::SharedMutex::ReadHolder h(std::move(g));
+    return createLockedValuePtr(value, &h);
   }
 
   CHECK(value->first && value->second);
@@ -100,14 +97,14 @@ SynchMap<K, V, T>::emplace(LookupType key, bool* createdPtr, Args&&... args) {
     *createdPtr = true;
   }
 
-  return createLockedValuePtr(value, &g);
+  folly::SharedMutex::ReadHolder h(std::move(g));
+  return createLockedValuePtr(value, &h);
 }
 
 template <class K, class V, class T>
 typename SynchMap<K, V, T>::LockAndItem SynchMap<K, V, T>::getUnlocked(
     LookupType key) {
-  apache::thrift::concurrency::RWGuard g(
-      lock_, apache::thrift::concurrency::RW_READ);
+  folly::SharedMutex::ReadHolder g(lock_);
   typename MapType::iterator it = map_.find(key);
   if (it == map_.end()) {
     return LockAndItem();
@@ -137,8 +134,7 @@ typename SynchMap<K, V, T>::LockAndItem SynchMap<K, V, T>::emplaceUnlocked(
 
   // Attempt #1: see if it's already there
   {
-    apache::thrift::concurrency::RWGuard g(
-        lock_, apache::thrift::concurrency::RW_READ);
+    folly::SharedMutex::ReadHolder g(lock_);
     typename MapType::iterator it = map_.find(key);
     if (it != map_.end()) {
       return it->second;
@@ -151,8 +147,7 @@ typename SynchMap<K, V, T>::LockAndItem SynchMap<K, V, T>::emplaceUnlocked(
   toInsert.second.second.reset(new V(std::forward<Args>(args)...));
 
   // Attempt #2: this time, insert the new value if not there
-  apache::thrift::concurrency::RWGuard g(
-      lock_, apache::thrift::concurrency::RW_WRITE);
+  folly::SharedMutex::WriteHolder g(lock_);
   auto insertResult = map_.insert(toInsert);
   if (!insertResult.second) {
     // Someone just inserted it. Oh well. Nutt'n to do.
@@ -166,8 +161,7 @@ typename SynchMap<K, V, T>::LockAndItem SynchMap<K, V, T>::emplaceUnlocked(
 template <class K, class V, class T>
 template <class Fn>
 void SynchMap<K, V, T>::forEach(const Fn& fn) {
-  apache::thrift::concurrency::RWGuard g(
-      lock_, apache::thrift::concurrency::RW_READ);
+  folly::SharedMutex::ReadHolder g(lock_);
   for (const auto& elem : map_) {
     const LockAndItem* value = &elem.second;
     CHECK(value->first && value->second);
@@ -192,7 +186,7 @@ template <class K, class V, class T>
 typename SynchMap<K, V, T>::UniqueValuePtr
 SynchMap<K, V, T>::createUniqueValuePtr(
     LockAndItem* value,
-    apache::thrift::concurrency::RWGuard* g) {
+    folly::SharedMutex::ReadHolder* g) {
   if (!value || !value->first || !value->second) {
     return UniqueValuePtr();
   }
@@ -206,7 +200,7 @@ SynchMap<K, V, T>::createUniqueValuePtr(
   // deallocated by another thread right after g->release().
   auto const itemLockPtrCopy = value->first.get();
   if (g)
-    g->release();
+    g->unlock();
   // Acquire the value's lock and return a special unique_ptr<> that
   // will release the lock when it is destroyed.
   itemLockPtrCopy->lock();
@@ -216,16 +210,13 @@ SynchMap<K, V, T>::createUniqueValuePtr(
 
 template <class K, class V, class T>
 bool SynchMap<K, V, T>::erase(LookupType key) {
-  apache::thrift::concurrency::RWGuard g(
-      lock_, apache::thrift::concurrency::RW_WRITE);
-
+  folly::SharedMutex::WriteHolder g(lock_);
   return map_.erase(key) > 0;
 }
 
 template <class K, class V, class T>
 void SynchMap<K, V, T>::clear() {
-  apache::thrift::concurrency::RWGuard g(
-      lock_, apache::thrift::concurrency::RW_WRITE);
+  folly::SharedMutex::WriteHolder g(lock_);
   map_.clear();
 }
 
