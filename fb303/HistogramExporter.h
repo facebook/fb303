@@ -76,4 +76,4 @@ class HistogramExporter {
 };
 
 } // namespace fb303
-}
+} // namespace facebook

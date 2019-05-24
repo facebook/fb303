@@ -38,14 +38,14 @@
 namespace facebook {
 namespace fb303 {
 
-template<class TimeType>
-static std::vector<TimeType> convertToDuration(int num_levels,
-                                          const int* level_durations) {
+template <class TimeType>
+static std::vector<TimeType> convertToDuration(
+    int num_levels,
+    const int* level_durations) {
   std::vector<TimeType> result;
   result.reserve(num_levels);
   for (int i = 0; i < num_levels; ++i) {
-    result.emplace_back(
-      std::chrono::duration_cast<TimeType>(
+    result.emplace_back(std::chrono::duration_cast<TimeType>(
         std::chrono::seconds(level_durations[i])));
   }
   return result;

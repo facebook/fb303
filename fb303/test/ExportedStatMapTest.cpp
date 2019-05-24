@@ -43,7 +43,7 @@ void testExportedStatMapImpl(bool useStatPtr) {
 
   map<string, int64_t> res;
   dc.getCounters(&res);
-  FOR_EACH(it, res) {
+  FOR_EACH (it, res) {
     LOG(INFO) << "res[\"" << it->first << "\"] = " << it->second;
   }
   EXPECT_EQ(res.size(), 4);
@@ -160,8 +160,8 @@ TEST(ExportedStatMapImpl, MultithreadedExport) {
 
   std::vector<std::thread> threads;
   for (uint32_t n = 0; n < numThreads; ++n) {
-    threads.emplace_back(exportStatThread, &statsMap,
-                         counterName, numIters, incrAmount);
+    threads.emplace_back(
+        exportStatThread, &statsMap, counterName, numIters, incrAmount);
   }
   for (auto& thread : threads) {
     thread.join();

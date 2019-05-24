@@ -94,7 +94,7 @@ struct SynchMapTraits<std::string, V> {
  */
 template <class K, class V, class T = SynchMapTraits<K, V>>
 class SynchMap {
- public:  // type definitions
+ public: // type definitions
   typedef T Traits;
   typedef typename Traits::LookupType LookupType;
   typedef typename Traits::KeyType KeyType;
@@ -125,6 +125,7 @@ class SynchMap {
       lock_.reset();
       ptr_.reset();
     }
+
    private:
     std::shared_ptr<std::mutex> lock_;
     std::shared_ptr<V> ptr_;
@@ -180,9 +181,10 @@ class SynchMap {
    * keep the mutex locked and not allow anyone else to access this item.
    * --
    */
-  LockedValuePtr getOrCreate(LookupType key,
-                             const ValueType& defaultVal,
-                             bool* createdPtr = nullptr);
+  LockedValuePtr getOrCreate(
+      LookupType key,
+      const ValueType& defaultVal,
+      bool* createdPtr = nullptr);
 
   /**
    * Get an item if it exists in the map, or create it if it does not.
@@ -192,10 +194,8 @@ class SynchMap {
    * @param args        The arguments to pass to the value constructor if a new
    *                    item needs to be created.
    */
-  template<typename... Args>
-  LockedValuePtr emplace(LookupType key,
-                         bool* createdPtr,
-                         Args&&... args);
+  template <typename... Args>
+  LockedValuePtr emplace(LookupType key, bool* createdPtr, Args&&... args);
 
   /**
    * If the item exists in the map, returns a regular vanilla shared_ptr to
@@ -222,9 +222,10 @@ class SynchMap {
    * the value of the item.
    * --
    */
-  LockAndItem getOrCreateUnlocked(LookupType key,
-                                  const ValueType& defaultVal,
-                                  bool* createdPtr = nullptr);
+  LockAndItem getOrCreateUnlocked(
+      LookupType key,
+      const ValueType& defaultVal,
+      bool* createdPtr = nullptr);
 
   /**
    * Get an item if it exists in the map, or create it if it does not.
@@ -239,18 +240,16 @@ class SynchMap {
    * the value of the item.
    * --
    */
-  template<typename... Args>
-  LockAndItem emplaceUnlocked(LookupType key,
-                              bool* createdPtr,
-                              Args&&... args);
+  template <typename... Args>
+  LockAndItem emplaceUnlocked(LookupType key, bool* createdPtr, Args&&... args);
 
   /**
    * Same as createUniqueValuePtr, but creates a shared pointer, which does
    * reference counting. Avoid using this method if possible.
    */
   static LockedValuePtr createLockedValuePtr(
-    LockAndItem* item,
-    apache::thrift::concurrency::RWGuard * guard = nullptr) {
+      LockAndItem* item,
+      apache::thrift::concurrency::RWGuard* guard = nullptr) {
     UniqueValuePtr ret = createUniqueValuePtr(item, guard);
 
     return LockedValuePtr(std::move(ret));
@@ -267,8 +266,8 @@ class SynchMap {
    */
 
   static UniqueValuePtr createUniqueValuePtr(
-    LockAndItem* item,
-    apache::thrift::concurrency::RWGuard * = nullptr);
+      LockAndItem* item,
+      apache::thrift::concurrency::RWGuard* = nullptr);
 
   /**
    * Call a function on each element in the map.

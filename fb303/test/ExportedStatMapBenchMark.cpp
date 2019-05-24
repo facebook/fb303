@@ -49,7 +49,6 @@ void ExportedPerformace(int numUpdates, bool useStatPtr) {
 
   int64_t now = WallClock::NowInSec();
 
-
   // === Actual updates
   if (useStatPtr) {
     // Get StatPtr and add value via that
@@ -59,21 +58,20 @@ void ExportedPerformace(int numUpdates, bool useStatPtr) {
     }
 
     braces.dismissing([&] {
-        int k = 0;
-        for (int u = 0; u < numUpdates; u++) {
-          statMap.addValue(items[k], now, 10);
-          k = ((k + 1) & kNumKeysMask);
-        }
+      int k = 0;
+      for (int u = 0; u < numUpdates; u++) {
+        statMap.addValue(items[k], now, 10);
+        k = ((k + 1) & kNumKeysMask);
+      }
     });
   } else {
-
     // Directly update the values of the keys
     braces.dismissing([&] {
-        int k = 0;
-        for (int u = 0; u < numUpdates; u++) {
-          statMap.addValue(keys[k], now, 10);
-          k = ((k + 1) & kNumKeysMask);
-        }
+      int k = 0;
+      for (int u = 0; u < numUpdates; u++) {
+        statMap.addValue(keys[k], now, 10);
+        k = ((k + 1) & kNumKeysMask);
+      }
     });
   }
 
@@ -112,13 +110,13 @@ void MultiThreadedStatOperation(int iters, size_t kThreads) {
   ExportedStatMapImpl statMap_(&dc_);
 
   runInThreads(kThreads, [=, &statMap_] {
-      auto i = iters;
-      while (i--) {
-        auto iter = iters - i;
-        int64_t now = WallClock::NowInSec();
-        statMap_.addValue("random_app_foobar_avg_1", now, iter);
-        statMap_.addValue("random_app_foobar_avg_2", now, iter * 100);
-      }
+    auto i = iters;
+    while (i--) {
+      auto iter = iters - i;
+      int64_t now = WallClock::NowInSec();
+      statMap_.addValue("random_app_foobar_avg_1", now, iter);
+      statMap_.addValue("random_app_foobar_avg_2", now, iter * 100);
+    }
   });
 }
 
@@ -130,15 +128,15 @@ void MultiThreadedHistogramOperation(int iters, size_t kThreads) {
   std::hash<thread::id> h;
 
   runInThreads(kThreads, [=, &histMap_] {
-      auto k = h(this_thread::get_id()) % 1000;
-      auto i = iters;
-      while (i--) {
-        auto iter = iters - i;
-        int64_t now = WallClock::NowInSec();
-        int64_t value = 1000 * ((k + iter) % 100);
-        histMap_.addValue("random_app_foobar_hist_1", now, value);
-        histMap_.addValue("random_app_foobar_hist_2", now, value);
-      }
+    auto k = h(this_thread::get_id()) % 1000;
+    auto i = iters;
+    while (i--) {
+      auto iter = iters - i;
+      int64_t now = WallClock::NowInSec();
+      int64_t value = 1000 * ((k + iter) % 100);
+      histMap_.addValue("random_app_foobar_hist_1", now, value);
+      histMap_.addValue("random_app_foobar_hist_2", now, value);
+    }
   });
 }
 

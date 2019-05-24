@@ -30,8 +30,8 @@ std::string TimeseriesHistogram<T>::debugString() const {
 
   o << "num buckets: " << BaseType::getNumBuckets()
     << ", bucketSize: " << BaseType::getBucketSize()
-    << ", min: " << BaseType::getMin()
-    << ", max: " << BaseType::getMax() << "\n";
+    << ", min: " << BaseType::getMin() << ", max: " << BaseType::getMax()
+    << "\n";
 
   for (int i = 0; i < BaseType::getNumBuckets(); i++) {
     o << "  " << BaseType::getBucketMin(i) << "\n";
@@ -41,8 +41,7 @@ std::string TimeseriesHistogram<T>::debugString() const {
 }
 
 template <typename T>
-std::ostream& operator<<(std::ostream& o,
-                         const TimeseriesHistogram<T>& h) {
+std::ostream& operator<<(std::ostream& o, const TimeseriesHistogram<T>& h) {
   return o << h.debugString();
 }
 

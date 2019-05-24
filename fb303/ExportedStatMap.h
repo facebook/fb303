@@ -254,5 +254,5 @@ class ExportedStatMap {
   // more (they have no data members of their own).
   ExportedStat defaultStat_;
 };
-} // namespace stats
-} // !namespace facebook::stats
+} // namespace fb303
+} // namespace facebook

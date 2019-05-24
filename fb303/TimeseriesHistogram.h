@@ -86,11 +86,13 @@ class TimeseriesHistogram : public folly::TimeseriesHistogram<
    * @param defaultContainer a pre-initialized timeseries with the desired
    *                         number of levels and their durations.
    */
-  TimeseriesHistogram(ValueType bucketSize, ValueType min, ValueType max,
-                      const ContainerType& defaultContainer =
-                         MinuteTenMinuteHourTimeSeries<T>())
-      : BaseType(bucketSize, min, max, defaultContainer) {
-  }
+  TimeseriesHistogram(
+      ValueType bucketSize,
+      ValueType min,
+      ValueType max,
+      const ContainerType& defaultContainer =
+          MinuteTenMinuteHourTimeSeries<T>())
+      : BaseType(bucketSize, min, max, defaultContainer) {}
 
   /**
    * Updates every underlying timeseries object with the given timestamp. You

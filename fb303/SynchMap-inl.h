@@ -22,23 +22,23 @@ namespace facebook {
 namespace fb303 {
 
 template <class K, class V, class T>
-SynchMap<K, V, T>::SynchMap() { }
+SynchMap<K, V, T>::SynchMap() {}
 
 template <class K, class V, class T>
-SynchMap<K, V, T>::~SynchMap() { }
+SynchMap<K, V, T>::~SynchMap() {}
 
 template <class K, class V, class T>
 bool SynchMap<K, V, T>::contains(LookupType key) const {
-  apache::thrift::concurrency::RWGuard g(lock_,
-                                         apache::thrift::concurrency::RW_READ);
+  apache::thrift::concurrency::RWGuard g(
+      lock_, apache::thrift::concurrency::RW_READ);
   return map_.find(key) != map_.end();
 }
 
 template <class K, class V, class T>
-typename SynchMap<K, V, T>::LockedValuePtr
-SynchMap<K, V, T>::get(LookupType key) {
-  apache::thrift::concurrency::RWGuard g(lock_,
-                                         apache::thrift::concurrency::RW_READ);
+typename SynchMap<K, V, T>::LockedValuePtr SynchMap<K, V, T>::get(
+    LookupType key) {
+  apache::thrift::concurrency::RWGuard g(
+      lock_, apache::thrift::concurrency::RW_READ);
   typename MapType::iterator it = map_.find(key);
   if (it == map_.end()) {
     return createLockedValuePtr(nullptr, &g);
@@ -51,14 +51,15 @@ SynchMap<K, V, T>::get(LookupType key) {
 }
 
 template <class K, class V, class T>
-typename SynchMap<K, V, T>::LockedValuePtr
-SynchMap<K, V, T>::getOrCreate(LookupType key, const ValueType& defaultVal,
-                               bool* createdPtr) {
+typename SynchMap<K, V, T>::LockedValuePtr SynchMap<K, V, T>::getOrCreate(
+    LookupType key,
+    const ValueType& defaultVal,
+    bool* createdPtr) {
   return emplace(key, createdPtr, defaultVal);
 }
 
 template <class K, class V, class T>
-template<typename... Args>
+template <typename... Args>
 typename SynchMap<K, V, T>::LockedValuePtr
 SynchMap<K, V, T>::emplace(LookupType key, bool* createdPtr, Args&&... args) {
   if (createdPtr) {
@@ -67,11 +68,11 @@ SynchMap<K, V, T>::emplace(LookupType key, bool* createdPtr, Args&&... args) {
 
   // Attempt #1: see if it's already there
   {
-    apache::thrift::concurrency::RWGuard
-      g(lock_, apache::thrift::concurrency::RW_READ);
+    apache::thrift::concurrency::RWGuard g(
+        lock_, apache::thrift::concurrency::RW_READ);
     typename MapType::iterator it = map_.find(key);
     if (it != map_.end()) {
-      LockAndItem * value = &it->second;
+      LockAndItem* value = &it->second;
       CHECK(value->first && value->second);
       return createLockedValuePtr(value, &g);
     }
@@ -103,10 +104,10 @@ SynchMap<K, V, T>::emplace(LookupType key, bool* createdPtr, Args&&... args) {
 }
 
 template <class K, class V, class T>
-typename SynchMap<K, V, T>::LockAndItem
-SynchMap<K, V, T>::getUnlocked(LookupType key) {
-  apache::thrift::concurrency::RWGuard g(lock_,
-                                         apache::thrift::concurrency::RW_READ);
+typename SynchMap<K, V, T>::LockAndItem SynchMap<K, V, T>::getUnlocked(
+    LookupType key) {
+  apache::thrift::concurrency::RWGuard g(
+      lock_, apache::thrift::concurrency::RW_READ);
   typename MapType::iterator it = map_.find(key);
   if (it == map_.end()) {
     return LockAndItem();
@@ -119,25 +120,25 @@ SynchMap<K, V, T>::getUnlocked(LookupType key) {
 }
 
 template <class K, class V, class T>
-typename SynchMap<K, V, T>::LockAndItem
-SynchMap<K, V, T>::getOrCreateUnlocked(LookupType key,
-                                       const ValueType& defaultVal,
-                                       bool* createdPtr) {
+typename SynchMap<K, V, T>::LockAndItem SynchMap<K, V, T>::getOrCreateUnlocked(
+    LookupType key,
+    const ValueType& defaultVal,
+    bool* createdPtr) {
   return emplaceUnlocked(key, createdPtr, defaultVal);
 }
 
-
 template <class K, class V, class T>
-template<typename... Args>
-typename SynchMap<K, V, T>::LockAndItem
-SynchMap<K, V, T>::emplaceUnlocked(LookupType key, bool* createdPtr,
-                                   Args&&... args) {
+template <typename... Args>
+typename SynchMap<K, V, T>::LockAndItem SynchMap<K, V, T>::emplaceUnlocked(
+    LookupType key,
+    bool* createdPtr,
+    Args&&... args) {
   !createdPtr || (*createdPtr = false);
 
   // Attempt #1: see if it's already there
   {
-    apache::thrift::concurrency::RWGuard
-      g(lock_, apache::thrift::concurrency::RW_READ);
+    apache::thrift::concurrency::RWGuard g(
+        lock_, apache::thrift::concurrency::RW_READ);
     typename MapType::iterator it = map_.find(key);
     if (it != map_.end()) {
       return it->second;
@@ -150,8 +151,8 @@ SynchMap<K, V, T>::emplaceUnlocked(LookupType key, bool* createdPtr,
   toInsert.second.second.reset(new V(std::forward<Args>(args)...));
 
   // Attempt #2: this time, insert the new value if not there
-  apache::thrift::concurrency::RWGuard
-    g(lock_, apache::thrift::concurrency::RW_WRITE);
+  apache::thrift::concurrency::RWGuard g(
+      lock_, apache::thrift::concurrency::RW_WRITE);
   auto insertResult = map_.insert(toInsert);
   if (!insertResult.second) {
     // Someone just inserted it. Oh well. Nutt'n to do.
@@ -165,8 +166,8 @@ SynchMap<K, V, T>::emplaceUnlocked(LookupType key, bool* createdPtr,
 template <class K, class V, class T>
 template <class Fn>
 void SynchMap<K, V, T>::forEach(const Fn& fn) {
-  apache::thrift::concurrency::RWGuard
-    g(lock_, apache::thrift::concurrency::RW_READ);
+  apache::thrift::concurrency::RWGuard g(
+      lock_, apache::thrift::concurrency::RW_READ);
   for (const auto& elem : map_) {
     const LockAndItem* value = &elem.second;
     CHECK(value->first && value->second);
@@ -204,7 +205,8 @@ SynchMap<K, V, T>::createUniqueValuePtr(
   // Create a copy of value->first().get() because value may be
   // deallocated by another thread right after g->release().
   auto const itemLockPtrCopy = value->first.get();
-  if (g) g->release();
+  if (g)
+    g->release();
   // Acquire the value's lock and return a special unique_ptr<> that
   // will release the lock when it is destroyed.
   itemLockPtrCopy->lock();
@@ -214,16 +216,16 @@ SynchMap<K, V, T>::createUniqueValuePtr(
 
 template <class K, class V, class T>
 bool SynchMap<K, V, T>::erase(LookupType key) {
-  apache::thrift::concurrency::RWGuard g(lock_,
-                                         apache::thrift::concurrency::RW_WRITE);
+  apache::thrift::concurrency::RWGuard g(
+      lock_, apache::thrift::concurrency::RW_WRITE);
 
   return map_.erase(key) > 0;
 }
 
 template <class K, class V, class T>
 void SynchMap<K, V, T>::clear() {
-  apache::thrift::concurrency::RWGuard g(lock_,
-                                         apache::thrift::concurrency::RW_WRITE);
+  apache::thrift::concurrency::RWGuard g(
+      lock_, apache::thrift::concurrency::RW_WRITE);
   map_.clear();
 }
 

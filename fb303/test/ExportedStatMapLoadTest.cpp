@@ -25,12 +25,11 @@ using namespace std;
 using namespace facebook;
 using namespace facebook::stats;
 
-
 namespace {
 
 const std::string kCounterName = "generic.counter.name";
 std::atomic<int> currentSuffix(0);
-const int kMaxSuffix = 1024*32;
+const int kMaxSuffix = 1024 * 32;
 const int kMaxThreads = 4;
 
 void addNewCounters() {
@@ -45,7 +44,7 @@ void addNewCounters() {
   LOG(INFO) << "rounds for thread " << pthread_self() << " is " << rounds;
 }
 
-}
+} // namespace
 
 void testExportedNewCounters() {
   // start multiple threads

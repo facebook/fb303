@@ -23,14 +23,14 @@ using namespace std;
 using namespace facebook;
 using namespace facebook::fb303;
 
-#define EXPECT_COUNTER(expected, counters, name) \
-  do { \
-    int64_t counterValue; \
+#define EXPECT_COUNTER(expected, counters, name)                       \
+  do {                                                                 \
+    int64_t counterValue;                                              \
     bool counterExists = (counters).getCounter((name), &counterValue); \
-    EXPECT_TRUE(counterExists) << "counter " << name << " not found"; \
-    if (counterExists) { \
-      EXPECT_EQ((expected), counterValue) << "counter " << name; \
-    } \
+    EXPECT_TRUE(counterExists) << "counter " << name << " not found";  \
+    if (counterExists) {                                               \
+      EXPECT_EQ((expected), counterValue) << "counter " << name;       \
+    }                                                                  \
   } while (0)
 
 TEST(ExportedHistogram, ExportedStats) {

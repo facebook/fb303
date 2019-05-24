@@ -99,7 +99,7 @@ TEST(MinuteHourTimeSeries, Basic) {
   EXPECT_EQ(mhts.rate<int>(IntMHTS::HOUR), 10);
   EXPECT_EQ(mhts.rate<int>(IntMHTS::ALLTIME), 10);
 
-  for (int i = 0; i < 3600*3 - 300; ++i) {
+  for (int i = 0; i < 3600 * 3 - 300; ++i) {
     mhts.addValue(cur_time++, 10);
   }
   mhts.flush();
@@ -108,7 +108,7 @@ TEST(MinuteHourTimeSeries, Basic) {
 
   EXPECT_EQ(mhts.getLevel(IntMHTS::MINUTE).elapsed().count(), 60);
   EXPECT_EQ(mhts.getLevel(IntMHTS::HOUR).elapsed().count(), 3600);
-  EXPECT_EQ(mhts.getLevel(IntMHTS::ALLTIME).elapsed().count(), 3600*3);
+  EXPECT_EQ(mhts.getLevel(IntMHTS::ALLTIME).elapsed().count(), 3600 * 3);
 
   EXPECT_EQ(mhts.sum(IntMHTS::MINUTE), 600);
   EXPECT_EQ(mhts.sum(IntMHTS::HOUR), 3600 * 10);
@@ -195,27 +195,48 @@ TEST(MinuteHourTimeSeries, QueryByInterval) {
     TimePoint end;
   };
   TimeInterval intervals[12] = {
-    { curTime - 60, curTime },
-    { curTime - 3600, curTime },
-    { curTime - 7200, curTime },
-    { curTime - 3600, curTime - 60 },
-    { curTime - 7200, curTime - 60 },
-    { curTime - 7200, curTime - 3600 },
-    { curTime - 50, curTime - 20 },
-    { curTime - 3020, curTime - 20 },
-    { curTime - 7200, curTime - 20 },
-    { curTime - 3000, curTime - 1000 },
-    { curTime - 7200, curTime - 1000 },
-    { curTime - 7200, curTime - 3600 },
+      {curTime - 60, curTime},
+      {curTime - 3600, curTime},
+      {curTime - 7200, curTime},
+      {curTime - 3600, curTime - 60},
+      {curTime - 7200, curTime - 60},
+      {curTime - 7200, curTime - 3600},
+      {curTime - 50, curTime - 20},
+      {curTime - 3020, curTime - 20},
+      {curTime - 7200, curTime - 20},
+      {curTime - 3000, curTime - 1000},
+      {curTime - 7200, curTime - 1000},
+      {curTime - 7200, curTime - 3600},
   };
 
   int expectedSums[12] = {
-    6000, 41400, 32400, 35400, 32130, 16200, 3000, 33600, 32310, 20000, 27900,
-    16200
+      6000,
+      41400,
+      32400,
+      35400,
+      32130,
+      16200,
+      3000,
+      33600,
+      32310,
+      20000,
+      27900,
+      16200,
   };
 
   int expectedCounts[12] = {
-    60, 3600, 7200, 3540, 7140, 3600, 30, 3000, 7180, 2000, 6200, 3600
+      60,
+      3600,
+      7200,
+      3540,
+      7140,
+      3600,
+      30,
+      3000,
+      7180,
+      2000,
+      6200,
+      3600,
   };
 
   for (int i = 0; i < 12; i++) {
@@ -228,13 +249,11 @@ TEST(MinuteHourTimeSeries, QueryByInterval) {
     EXPECT_EQ(expectedCounts[i], c);
 
     int a = mhts.avg<int>(interval.start, interval.end);
-    EXPECT_EQ(expectedCounts[i] ?
-              (expectedSums[i] / expectedCounts[i]) : 0,
-              a);
+    EXPECT_EQ(expectedCounts[i] ? (expectedSums[i] / expectedCounts[i]) : 0, a);
 
     int r = mhts.rate<int>(interval.start, interval.end);
     int expectedRate =
-      expectedSums[i] / (interval.end - interval.start).count();
+        expectedSums[i] / (interval.end - interval.start).count();
     EXPECT_EQ(expectedRate, r);
   }
 }

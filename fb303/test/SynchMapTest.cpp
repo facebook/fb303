@@ -26,7 +26,6 @@ using namespace apache::thrift::concurrency;
 using namespace facebook;
 using std::shared_ptr;
 
-
 DEFINE_int32(task_time, 10, "");
 DEFINE_int32(num_threads, 20, "");
 
@@ -67,7 +66,6 @@ TEST(SynchMapTest, SynchMapBasic) {
   EXPECT_NE(res = map.get(1), nullptr);
   EXPECT_EQ(*res, 99);
   res.reset();
-
 
   EXPECT_FALSE(map.contains(2));
   EXPECT_EQ(res = map.get(2), nullptr);
@@ -118,7 +116,7 @@ TEST(SynchMapTest, SynchMapBasic) {
   res.reset();
 
   // Test when an unlocked item is deleted
-  map.set(0,43);
+  map.set(0, 43);
   EXPECT_NE(res = map.get(0), nullptr);
   EXPECT_EQ(*res, 43);
   res.reset();
@@ -136,17 +134,15 @@ TEST(SynchMapTest, SynchMapBasic) {
   EXPECT_FALSE(map.contains(0));
 }
 
-
 class SynchMapTask : public Runnable {
  public:
   SynchMapTask(SynchMapInt64* map, int id)
-    : map_(map), id_(id), random_(WallClock::NowInUsec() ^ getpid()) { }
+      : map_(map), id_(id), random_(WallClock::NowInUsec() ^ getpid()) {}
   void run() override {
     int64_t start = WallClock::NowInSec();
     int64_t now = start;
-    for (now = start; (now - start) <  FLAGS_task_time;
+    for (now = start; (now - start) < FLAGS_task_time;
          now = WallClock::NowInSec()) {
-
       const int kNumOps = 10000;
       for (int i = 0; i < kNumOps; ++i) {
         UniformInt32 keyRange(1, 20);
@@ -203,10 +199,11 @@ class SynchMapTask : public Runnable {
 
 TEST(SynchMapTest, SynchMapThreads) {
   const int kTasks = FLAGS_num_threads;
-  if (!kTasks) return;
+  if (!kTasks)
+    return;
 
   shared_ptr<ThreadManager> mgr =
-    ThreadManager::newSimpleThreadManager(FLAGS_num_threads);
+      ThreadManager::newSimpleThreadManager(FLAGS_num_threads);
   shared_ptr<ThreadFactory> factory(new PosixThreadFactory());
   mgr->threadFactory(factory);
 
@@ -228,17 +225,17 @@ TEST(SynchMapTest, SynchMapThreads) {
 // The idea is Thread1 and Thread2 take a lock on an item, sleep
 // for 2 sec and then whichever threads get the item first deletes it.
 
-class SynchMapEraseTask: public Runnable {
-public:
-  explicit SynchMapEraseTask(SynchMapInt64* map): map_(map) {
-  }
+class SynchMapEraseTask : public Runnable {
+ public:
+  explicit SynchMapEraseTask(SynchMapInt64* map) : map_(map) {}
 
   void run() override {
     SynchMapInt64::LockedValuePtr ptr = map_->getOrCreate(1, 1);
     sleep(3);
     map_->erase(1);
   }
-private:
+
+ private:
   SynchMapInt64* map_;
 };
 
@@ -246,7 +243,7 @@ TEST(SynchMapTest, SynchMapErase) {
   SynchMapInt64 map;
 
   shared_ptr<ThreadManager> mgr =
-    ThreadManager::newSimpleThreadManager(FLAGS_num_threads);
+      ThreadManager::newSimpleThreadManager(FLAGS_num_threads);
   shared_ptr<ThreadFactory> factory(new PosixThreadFactory());
   mgr->threadFactory(factory);
 

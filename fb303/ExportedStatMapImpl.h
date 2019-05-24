@@ -258,4 +258,4 @@ class ExportedStatMapImpl : public ExportedStatMap {
 };
 
 } // namespace fb303
-}
+} // namespace facebook

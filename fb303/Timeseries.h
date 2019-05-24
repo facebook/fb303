@@ -61,8 +61,10 @@ class MultiLevelTimeSeries : public folly::MultiLevelTimeSeries<T> {
   // Duration and TimePoint.
   using TimeType = typename BaseType::Duration;
 
-  MultiLevelTimeSeries(int num_levels, int num_buckets,
-                       const int* level_durations);
+  MultiLevelTimeSeries(
+      int num_levels,
+      int num_buckets,
+      const int* level_durations);
 
   void update(time_t now) {
     BaseType::update(convertTimeT(now));
@@ -92,7 +94,7 @@ class MultiLevelTimeSeries : public folly::MultiLevelTimeSeries<T> {
   }
 };
 
-const int kMinuteHourDurations[] = { 60, 3600, 0 };
+const int kMinuteHourDurations[] = {60, 3600, 0};
 
 template <class T>
 class MinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
@@ -105,10 +107,10 @@ class MinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
   };
 
   MinuteHourTimeSeries()
-    : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteHourDurations) { }
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteHourDurations) {}
 };
 
-const int kMinuteTenMinuteHourDurations[] = { 60, 600, 3600, 0 };
+const int kMinuteTenMinuteHourDurations[] = {60, 600, 3600, 0};
 
 template <class T>
 class MinuteTenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
@@ -122,10 +124,11 @@ class MinuteTenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
   };
 
   MinuteTenMinuteHourTimeSeries()
-    : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteTenMinuteHourDurations) { }
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteTenMinuteHourDurations) {
+  }
 };
 
-const int kMinuteHourDayDurations[] = { 60, 3600, 86400, 0 };
+const int kMinuteHourDayDurations[] = {60, 3600, 86400, 0};
 
 template <class T>
 class MinuteHourDayTimeSeries : public MultiLevelTimeSeries<T> {
@@ -139,10 +142,10 @@ class MinuteHourDayTimeSeries : public MultiLevelTimeSeries<T> {
   };
 
   MinuteHourDayTimeSeries()
-    : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteHourDayDurations) { }
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteHourDayDurations) {}
 };
 
-const int kMinuteTenMinuteDurations[] = { 60, 600, 0 };
+const int kMinuteTenMinuteDurations[] = {60, 600, 0};
 
 template <class T>
 class MinuteTenMinuteTimeSeries : public MultiLevelTimeSeries<T> {
@@ -155,10 +158,10 @@ class MinuteTenMinuteTimeSeries : public MultiLevelTimeSeries<T> {
   };
 
   MinuteTenMinuteTimeSeries()
-    : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteTenMinuteDurations) { }
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteTenMinuteDurations) {}
 };
 
-const int kTenMinuteHourDurations[] = { 600, 3600 };
+const int kTenMinuteHourDurations[] = {600, 3600};
 
 template <class T>
 class TenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
@@ -170,10 +173,10 @@ class TenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
   };
 
   TenMinuteHourTimeSeries()
-    : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kTenMinuteHourDurations) { }
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kTenMinuteHourDurations) {}
 };
 
-const int kMinuteOnlyDurations[] = { 60 };
+const int kMinuteOnlyDurations[] = {60};
 
 template <class T>
 class MinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
@@ -184,10 +187,10 @@ class MinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
   };
 
   MinuteOnlyTimeSeries()
-    : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteOnlyDurations) { }
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteOnlyDurations) {}
 };
 
-const int kTenMinuteOnlyDurations[] = { 600 };
+const int kTenMinuteOnlyDurations[] = {600};
 
 template <class T>
 class TenMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
@@ -198,7 +201,7 @@ class TenMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
   };
 
   TenMinuteOnlyTimeSeries()
-    : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kTenMinuteOnlyDurations) { }
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kTenMinuteOnlyDurations) {}
 };
 
 const int kMinuteTenMinuteOnlyDurations[] = {60, 600};
@@ -217,7 +220,7 @@ class MinuteTenMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
   }
 };
 
-const int kHourDurations[] = { 3600, 0 };
+const int kHourDurations[] = {3600, 0};
 
 template <class T>
 class HourTimeSeries : public MultiLevelTimeSeries<T> {
@@ -228,8 +231,7 @@ class HourTimeSeries : public MultiLevelTimeSeries<T> {
     NUM_LEVELS,
   };
 
-  HourTimeSeries()
-    : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kHourDurations) { }
+  HourTimeSeries() : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kHourDurations) {}
 };
 
 const int kTenMinutesChunksDurations[] = {600, 1200, 1800};

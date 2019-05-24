@@ -217,4 +217,4 @@ void ExportedHistogramMap::clearAllHistograms() {
   }
 }
 } // namespace fb303
-}
+} // namespace facebook

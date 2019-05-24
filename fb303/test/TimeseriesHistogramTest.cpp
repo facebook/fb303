@@ -34,7 +34,7 @@ namespace {
 TimePoint mkTimePoint(int value) {
   return TimePoint(StatsClock::duration(value));
 }
-}
+} // namespace
 
 TEST(TimeseriesHistogram, Percentile) {
   typedef MinuteTenMinuteHourTimeSeries<int> TS;
@@ -66,8 +66,9 @@ TEST(TimeseriesHistogram, Percentile) {
     h.update(WallClockUtil::NowInSecFast());
     // bucket 0 stores everything below min, so its minimum
     // is the lowest possible number
-    EXPECT_EQ(std::numeric_limits<int>::min(),
-              h.getPercentileBucketMin(1, TS::ALLTIME));
+    EXPECT_EQ(
+        std::numeric_limits<int>::min(),
+        h.getPercentileBucketMin(1, TS::ALLTIME));
     EXPECT_EQ(110, h.getPercentileBucketMin(99, TS::ALLTIME));
 
     EXPECT_EQ(-2, h.getPercentileEstimate(0, TS::ALLTIME));
@@ -95,14 +96,14 @@ TEST(TimeseriesHistogram, String) {
 
     hist.update(0);
 
-    const char* const kStringValues1[TS::NUM_LEVELS] =  {
-      "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
+    const char* const kStringValues1[TS::NUM_LEVELS] = {
+        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-      "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
+        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-      "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
+        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-      "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
+        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
     };
 
@@ -112,14 +113,14 @@ TEST(TimeseriesHistogram, String) {
       EXPECT_EQ(kStringValues1[level], hist.getString(level));
     }
 
-    const char* const kStringValues2[TS::NUM_LEVELS] =  {
-      "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
+    const char* const kStringValues2[TS::NUM_LEVELS] = {
+        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-      "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
+        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-      "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
+        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-      "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
+        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
     };
 
@@ -139,7 +140,7 @@ TEST(TimeseriesHistogram, Clear) {
 
     for (int now = 0; now < 3600; now++) {
       for (int i = 0; i < 100; i++) {
-        hist.addValue(now, i, 2);  // adds each item 2 times
+        hist.addValue(now, i, 2); // adds each item 2 times
       }
     }
 
@@ -166,7 +167,6 @@ TEST(TimeseriesHistogram, Clear) {
     }
   }
 }
-
 
 TEST(TimeseriesHistogram, Basic) {
   typedef MinuteTenMinuteHourTimeSeries<int> TS;
@@ -206,7 +206,7 @@ TEST(TimeseriesHistogram, Basic) {
 
     for (int now = 0; now < 3600; now++) {
       for (int i = 0; i < 100; i++) {
-        hist.addValue(now, i, 2);  // adds each item 2 times
+        hist.addValue(now, i, 2); // adds each item 2 times
       }
     }
 
@@ -217,7 +217,7 @@ TEST(TimeseriesHistogram, Basic) {
       EXPECT_EQ(expected, hist.getPercentileBucketMin(pct, TS::TEN_MINUTE));
       EXPECT_EQ(expected, hist.getPercentileBucketMin(pct, TS::HOUR));
       EXPECT_EQ(expected, hist.getPercentileBucketMin(pct, TS::ALLTIME));
-   }
+    }
 
     for (int b = 1; (b + 1) < hist.getNumBuckets(); ++b) {
       EXPECT_EQ(600 * 2, hist.getBucket(b).count(TS::MINUTE));
@@ -234,10 +234,9 @@ TEST(TimeseriesHistogram, Basic) {
   {
     TimeseriesHistogram<int> hist(10, 0, 100);
 
-
     for (int now = 0; now < 3600; now++) {
       for (int i = 0; i < 50; i++) {
-        hist.addValue(now, i * 2, 2);  // adds each item 2 times
+        hist.addValue(now, i * 2, 2); // adds each item 2 times
       }
     }
 
@@ -300,27 +299,48 @@ TEST(TimeseriesHistogram, QueryByInterval) {
     TimePoint end;
   };
   TimeInterval intervals[12] = {
-    { curTime - 60, curTime },
-    { curTime - 3600, curTime },
-    { curTime - 7200, curTime },
-    { curTime - 3600, curTime - 60 },
-    { curTime - 7200, curTime - 60 },
-    { curTime - 7200, curTime - 3600 },
-    { curTime - 50, curTime - 20 },
-    { curTime - 3020, curTime - 20 },
-    { curTime - 7200, curTime - 20 },
-    { curTime - 3000, curTime - 1000 },
-    { curTime - 7200, curTime - 1000 },
-    { curTime - 7200, curTime - 3600 },
+      {curTime - 60, curTime},
+      {curTime - 3600, curTime},
+      {curTime - 7200, curTime},
+      {curTime - 3600, curTime - 60},
+      {curTime - 7200, curTime - 60},
+      {curTime - 7200, curTime - 3600},
+      {curTime - 50, curTime - 20},
+      {curTime - 3020, curTime - 20},
+      {curTime - 7200, curTime - 20},
+      {curTime - 3000, curTime - 1000},
+      {curTime - 7200, curTime - 1000},
+      {curTime - 7200, curTime - 3600},
   };
 
   int expectedSums[12] = {
-    6000, 41400, 32400, 35400, 32129, 16200, 3000, 33600, 32308, 20000, 27899,
-    16200
+      6000,
+      41400,
+      32400,
+      35400,
+      32129,
+      16200,
+      3000,
+      33600,
+      32308,
+      20000,
+      27899,
+      16200,
   };
 
   int expectedCounts[12] = {
-    60, 3600, 7200, 3540, 7139, 3600, 30, 3000, 7178, 2000, 6199, 3600
+      60,
+      3600,
+      7200,
+      3540,
+      7139,
+      3600,
+      30,
+      3000,
+      7178,
+      2000,
+      6199,
+      3600,
   };
 
   // The first 7200 values added all fell below the histogram minimum,
@@ -329,18 +349,18 @@ TEST(TimeseriesHistogram, QueryByInterval) {
   int belowMinBucket = std::numeric_limits<int>::min();
 
   int expectedValues[12][3] = {
-    {96, 96, 96},
-    { 8,  8, 96},
-    { belowMinBucket,  belowMinBucket,  8}, // alltime
-    { 8,  8,  8},
-    { belowMinBucket,  belowMinBucket,  8}, // alltime
-    { belowMinBucket,  belowMinBucket,  8}, // alltime
-    {96, 96, 96},
-    { 8,  8, 96},
-    { belowMinBucket,  belowMinBucket,  8}, // alltime
-    { 8,  8,  8},
-    { belowMinBucket,  belowMinBucket,  8}, // alltime
-    { belowMinBucket,  belowMinBucket,  8}  // alltime
+      {96, 96, 96},
+      {8, 8, 96},
+      {belowMinBucket, belowMinBucket, 8}, // alltime
+      {8, 8, 8},
+      {belowMinBucket, belowMinBucket, 8}, // alltime
+      {belowMinBucket, belowMinBucket, 8}, // alltime
+      {96, 96, 96},
+      {8, 8, 96},
+      {belowMinBucket, belowMinBucket, 8}, // alltime
+      {8, 8, 8},
+      {belowMinBucket, belowMinBucket, 8}, // alltime
+      {belowMinBucket, belowMinBucket, 8}, // alltime
   };
 
   for (int i = 0; i < 12; i++) {
@@ -425,20 +445,20 @@ TEST(TimeseriesHistogram, SingleUniqueValue) {
 
     // Things get trickier if there are multiple unique values.
     const int kNewValue = 750;
-    for (int kk = 0; kk < 2*kNumIters; ++kk) {
+    for (int kk = 0; kk < 2 * kNumIters; ++kk) {
       h.addValue(time(nullptr), kNewValue);
     }
     h.update(time(nullptr));
-    EXPECT_NEAR(h.getPercentileEstimate(50, 0), kNewValue+5, 5);
+    EXPECT_NEAR(h.getPercentileEstimate(50, 0), kNewValue + 5, 5);
     if (value >= 0 && value <= 1000) {
       // only do further testing if value is within our bucket range,
       // else estimates can be wildly off
       if (kNewValue > value) {
-        EXPECT_NEAR(h.getPercentileEstimate(10, 0), value+5, 5);
-        EXPECT_NEAR(h.getPercentileEstimate(99, 0), kNewValue+5, 5);
+        EXPECT_NEAR(h.getPercentileEstimate(10, 0), value + 5, 5);
+        EXPECT_NEAR(h.getPercentileEstimate(99, 0), kNewValue + 5, 5);
       } else {
-        EXPECT_NEAR(h.getPercentileEstimate(10, 0), kNewValue+5, 5);
-        EXPECT_NEAR(h.getPercentileEstimate(99, 0), value+5, 5);
+        EXPECT_NEAR(h.getPercentileEstimate(10, 0), kNewValue + 5, 5);
+        EXPECT_NEAR(h.getPercentileEstimate(99, 0), value + 5, 5);
       }
     }
   }
