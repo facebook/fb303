@@ -402,6 +402,15 @@ class ServiceData {
   // Returns a list of all current counter keys (names)
   std::vector<std::string> getCounterKeys() const;
 
+  /**
+   * Returns the number of wrapped counters.
+   *
+   * NOTE: method combines the independently retrieved counts of three wrapped
+   * containers and so there is no guarantee that the result ever maps to a
+   * single snapshotted state of this instance.
+   */
+  uint64_t getNumCounters() const;
+
   /*** Retrieves all counters, both regular-style and dynamic counters */
   void getCounters(std::map<std::string, int64_t>& _return) const;
   std::map<std::string, int64_t> getCounters() const;

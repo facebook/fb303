@@ -47,6 +47,9 @@ class CallbackValuesMap {
   /** Returns all keys present in the map */
   void getKeys(std::vector<std::string>* keys) const;
 
+  /** Returns the number of keys present in the map */
+  size_t getNumKeys() const;
+
   /**
    * Registers a given callback as associated with the given name.  Note
    * that a copy of the given cob is made, and that any previous registered

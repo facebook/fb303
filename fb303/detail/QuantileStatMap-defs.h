@@ -178,6 +178,12 @@ void BasicQuantileStatMap<ClockT>::getKeys(
 }
 
 template <typename ClockT>
+size_t BasicQuantileStatMap<ClockT>::getNumKeys() const {
+  folly::SharedMutex::ReadHolder g(mutex_);
+  return counterMap_.size();
+}
+
+template <typename ClockT>
 std::shared_ptr<BasicQuantileStat<ClockT>>
 BasicQuantileStatMap<ClockT>::registerQuantileStat(
     folly::StringPiece name,

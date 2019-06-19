@@ -373,6 +373,19 @@ std::vector<std::string> ServiceData::getCounterKeys() const {
   return keys;
 }
 
+uint64_t ServiceData::getNumCounters() const {
+  int64_t numCounters = 0;
+
+  counters_.withRLock(
+      [&](auto const& counters) { numCounters += counters.size(); });
+
+  numCounters += quantileMap_.getNumKeys();
+
+  numCounters += dynamicCounters_.getNumKeys();
+
+  return numCounters;
+}
+
 map<string, int64_t> ServiceData::getCounters() const {
   map<string, int64_t> _return;
   getCounters(_return);

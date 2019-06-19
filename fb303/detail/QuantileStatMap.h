@@ -53,6 +53,7 @@ class BasicQuantileStatMap {
   std::shared_ptr<stat_type> get(folly::StringPiece name) const;
   bool contains(folly::StringPiece name) const;
   void getKeys(std::vector<std::string>& keys) const;
+  size_t getNumKeys() const;
 
   std::shared_ptr<stat_type> registerQuantileStat(
       folly::StringPiece name,

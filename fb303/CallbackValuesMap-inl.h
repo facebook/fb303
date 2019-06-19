@@ -90,6 +90,12 @@ void CallbackValuesMap<T>::getKeys(std::vector<std::string>* keys) const {
 }
 
 template <typename T>
+size_t CallbackValuesMap<T>::getNumKeys() const {
+  folly::SharedMutex::ReadHolder g(mutex_);
+  return callbackMap_.size();
+}
+
+template <typename T>
 void CallbackValuesMap<T>::registerCallback(
     folly::StringPiece name,
     const Callback& cob) {
