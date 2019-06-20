@@ -94,6 +94,21 @@ class MultiLevelTimeSeries : public folly::MultiLevelTimeSeries<T> {
   }
 };
 
+const int kMinuteDurations[] = {60, 0};
+
+template <class T>
+class MinuteTimeSeries : public MultiLevelTimeSeries<T> {
+ public:
+  enum Levels {
+    MINUTE,
+    ALLTIME,
+    NUM_LEVELS,
+  };
+
+  MinuteTimeSeries()
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteDurations) {}
+};
+
 const int kMinuteHourDurations[] = {60, 3600, 0};
 
 template <class T>
@@ -174,6 +189,20 @@ class TenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
 
   TenMinuteHourTimeSeries()
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kTenMinuteHourDurations) {}
+};
+
+const int kQuarterMinuteOnlyDurations[] = {15};
+
+template <class T>
+class QuarterMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
+ public:
+  enum Levels {
+    QUARTER_MINUTE,
+    NUM_LEVELS,
+  };
+
+  QuarterMinuteOnlyTimeSeries()
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 15, kQuarterMinuteOnlyDurations) {}
 };
 
 const int kMinuteOnlyDurations[] = {60};
