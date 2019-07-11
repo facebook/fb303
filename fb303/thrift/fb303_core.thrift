@@ -1,5 +1,5 @@
 /*
- * Copyright (c) Facebook, Inc. and its affiliates.
+ * Copyright 2019-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,12 +24,29 @@ namespace node_module fb303
 namespace go fb303.thrift.fb303_core
 
 /**
+ * Common status reporting mechanism across all services
+ */
+enum fb303_status {
+  DEAD = 0,
+  STARTING = 1,
+  ALIVE = 2,
+  STOPPING = 3,
+  STOPPED = 4,
+  WARNING = 5,
+}
+
+/**
  * Standard base service interface.
  *
  * This interface provides methods to get some service metadata that is common
  * across many services.
  */
 service BaseService {
+
+  /**
+   * Gets the status of this service
+   */
+  fb303_status getStatus() (priority='IMPORTANT')
 
   /**
    * Returns a descriptive name of the service
