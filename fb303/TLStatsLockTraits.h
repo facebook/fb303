@@ -22,10 +22,10 @@
 #include <folly/SpinLock.h>
 #include <folly/synchronization/SmallLocks.h>
 
+#include <fb303/ThreadLocalStats.h>
+
 namespace facebook {
 namespace fb303 {
-
-template <class LockTraits> class ThreadLocalStatsT;
 
 /**
  * TLStatsNoLocking doesn't perform any locking.
