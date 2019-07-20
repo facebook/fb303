@@ -33,7 +33,7 @@ class TimeseriesExporter {
   using StatPtr =
       std::shared_ptr<folly::Synchronized<ExportedStat, folly::SpinLock>>;
 
-  /*
+  /**
    * Register the counter callback with the DynamicCounters object.
    */
   static void exportStat(
@@ -42,7 +42,7 @@ class TimeseriesExporter {
       folly::StringPiece statName,
       DynamicCounters* counters);
 
-  /*
+  /**
    * Unregister the counter callback from the DynamicCounters object.
    */
   static void unExportStat(
@@ -51,8 +51,11 @@ class TimeseriesExporter {
       folly::StringPiece statName,
       DynamicCounters* counters);
 
-  /*
-   * Get the counter name and copy into counterName.
+  /**
+   * Computer the counter name from the given type and level and copy
+   * into counterName. The counterName buffer will always be
+   * null-terminated, even if counterNameSize is too small to hold the
+   * entire output.
    */
   static void getCounterName(
       char* counterName,
