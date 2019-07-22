@@ -15,14 +15,12 @@
  */
 #include <boost/lexical_cast.hpp>
 
-#include "common/init/Init.h"
-
 #include <fb303/ExportedHistogramMapImpl.h>
 #include <fb303/ExportedStatMapImpl.h>
 #include <folly/Benchmark.h>
+#include <folly/init/Init.h>
 #include <functional>
 
-#include "common/base/MultithreadedBenchmark.h"
 #include "common/time/Time.h"
 
 using namespace std;
@@ -150,7 +148,7 @@ BENCHMARK_PARAM(MultiThreadedHistogramOperation, 16);
 BENCHMARK_PARAM(MultiThreadedHistogramOperation, 64);
 
 int main(int argc, char** argv) {
-  initFacebook(&argc, &argv, true);
+  folly::Init init{&argc, &argv, true};
   runBenchmarks();
   return 0;
 }

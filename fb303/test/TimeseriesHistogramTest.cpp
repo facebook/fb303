@@ -15,7 +15,6 @@
  */
 #include <fb303/TimeseriesHistogram.h>
 #include "common/base/Random.h"
-#include "common/base/StlUtil.h"
 #include "common/time/Time.h"
 
 #include <gtest/gtest.h>
@@ -107,7 +106,7 @@ TEST(TimeseriesHistogram, String) {
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
     };
 
-    CHECK_EQ(ARRAYSIZE(kStringValues1), hist.getNumLevels());
+    CHECK_EQ(std::size(kStringValues1), hist.getNumLevels());
 
     for (int level = 0; level < hist.getNumLevels(); ++level) {
       EXPECT_EQ(kStringValues1[level], hist.getString(level));
@@ -124,7 +123,7 @@ TEST(TimeseriesHistogram, String) {
         "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
     };
 
-    CHECK_EQ(ARRAYSIZE(kStringValues2), hist.getNumLevels());
+    CHECK_EQ(std::size(kStringValues2), hist.getNumLevels());
 
     for (int level = 0; level < hist.getNumLevels(); ++level) {
       EXPECT_EQ(kStringValues2[level], hist.getString(level));
@@ -429,7 +428,7 @@ TEST(TimeseriesHistogram, QueryByInterval) {
 
 TEST(TimeseriesHistogram, SingleUniqueValue) {
   int values[] = {-1, 0, 500, 1000, 1500};
-  for (int ii = 0; ii < ARRAYSIZE(values); ++ii) {
+  for (int ii = 0; ii < std::size(values); ++ii) {
     int value = values[ii];
     TimeseriesHistogram<int> h(10, 0, 1000);
     const int kNumIters = 1000;

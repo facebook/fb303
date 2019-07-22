@@ -17,9 +17,7 @@
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp/concurrency/PosixThreadFactory.h>
 #include <thrift/lib/cpp/concurrency/ThreadManager.h>
-#include <unistd.h>
 #include "common/base/Random.h"
-#include "common/init/Init.h"
 #include "common/time/Time.h"
 
 using namespace apache::thrift::concurrency;
@@ -251,17 +249,4 @@ TEST(SynchMapTest, SynchMapErase) {
   mgr->add(shared_ptr<Runnable>(new SynchMapEraseTask(&map)));
   mgr->add(shared_ptr<Runnable>(new SynchMapEraseTask(&map)));
   mgr->join();
-}
-
-// ------------------------------------------------------------
-// main()
-// ------------------------------------------------------------
-
-int main(int argc, char** argv) {
-  testing::InitGoogleTest(&argc, argv);
-  gflags::ParseCommandLineFlags(&(argc), &(argv), true);
-  facebook::initFacebook(&argc, &argv);
-
-  // Run the unittests and benchmarks
-  return RUN_ALL_TESTS();
 }

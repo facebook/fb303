@@ -21,8 +21,6 @@
 #include <boost/bind.hpp>
 #include <gtest/gtest.h>
 
-#include "common/init/Init.h"
-
 using boost::bind;
 using facebook::fb303::CallbackValuesMap;
 using std::string;

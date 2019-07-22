@@ -15,6 +15,7 @@
  */
 #include "common/stats/ServiceData.h"
 
+#include <gflags/gflags.h>
 #include <gtest/gtest.h>
 
 using namespace std;
