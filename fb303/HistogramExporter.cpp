@@ -21,6 +21,7 @@
 #include <folly/Format.h>
 #include <folly/Optional.h>
 #include <folly/String.h>
+#include <folly/small_vector.h>
 #include <glog/logging.h>
 #include <functional>
 
@@ -183,15 +184,14 @@ void HistogramExporter::forEachStatName(
     StringPiece name,
     ExportType exportType,
     const Fn& fn) {
-  const int kNameSize = name.size() + 50; // some extra space
-  char counterName[kNameSize + 1];
-  counterName[kNameSize] = '\0';
+  const size_t kNameSize = name.size() + 50; // some extra space
+  folly::small_vector<char, 200> counterName(kNameSize);
 
   const ExportedHistogram::ContainerType& stat = hist->lock()->getBucket(0);
   for (int level = 0; level < stat.numLevels(); ++level) {
     TimeseriesExporter::getCounterName(
-        counterName, kNameSize, &stat, name, exportType, level);
-    fn(counterName, level);
+        counterName.data(), kNameSize, &stat, name, exportType, level);
+    fn(counterName.data(), level);
   }
 }
 

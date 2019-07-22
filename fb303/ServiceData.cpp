@@ -401,7 +401,7 @@ void ServiceData::getSelectedCounters(
       try {
         int64_t value = getCounter(key);
         _return[key] = value;
-      } catch (const std::invalid_argument& ex) {
+      } catch (const std::invalid_argument&) {
         // Don't insert anything into _return for non-existent keys.
       }
     }

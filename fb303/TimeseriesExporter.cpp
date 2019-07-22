@@ -17,6 +17,7 @@
 
 #include <fb303/DynamicCounters.h>
 #include <fb303/LegacyClock.h>
+#include <folly/small_vector.h>
 #include <glog/logging.h>
 
 using folly::StringPiece;
@@ -101,7 +102,7 @@ void TimeseriesExporter::getCounterName(
         static_cast<int>(statName.size()),
         statName.data(),
         kTypeString[type],
-        durationSecs.count());
+        static_cast<long>(durationSecs.count()));
   }
 }
 
@@ -114,17 +115,16 @@ void TimeseriesExporter::exportStat(
   CHECK_GE(type, 0);
   CHECK_LT(type, ExportTypeMeta::kNumExportTypes);
 
-  const int kNameSize = statName.size() + 50; // some extra space
-  char counterName[kNameSize + 1];
-  counterName[kNameSize] = '\0';
+  const size_t kNameSize = statName.size() + 50; // some extra space
+  folly::small_vector<char, 200> counterName(kNameSize);
 
   auto statObj = stat->lock().operator->();
   for (int lev = 0; lev < stat->lock()->numLevels(); ++lev) {
-    getCounterName(counterName, kNameSize, statObj, statName, type, lev);
+    getCounterName(counterName.data(), kNameSize, statObj, statName, type, lev);
 
     // register the actual counter callback with the DynamicCounters obj
     counters->registerCallback(
-        counterName, [=] { return getStatValue(stat, type, lev); });
+        counterName.data(), [=] { return getStatValue(stat, type, lev); });
   }
 }
 
@@ -137,16 +137,15 @@ void TimeseriesExporter::unExportStat(
   CHECK_GE(type, 0);
   CHECK_LT(type, ExportTypeMeta::kNumExportTypes);
 
-  const int kNameSize = statName.size() + 50; // some extra space
-  char counterName[kNameSize + 1];
-  counterName[kNameSize] = '\0';
+  const size_t kNameSize = statName.size() + 50; // some extra space
+  folly::small_vector<char, 200> counterName(kNameSize);
 
   auto statObj = stat->lock().operator->();
   for (int lev = 0; lev < stat->lock()->numLevels(); ++lev) {
-    getCounterName(counterName, kNameSize, statObj, statName, type, lev);
+    getCounterName(counterName.data(), kNameSize, statObj, statName, type, lev);
 
     // unregister the counter callback from the DynamicCounters obj
-    counters->unregisterCallback(counterName);
+    counters->unregisterCallback(counterName.data());
   }
 }
 } // namespace fb303
