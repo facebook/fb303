@@ -15,7 +15,6 @@
  */
 #include <fb303/TimeseriesHistogram.h>
 #include "common/base/Random.h"
-#include "common/time/Time.h"
 
 #include <gtest/gtest.h>
 
@@ -62,7 +61,7 @@ TEST(TimeseriesHistogram, Percentile) {
       h.addValue(0, random() % maxVal);
     }
 
-    h.update(WallClockUtil::NowInSecFast());
+    h.update(::time(nullptr));
     // bucket 0 stores everything below min, so its minimum
     // is the lowest possible number
     EXPECT_EQ(

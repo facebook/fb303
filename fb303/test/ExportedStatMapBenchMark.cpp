@@ -21,8 +21,7 @@
 #include <folly/init/Init.h>
 #include <functional>
 
-#include "common/time/Time.h"
-
+#include <time.h>
 using namespace std;
 using namespace facebook;
 using namespace facebook::fb303;
@@ -45,7 +44,7 @@ void ExportedPerformace(int numUpdates, bool useStatPtr) {
     keys[k].append(boost::lexical_cast<string>(k));
   }
 
-  int64_t now = WallClock::NowInSec();
+  int64_t now = ::time(nullptr);
 
   // === Actual updates
   if (useStatPtr) {
@@ -111,7 +110,7 @@ void MultiThreadedStatOperation(int iters, size_t kThreads) {
     auto i = iters;
     while (i--) {
       auto iter = iters - i;
-      int64_t now = WallClock::NowInSec();
+      int64_t now = ::time(nullptr);
       statMap_.addValue("random_app_foobar_avg_1", now, iter);
       statMap_.addValue("random_app_foobar_avg_2", now, iter * 100);
     }
@@ -130,7 +129,7 @@ void MultiThreadedHistogramOperation(int iters, size_t kThreads) {
     auto i = iters;
     while (i--) {
       auto iter = iters - i;
-      int64_t now = WallClock::NowInSec();
+      int64_t now = ::time(nullptr);
       int64_t value = 1000 * ((k + iter) % 100);
       histMap_.addValue("random_app_foobar_hist_1", now, value);
       histMap_.addValue("random_app_foobar_hist_2", now, value);

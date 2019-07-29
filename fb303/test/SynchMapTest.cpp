@@ -17,8 +17,8 @@
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp/concurrency/PosixThreadFactory.h>
 #include <thrift/lib/cpp/concurrency/ThreadManager.h>
+#include <time.h>
 #include "common/base/Random.h"
-#include "common/time/Time.h"
 
 using namespace apache::thrift::concurrency;
 using namespace facebook;
@@ -135,12 +135,15 @@ TEST(SynchMapTest, SynchMapBasic) {
 class SynchMapTask : public Runnable {
  public:
   SynchMapTask(SynchMapInt64* map, int id)
-      : map_(map), id_(id), random_(WallClock::NowInUsec() ^ getpid()) {}
+      : map_(map),
+        id_(id),
+        random_(
+            std::chrono::system_clock::now().time_since_epoch().count() ^
+            getpid()) {}
   void run() override {
-    int64_t start = WallClock::NowInSec();
+    int64_t start = ::time(nullptr);
     int64_t now = start;
-    for (now = start; (now - start) < FLAGS_task_time;
-         now = WallClock::NowInSec()) {
+    for (now = start; (now - start) < FLAGS_task_time; now = ::time(nullptr)) {
       const int kNumOps = 10000;
       for (int i = 0; i < kNumOps; ++i) {
         UniformInt32 keyRange(1, 20);
