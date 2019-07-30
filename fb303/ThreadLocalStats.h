@@ -30,10 +30,14 @@
 namespace facebook {
 namespace fb303 {
 
-template <class LockTraits> class TLStatT;
-template <class LockTraits> class TLCounterT;
-template <class LockTraits> class TLHistogramT;
-template <class LockTraits> class TLTimeseriesT;
+template <class LockTraits>
+class TLStatT;
+template <class LockTraits>
+class TLCounterT;
+template <class LockTraits>
+class TLHistogramT;
+template <class LockTraits>
+class TLTimeseriesT;
 
 /*
  * A ThreadLocalStats object stores thread-local copies of a group of
@@ -216,7 +220,7 @@ class ThreadLocalStatsT {
    * You normally should not need to call this directly.
    * This should typically only be called from the TLStat constructor.
    */
-  void registerStat(TLStatT<LockTraits> *stat);
+  void registerStat(TLStatT<LockTraits>* stat);
 
   /**
    * Unregister a new TLStat object.
@@ -224,7 +228,7 @@ class ThreadLocalStatsT {
    * You normally should not need to call this directly.
    * This should typically only be called from the TLStat destructor.
    */
-  void unregisterStat(TLStatT<LockTraits> *stat);
+  void unregisterStat(TLStatT<LockTraits>* stat);
 
   /**
    * Check if the specified TLStat is registered with this container.
@@ -515,8 +519,11 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
 
   void init(ThreadLocalStatsT<LockTraits>* stats);
 
-  void init(size_t numBuckets, size_t numLevels, const int levelDurations[],
-            ThreadLocalStatsT<LockTraits>* stats);
+  void init(
+      size_t numBuckets,
+      size_t numLevels,
+      const int levelDurations[],
+      ThreadLocalStatsT<LockTraits>* stats);
 
   ExportedStatMapImpl::LockableStat globalStat_;
   int64_t sum_{0};
@@ -538,14 +545,15 @@ class TLHistogramT : public TLStatT<LockTraits> {
       int64_t max);
 
   template <typename... ExportArgs>
-  TLHistogramT(ThreadLocalStatsT<LockTraits>* stats,
-               folly::StringPiece name,
-               int64_t bucketWidth,
-               int64_t min,
-               int64_t max,
-               ExportArgs... exportArgs)
-    : TLStatT<LockTraits>(stats, name),
-      simpleHistogram_(bucketWidth, min, max) {
+  TLHistogramT(
+      ThreadLocalStatsT<LockTraits>* stats,
+      folly::StringPiece name,
+      int64_t bucketWidth,
+      int64_t min,
+      int64_t max,
+      ExportArgs... exportArgs)
+      : TLStatT<LockTraits>(stats, name),
+        simpleHistogram_(bucketWidth, min, max) {
     initGlobalStat(stats);
     exportStat(exportArgs...);
     this->postInit(stats);
@@ -594,32 +602,32 @@ class TLHistogramT : public TLStatT<LockTraits> {
     dirty_ = true;
   }
 
-  template<typename... Pct>
+  template <typename... Pct>
   void exportPercentile(int percentile, Pct... morePercentiles) {
-    getHistogramMap("exporting a percentile")->
-      exportPercentile(this->name(), percentile, morePercentiles...);
+    getHistogramMap("exporting a percentile")
+        ->exportPercentile(this->name(), percentile, morePercentiles...);
   }
 
-  template<typename... Pct>
+  template <typename... Pct>
   void unexportPercentile(Pct... percentiles) {
-    getHistogramMap("unexporting a percentile")->
-      unexportPercentile(this->name(), percentiles...);
+    getHistogramMap("unexporting a percentile")
+        ->unexportPercentile(this->name(), percentiles...);
   }
 
   /*
    * exportStat() can accept a mixture of ExportType arguments
    * and integer percentiles.
    */
-  template<typename... ExportArgs>
+  template <typename... ExportArgs>
   void exportStat(ExportArgs... exportArgs) {
-    getHistogramMap("exporting a stat")->exportStat(this->name(),
-                                                    exportArgs...);
+    getHistogramMap("exporting a stat")
+        ->exportStat(this->name(), exportArgs...);
   }
 
-  template<typename... ExportArgs>
+  template <typename... ExportArgs>
   void unexportStat(ExportArgs... exportArgs) {
-    getHistogramMap("unexporting a percentiles")->unexportStat(this->name(),
-                                                               exportArgs...);
+    getHistogramMap("unexporting a percentiles")
+        ->unexportStat(this->name(), exportArgs...);
   }
 
   void aggregate(std::chrono::seconds now) override;

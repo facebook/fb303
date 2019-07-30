@@ -41,13 +41,11 @@ class evictedCallback {
   key_type key_;
   mapped_type value_;
 
-public:
-  evictedCallback(key_type key, mapped_type value):
-    key_(move(key)),
-    value_(move(value))
-  {}
+ public:
+  evictedCallback(key_type key, mapped_type value)
+      : key_(move(key)), value_(move(value)) {}
 
-  void operator ()(pair<const key_type, mapped_type>&& evicted) {
+  void operator()(pair<const key_type, mapped_type>&& evicted) {
     EXPECT_EQ(evicted.first, key_);
     EXPECT_EQ(evicted.second, value_);
   }
@@ -60,24 +58,22 @@ void noEvictions(lru_map::value_type&&) {
 }
 
 evictedCallback<lru_map::key_type, lru_map::mapped_type> checkEvicted(
-  lru_map::key_type key, lru_map::mapped_type value
-) {
+    lru_map::key_type key,
+    lru_map::mapped_type value) {
   return evictedCallback<lru_map::key_type, lru_map::mapped_type>(
-    move(key), move(value)
-  );
+      move(key), move(value));
 }
 
 template <typename key_type, typename mapped_type>
 void checkContents(
-  const SimpleLRUMap<key_type, mapped_type>& lru,
-  std::vector<std::pair<const key_type, mapped_type>> expected
-) {
+    const SimpleLRUMap<key_type, mapped_type>& lru,
+    std::vector<std::pair<const key_type, mapped_type>> expected) {
   EXPECT_EQ(lru.empty(), expected.empty());
   EXPECT_EQ(lru.size(), expected.size());
 
   auto i = lru.cbegin();
 
-  for(const auto& j: expected) {
+  for (const auto& j : expected) {
     EXPECT_NE(i, lru.cend());
 
     EXPECT_EQ(*i, j);
@@ -93,29 +89,34 @@ void checkContents(
 }
 
 void checkStats(
-  const lru_map& lru, lru_map::stats_type hits, lru_map::stats_type misses
-) {
+    const lru_map& lru,
+    lru_map::stats_type hits,
+    lru_map::stats_type misses) {
   EXPECT_EQ(hits, lru.hits());
-  if(hits != lru.hits()) { throw false; } // EXPECT_EQ won't exit on failure
+  if (hits != lru.hits()) {
+    throw std::runtime_error("test failure");
+  } // EXPECT_EQ won't exit on failure
 
   EXPECT_EQ(misses, lru.misses());
-  if(misses != lru.misses()) { throw false; }
+  if (misses != lru.misses()) {
+    throw std::runtime_error("test failure");
+  }
 
   auto expectedRatio = hits + misses == 0
-    ? 0
-    : static_cast<lru_map::ratio_type>(hits) / (
-      static_cast<lru_map::ratio_type>(hits)
-      + static_cast<lru_map::ratio_type>(misses)
-    );
+      ? 0
+      : static_cast<lru_map::ratio_type>(hits) /
+          (static_cast<lru_map::ratio_type>(hits) +
+           static_cast<lru_map::ratio_type>(misses));
 
   EXPECT_EQ(expectedRatio, lru.hit_ratio());
-  if(expectedRatio != lru.hit_ratio()) { throw false; }
+  if (expectedRatio != lru.hit_ratio()) {
+    throw std::runtime_error("test failure");
+  }
 }
 
 lru_map::mapped_type factory(lru_map::key_type key) {
   return to<string>(key);
 };
-
 
 // TESTS
 
@@ -399,7 +400,7 @@ TEST(SimpleLRUMap, ConstComplexity) {
 
   facebook::coarse_stop_watch<std::chrono::seconds> watch;
   lru_map lru(1 << 20);
-  for (int i=0; i < (1 << 22); ++i) {
+  for (int i = 0; i < (1 << 22); ++i) {
     // should be pretty fast as 3 letter string will be stored in the
     // string object itself for fb_string
     lru.set(i, "meh");
@@ -419,15 +420,22 @@ TEST(SimpleLRUMap, Stats) {
 
   enum stat_type { hit, miss, none };
 
-  auto testStats = [&](
-    lru_map::stats_type hits, lru_map::stats_type misses,
-    const vector<stat_type>& expected
-  ) {
+  auto testStats = [&](lru_map::stats_type hits,
+                       lru_map::stats_type misses,
+                       const vector<stat_type>& expected) {
     auto doCheck = [&](stat_type stat) {
-      switch(stat) {
-        case hit: ++hits; LOG(INFO) << "hit"; break;
-        case miss: ++misses; LOG(INFO) << "miss"; break;
-        case none: LOG(INFO) << "no change"; break;
+      switch (stat) {
+        case hit:
+          ++hits;
+          LOG(INFO) << "hit";
+          break;
+        case miss:
+          ++misses;
+          LOG(INFO) << "miss";
+          break;
+        case none:
+          LOG(INFO) << "no change";
+          break;
       };
       checkStats(lru, hits, misses);
     };

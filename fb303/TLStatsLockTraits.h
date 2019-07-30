@@ -57,8 +57,9 @@ class TLStatsNoLocking {
       // are being accessed from the correct thread.
       //
       // In opt builds asssers are compiled out, and no checking is performed.
-      assert((*containerAndLock == nullptr) ||
-             (*containerAndLock)->getMainLock()->isInCorrectThread());
+      assert(
+          (*containerAndLock == nullptr) ||
+          (*containerAndLock)->getMainLock()->isInCorrectThread());
     }
   };
 
@@ -97,8 +98,7 @@ class TLStatsNoLocking {
       return true;
     }
 
-    void swapThreads() {
-    }
+    void swapThreads() {}
 #endif
   };
 
@@ -304,8 +304,7 @@ class TLStatsThreadSafeT {
     containerAndLock->init(container);
   }
 
-  static void swapThreads(MainLock* /*lock*/) {
-  }
+  static void swapThreads(MainLock* /*lock*/) {}
 };
 
 /*

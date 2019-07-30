@@ -77,7 +77,7 @@ class TimeseriesHistogram : public folly::TimeseriesHistogram<
    * (-inf, min) and the "over" bucket for the range [max, +inf).
    *
    * By default, the histogram will use levels of 60/600/3600/alltime (seconds),
-   * but his can be overriden by passing in an already-constructed multilevel
+   * but his can be overridden by passing in an already-constructed multilevel
    * timeseries with the desired level durations.
    *
    * @param bucketSize the width of each bucket

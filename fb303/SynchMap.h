@@ -125,6 +125,7 @@ class SynchMap {
       lock_.reset();
       ptr_.reset();
     }
+
    private:
     std::shared_ptr<std::mutex> lock_;
     std::shared_ptr<V> ptr_;

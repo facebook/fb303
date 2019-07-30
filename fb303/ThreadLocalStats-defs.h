@@ -177,8 +177,10 @@ ThreadLocalStatsT<LockTraits>* TLStatT<LockTraits>::checkContainer(
   auto* container = getContainer();
   if (!container) {
     throw std::runtime_error(folly::to<std::string>(
-          name_, ": ThreadLocalStats container has already been "
-          "destroyed while ", errorMsg));
+        name_,
+        ": ThreadLocalStats container has already been "
+        "destroyed while ",
+        errorMsg));
   }
   return container;
 }
@@ -274,7 +276,9 @@ void TLTimeseriesT<LockTraits>::init(ThreadLocalStatsT<LockTraits>* stats) {
 
 template <class LockTraits>
 void TLTimeseriesT<LockTraits>::init(
-    size_t numBuckets, size_t numLevels, const int levelDurations[],
+    size_t numBuckets,
+    size_t numLevels,
+    const int levelDurations[],
     ThreadLocalStatsT<LockTraits>* stats) {
   ExportedStat levels(numLevels, numBuckets, levelDurations);
   globalStat_ = stats->getStatsMap()->getLockableStatNoExport(
@@ -286,14 +290,15 @@ void TLTimeseriesT<LockTraits>::init(
  * TLHistogramT
  */
 template <class LockTraits>
-TLHistogramT<LockTraits>::TLHistogramT(ThreadLocalStatsT<LockTraits>* stats,
-                                       folly::StringPiece name,
-                                       int64_t bucketWidth,
-                                       int64_t min,
-                                       int64_t max)
-  : TLStatT<LockTraits>(stats, name),
-    globalStat_(),
-    simpleHistogram_(bucketWidth, min, max) {
+TLHistogramT<LockTraits>::TLHistogramT(
+    ThreadLocalStatsT<LockTraits>* stats,
+    folly::StringPiece name,
+    int64_t bucketWidth,
+    int64_t min,
+    int64_t max)
+    : TLStatT<LockTraits>(stats, name),
+      globalStat_(),
+      simpleHistogram_(bucketWidth, min, max) {
   initGlobalStat(stats);
   this->postInit(stats);
 }
@@ -488,9 +493,9 @@ ThreadLocalStatsT<LockTraits>::ThreadLocalStatsT(ServiceData* serviceData)
 template <class LockTraits>
 ThreadLocalStatsT<LockTraits>::~ThreadLocalStatsT() {
   if (!tlStats_.empty()) {
-    LOG(WARNING) << "Deleting parent container while "
-        << tlStats_.size() << " stats are registered:";
-    for (auto stat = tlStats_.begin(); stat != tlStats_.end(); ) {
+    LOG(WARNING) << "Deleting parent container while " << tlStats_.size()
+                 << " stats are registered:";
+    for (auto stat = tlStats_.begin(); stat != tlStats_.end();) {
       VLOG(1) << " - " << (*stat)->name();
       auto toClear = stat++;
       (*toClear)->clearContainer();
@@ -531,7 +536,7 @@ void ThreadLocalStatsT<LockTraits>::aggregate() {
   // TODO: In the future it would be nice if the stats code used a
   // std::chrono::time_point instead of just a std::chrono::duration
   std::chrono::seconds now(get_legacy_stats_time());
-  for (TLStatT<LockTraits> *stat : tlStats_) {
+  for (TLStatT<LockTraits>* stat : tlStats_) {
     stat->aggregate(now);
   }
 }

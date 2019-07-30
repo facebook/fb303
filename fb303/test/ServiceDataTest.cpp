@@ -23,7 +23,7 @@ using namespace testing;
 using namespace facebook::stats;
 
 class ServiceDataTest : public Test {
-public:
+ public:
   ServiceData data;
 };
 
