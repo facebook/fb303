@@ -15,9 +15,9 @@
  */
 
 #include "common/stats/DynamicStats.h"
-#include "common/stats/ThreadCachedServiceData.h"
 
 #include <boost/thread/barrier.hpp>
+#include <fb303/ThreadCachedServiceData.h>
 #include <folly/Benchmark.h>
 #include <folly/init/Init.h>
 
