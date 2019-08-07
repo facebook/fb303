@@ -66,13 +66,13 @@ target_include_directories(fb303 PUBLIC
 )
 
 target_link_libraries(fb303
-  fb303_thrift_cpp2
+  fb303_thrift_cpp
   Folly::folly
   FBThrift::thrift
 )
 
 install(
-  TARGETS fb303 fb303_thrift_cpp2
+  TARGETS fb303 fb303_thrift_cpp
   EXPORT fb303-exports
   LIBRARY DESTINATION ${LIB_INSTALL_DIR}
   ARCHIVE DESTINATION ${LIB_INSTALL_DIR}
