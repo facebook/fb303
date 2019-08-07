@@ -192,10 +192,13 @@ TEST(LockableStat, Swap) {
 
   statA.swap(statB);
 
-  auto guard = statA.lock();
-  EXPECT_EQ(guard->sum(0), 0);
-  guard = statB.lock();
+  // the stats are reversed now
+  // so acquire the locks in the B/A order
+  // to avoid a TSAN lock-order-inversion message
+  auto guard = statB.lock();
   EXPECT_EQ(guard->sum(0), 10);
+  guard = statA.lock();
+  EXPECT_EQ(guard->sum(0), 0);
 }
 
 TEST(LockableStat, AddValue) {
