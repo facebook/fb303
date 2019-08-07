@@ -207,10 +207,10 @@ class ThreadLocalStatsT {
    * ThreadLocalStatsT<TLStatsThreadSafe>.  This adds some performance
    * overhead, as all stat updates now perform synchronization.
    *
-   * If you are using asynchronous threads driven by a EventBase main loop,
-   * common/stats/TLStatsAsyncAggregator.h contains a class that can
-   * periodically call aggregate() on a ThreadLocalStats from the EventBase
-   * loop.
+   * If you are using asynchronous threads driven by a EventBase main
+   * loop, fb303/TLStatsAsyncAggregator.h contains a class that can
+   * periodically call aggregate() on a ThreadLocalStats from the
+   * EventBase loop.
    */
   void aggregate();
 
