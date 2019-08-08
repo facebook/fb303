@@ -509,7 +509,9 @@ template <class LockTraits>
 void ThreadLocalStatsT<LockTraits>::registerStat(TLStatT<LockTraits>* stat) {
   MainGuard g(lock_);
 
-  tlStats_.insert(stat);
+  auto inserted = tlStats_.insert(stat).second;
+  CHECK(inserted) << "attempted to register a stat twice: " << stat->name()
+                  << " (" << tlStats_.size() << " registered)";
 }
 
 template <class LockTraits>
