@@ -174,10 +174,6 @@ TEST(ThreadLocalStats, moveTimeseries) {
     SCOPED_TRACE("TLStatsNoLocking");
     testMoveTimeseries<TLStatsNoLocking>();
   }
-  {
-    SCOPED_TRACE("TLStatsSharedMutex");
-    testMoveTimeseries<TLStatsWithSharedMutex>();
-  }
 }
 
 template <typename LockTraits>
@@ -223,10 +219,6 @@ TEST(ThreadLocalStats, moveHistogram) {
     SCOPED_TRACE("TLStatsNoLocking");
     testMoveHistogram<TLStatsNoLocking>();
   }
-  {
-    SCOPED_TRACE("TLStatsWithSharedMutex");
-    testMoveHistogram<TLStatsWithSharedMutex>();
-  }
 }
 
 template <typename LockTraits>
@@ -263,10 +255,6 @@ TEST(ThreadLocalStats, moveCounter) {
     SCOPED_TRACE("TLStatsNoLocking");
     testMoveCounter<TLStatsNoLocking>();
   }
-  {
-    SCOPED_TRACE("TLStatsWithSharedMutex");
-    testMoveCounter<TLStatsWithSharedMutex>();
-  }
 }
 
 template <typename LockTraits>
@@ -288,9 +276,5 @@ TEST(ThreadLocalStats, destroyThreadContainerBeforeStat) {
   {
     SCOPED_TRACE("TLStatsNoLocking");
     testDestroyContainerBeforeStat<TLStatsNoLocking>();
-  }
-  {
-    SCOPED_TRACE("TLStatsWithSharedMutex");
-    testDestroyContainerBeforeStat<TLStatsWithSharedMutex>();
   }
 }

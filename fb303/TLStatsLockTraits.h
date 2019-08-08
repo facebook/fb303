@@ -351,38 +351,6 @@ class ContainerWithPicoSpinLock {
   folly::PicoSpinLock<intptr_t, 0> value_;
 };
 
-class ContainerWithSharedMutex {
- public:
-  using LockTrait = TLStatsThreadSafeT<ContainerWithSharedMutex>;
-  using Container = ThreadLocalStatsT<LockTrait>;
-
-  explicit ContainerWithSharedMutex(Container* container)
-      : container_(container) {}
-
-  Container* getContainer() const {
-    return container_;
-  }
-
-  void lock() const {
-    lock_.lock();
-  }
-  void unlock() const {
-    lock_.unlock();
-  }
-
-  void clear() {
-    container_ = nullptr;
-  }
-  void init(Container* container) {
-    container_ = container;
-  }
-
- private:
-  Container* container_ = nullptr;
-  mutable folly::SharedMutex lock_;
-};
-
 using TLStatsThreadSafe = TLStatsThreadSafeT<ContainerWithPicoSpinLock>;
-using TLStatsWithSharedMutex = TLStatsThreadSafeT<ContainerWithSharedMutex>;
 } // namespace fb303
 } // namespace facebook

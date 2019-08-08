@@ -41,11 +41,5 @@ template class TLTimeseriesT<TLStatsThreadSafe>;
 template class TLHistogramT<TLStatsThreadSafe>;
 template class TLCounterT<TLStatsThreadSafe>;
 
-template class ThreadLocalStatsT<TLStatsWithSharedMutex>;
-template class TLStatT<TLStatsWithSharedMutex>;
-template class TLTimeseriesT<TLStatsWithSharedMutex>;
-template class TLHistogramT<TLStatsWithSharedMutex>;
-template class TLCounterT<TLStatsWithSharedMutex>;
-
 } // namespace fb303
 } // namespace facebook
