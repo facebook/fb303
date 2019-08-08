@@ -215,29 +215,6 @@ class ThreadLocalStatsT {
   void aggregate();
 
   /**
-   * Register a new TLStat object.
-   *
-   * You normally should not need to call this directly.
-   * This should typically only be called from the TLStat constructor.
-   */
-  void registerStat(TLStatT<LockTraits>* stat);
-
-  /**
-   * Unregister a new TLStat object.
-   *
-   * You normally should not need to call this directly.
-   * This should typically only be called from the TLStat destructor.
-   */
-  void unregisterStat(TLStatT<LockTraits>* stat);
-
-  /**
-   * Check if the specified TLStat is registered with this container.
-   *
-   * This function is mainly used for sanity checks.
-   */
-  bool isRegistered(TLStatT<LockTraits>* stat);
-
-  /**
    * Call this function if you are about to transfer ownership of this
    * ThreadLocalStats object to another thread.
    *
@@ -258,21 +235,35 @@ class ThreadLocalStatsT {
     LockTraits::swapThreads(&lock_);
   }
 
-  /**
-   * Get the lock for this ThreadLocalStats object.
-   *
-   * You typically should never need to call this.  This is provided
-   * for internal implementation purposes only.
-   */
-  const typename LockTraits::MainLock* getMainLock() const {
-    return &lock_;
-  }
-
  protected:
   typedef typename LockTraits::MainGuard MainGuard;
   typedef typename LockTraits::MainLock MainLock;
 
  private:
+  /**
+   * Register a new TLStat object. Only called from the TLStat constructor.
+   */
+  void registerStat(TLStatT<LockTraits>* stat);
+
+  /**
+   * Unregister a new TLStat object. Only called from the TLStat destructor.
+   */
+  void unregisterStat(TLStatT<LockTraits>* stat);
+
+  /**
+   * Check if the specified TLStat is registered with this container.
+   *
+   * This function is mainly used for sanity checks.
+   */
+  bool isRegistered(TLStatT<LockTraits>* stat);
+
+  /**
+   * Get the lock for this ThreadLocalStats object.
+   */
+  const typename LockTraits::MainLock* getMainLock() const {
+    return &lock_;
+  }
+
   // Forbidden copy constructor and assignment operator
   ThreadLocalStatsT(const ThreadLocalStatsT&) = delete;
   ThreadLocalStatsT& operator=(const ThreadLocalStatsT&) = delete;
@@ -286,6 +277,10 @@ class ThreadLocalStatsT {
   // thread-safety guarantees).
   MainLock lock_;
   std::unordered_set<TLStatT<LockTraits>*> tlStats_;
+
+  friend class TLStatsNoLocking;
+  template <typename T>
+  friend class TLStatT;
 };
 
 /**
