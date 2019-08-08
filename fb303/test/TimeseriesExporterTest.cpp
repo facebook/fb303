@@ -17,100 +17,96 @@
 #include <gtest/gtest.h>
 
 using namespace facebook::fb303;
-using namespace folly::string_piece_literals;
 
 namespace {
 
-constexpr size_t kNameBufferSize = 100;
-
-struct TimeseriesExporterTest : ::testing::Test {
+class TimeseriesExporterTest : public testing::Test {
+ public:
   using ExportedStatT = MinuteTenMinuteHourTimeSeries<CounterType>;
 
-  char name[kNameBufferSize];
-  const ExportedStatT stat;
+  std::string getCounterNameChecked(
+      char const* stat_name,
+      size_t buffer_size,
+      ExportType export_type,
+      ExportedStatT::Levels level) {
+    static constexpr size_t kNameBufferSize = 100;
+
+    if (buffer_size > kNameBufferSize) {
+      throw std::invalid_argument("buffer_size > kNameBufferSize");
+    }
+
+    char name[kNameBufferSize];
+    const ExportedStatT stat;
+    TimeseriesExporter::getCounterName(
+        name, buffer_size, &stat, stat_name, export_type, level);
+    return std::string{name};
+  }
 };
 
 } // namespace
 
-#define EXPECT_COUNTER_NAME(                                           \
-    expected, stat_name, buffer_size, export_type, level)              \
-  do {                                                                 \
-    static_assert(buffer_size <= kNameBufferSize);                     \
-    TimeseriesExporter::getCounterName(                                \
-        name, buffer_size, &stat, stat_name##_sp, export_type, level); \
-    EXPECT_EQ(expected, std::string{name});                            \
-  } while (false)
-
 TEST_F(TimeseriesExporterTest, getCounterName) {
-  EXPECT_COUNTER_NAME(
+  EXPECT_EQ(
       "stat_name.sum.60",
-      "stat_name",
-      20,
-      ExportType::SUM,
-      ExportedStatT::MINUTE);
-  EXPECT_COUNTER_NAME(
+      getCounterNameChecked(
+          "stat_name", 20, ExportType::SUM, ExportedStatT::MINUTE));
+  EXPECT_EQ(
       "stat_name.sum",
-      "stat_name",
-      20,
-      ExportType::SUM,
-      ExportedStatT::ALLTIME);
-  EXPECT_COUNTER_NAME(
+      getCounterNameChecked(
+          "stat_name", 20, ExportType::SUM, ExportedStatT::ALLTIME));
+  EXPECT_EQ(
       "stat_name.count.60",
-      "stat_name",
-      20,
-      ExportType::COUNT,
-      ExportedStatT::MINUTE);
-  EXPECT_COUNTER_NAME(
+      getCounterNameChecked(
+          "stat_name", 20, ExportType::COUNT, ExportedStatT::MINUTE));
+  EXPECT_EQ(
       "stat_name.avg.60",
-      "stat_name",
-      20,
-      ExportType::AVG,
-      ExportedStatT::MINUTE);
-  EXPECT_COUNTER_NAME(
+      getCounterNameChecked(
+          "stat_name", 20, ExportType::AVG, ExportedStatT::MINUTE));
+  EXPECT_EQ(
       "stat_name.rate.60",
-      "stat_name",
-      20,
-      ExportType::RATE,
-      ExportedStatT::MINUTE);
-  EXPECT_COUNTER_NAME(
+      getCounterNameChecked(
+          "stat_name", 20, ExportType::RATE, ExportedStatT::MINUTE));
+  EXPECT_EQ(
       "stat_name.pct.60",
-      "stat_name",
-      20,
-      ExportType::PERCENT,
-      ExportedStatT::MINUTE);
+      getCounterNameChecked(
+          "stat_name", 20, ExportType::PERCENT, ExportedStatT::MINUTE));
 }
 
 TEST_F(TimeseriesExporterTest, getCounterName_always_zero_terminates) {
   // If the buffer wasn't null-terminated, the construction of
   // std::string from the name buffer would read too far.
 
-  EXPECT_COUNTER_NAME(
-      "stat_name", "stat_name", 10, ExportType::SUM, ExportedStatT::MINUTE);
-  EXPECT_COUNTER_NAME(
-      "stat_name.", "stat_name", 11, ExportType::SUM, ExportedStatT::MINUTE);
-  EXPECT_COUNTER_NAME(
+  EXPECT_EQ(
+      "stat_name",
+      getCounterNameChecked(
+          "stat_name", 10, ExportType::SUM, ExportedStatT::MINUTE));
+  EXPECT_EQ(
+      "stat_name.",
+      getCounterNameChecked(
+          "stat_name", 11, ExportType::SUM, ExportedStatT::MINUTE));
+  EXPECT_EQ(
       "stat_name.sum.6",
-      "stat_name",
-      16,
-      ExportType::SUM,
-      ExportedStatT::MINUTE);
-  EXPECT_COUNTER_NAME(
+      getCounterNameChecked(
+          "stat_name", 16, ExportType::SUM, ExportedStatT::MINUTE));
+  EXPECT_EQ(
       "stat_name.sum.60",
-      "stat_name",
-      17,
-      ExportType::SUM,
-      ExportedStatT::MINUTE);
+      getCounterNameChecked(
+          "stat_name", 17, ExportType::SUM, ExportedStatT::MINUTE));
 
-  EXPECT_COUNTER_NAME(
-      "stat_name", "stat_name", 10, ExportType::SUM, ExportedStatT::ALLTIME);
-  EXPECT_COUNTER_NAME(
-      "stat_name.", "stat_name", 11, ExportType::SUM, ExportedStatT::ALLTIME);
-  EXPECT_COUNTER_NAME(
-      "stat_name.su", "stat_name", 13, ExportType::SUM, ExportedStatT::ALLTIME);
-  EXPECT_COUNTER_NAME(
-      "stat_name.sum",
+  EXPECT_EQ(
       "stat_name",
-      14,
-      ExportType::SUM,
-      ExportedStatT::ALLTIME);
+      getCounterNameChecked(
+          "stat_name", 10, ExportType::SUM, ExportedStatT::ALLTIME));
+  EXPECT_EQ(
+      "stat_name.",
+      getCounterNameChecked(
+          "stat_name", 11, ExportType::SUM, ExportedStatT::ALLTIME));
+  EXPECT_EQ(
+      "stat_name.su",
+      getCounterNameChecked(
+          "stat_name", 13, ExportType::SUM, ExportedStatT::ALLTIME));
+  EXPECT_EQ(
+      "stat_name.sum",
+      getCounterNameChecked(
+          "stat_name", 14, ExportType::SUM, ExportedStatT::ALLTIME));
 }
