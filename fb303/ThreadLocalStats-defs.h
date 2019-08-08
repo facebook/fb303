@@ -502,7 +502,7 @@ ThreadLocalStatsT<LockTraits>::~ThreadLocalStatsT() {
     }
   }
 
-  CHECK(tlStats_.empty());
+  DCHECK(tlStats_.empty());
 }
 
 template <class LockTraits>
@@ -517,7 +517,8 @@ void ThreadLocalStatsT<LockTraits>::unregisterStat(TLStatT<LockTraits>* stat) {
   MainGuard g(lock_);
 
   size_t numErased = tlStats_.erase(stat);
-  CHECK_EQ(1, numErased)
+  (void)numErased; // opt build unused
+  DCHECK_EQ(1, numErased)
       << "attempted to unregister a stat that was not registered: "
       << stat->name() << " (" << tlStats_.size() << " registered)";
 }
