@@ -161,7 +161,7 @@ class ThreadLocalStatsT {
 
   /**
    * Create a new ThreadLocalStats container. Per default (NULL),
-   * serviceData will be initialized to facebook::fbData
+   * serviceData will be initialized to facebook::fb303::fbData
    */
   explicit ThreadLocalStatsT(ServiceData* serviceData = nullptr);
 
@@ -240,22 +240,24 @@ class ThreadLocalStatsT {
   typedef typename LockTraits::MainLock MainLock;
 
  private:
+  using TLStat = TLStatT<LockTraits>;
+
   /**
    * Register a new TLStat object. Only called from the TLStat constructor.
    */
-  void registerStat(TLStatT<LockTraits>* stat);
+  void registerStat(TLStat* stat);
 
   /**
    * Unregister a new TLStat object. Only called from the TLStat destructor.
    */
-  void unregisterStat(TLStatT<LockTraits>* stat);
+  void unregisterStat(TLStat* stat);
 
   /**
    * Check if the specified TLStat is registered with this container.
    *
    * This function is mainly used for sanity checks.
    */
-  bool isRegistered(TLStatT<LockTraits>* stat);
+  bool isRegistered(TLStat* stat);
 
   /**
    * Get the lock for this ThreadLocalStats object.
@@ -276,7 +278,7 @@ class ThreadLocalStatsT {
   // lock_ protects access to tlStats_ (when LockTraits actually provides
   // thread-safety guarantees).
   MainLock lock_;
-  std::unordered_set<TLStatT<LockTraits>*> tlStats_;
+  std::unordered_set<TLStat*> tlStats_;
 
   friend class TLStatsNoLocking;
   template <typename T>
@@ -291,7 +293,9 @@ class ThreadLocalStatsT {
 template <class LockTraits>
 class TLStatT {
  public:
-  TLStatT(ThreadLocalStatsT<LockTraits>* stats, folly::StringPiece name);
+  using Container = ThreadLocalStatsT<LockTraits>;
+
+  TLStatT(Container* stats, folly::StringPiece name);
   virtual ~TLStatT();
 
   const std::string& name() const {
@@ -310,7 +314,7 @@ class TLStatT {
    *
    * Returns the container it was registered with.
    */
-  ThreadLocalStatsT<LockTraits>* clearContainer();
+  Container* clearContainer();
 
   virtual void aggregate(std::chrono::seconds now) = 0;
 
@@ -348,7 +352,7 @@ class TLStatT {
    *
    * Similarly, preDestroy() must be called as the first step of destruction.
    */
-  void postInit(ThreadLocalStatsT<LockTraits>* stats);
+  void postInit(Container* stats);
 
   /*
    * Subclasses of TLStat must call preDestroy() as the very first step of
@@ -389,7 +393,7 @@ class TLStatT {
   /**
    * Get the ThreadLocalStats object that contains this stat.
    */
-  ThreadLocalStatsT<LockTraits>* getContainer() const {
+  Container* getContainer() const {
     return LockTraits::getContainer(containerAndLock_);
   }
 
@@ -398,7 +402,7 @@ class TLStatT {
    * If the container is null, an exception with the specified message is
    * thrown.
    */
-  ThreadLocalStatsT<LockTraits>* checkContainer(const char* errorMsg);
+  Container* checkContainer(const char* errorMsg);
 
  private:
   /**

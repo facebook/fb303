@@ -31,9 +31,7 @@ namespace fb303 {
  */
 
 template <class LockTraits>
-TLStatT<LockTraits>::TLStatT(
-    ThreadLocalStatsT<LockTraits>* stats,
-    folly::StringPiece name)
+TLStatT<LockTraits>::TLStatT(Container* stats, folly::StringPiece name)
     : containerAndLock_{stats}, name_(name.str()) {}
 
 template <class LockTraits>
@@ -53,7 +51,7 @@ TLStatT<LockTraits>::~TLStatT() {
 }
 
 template <class LockTraits>
-void TLStatT<LockTraits>::postInit(ThreadLocalStatsT<LockTraits>* stats) {
+void TLStatT<LockTraits>::postInit(Container* stats) {
   // Register ourself with our ThreadLocalStats container.
   //
   // This is done in postInit(), as this should be the very last step of

@@ -322,13 +322,15 @@ class TLStatsThreadSafeT {
 class ContainerWithPicoSpinLock {
  public:
   using LockTrait = TLStatsThreadSafeT<ContainerWithPicoSpinLock>;
+  using Container = ThreadLocalStatsT<LockTrait>;
 
-  explicit ContainerWithPicoSpinLock(ThreadLocalStatsT<LockTrait>* container) {
+  explicit ContainerWithPicoSpinLock(Container* container) {
+    static_assert(alignof(Container) >= 2, "Low bit is used for the spin lock");
     value_.init(reinterpret_cast<intptr_t>(container));
   }
 
-  ThreadLocalStatsT<LockTrait>* getContainer() const {
-    return reinterpret_cast<ThreadLocalStatsT<LockTrait>*>(value_.getData());
+  Container* getContainer() const {
+    return reinterpret_cast<Container*>(value_.getData());
   }
 
   void lock() const {
@@ -341,7 +343,7 @@ class ContainerWithPicoSpinLock {
   void clear() {
     value_.setData(0);
   }
-  void init(ThreadLocalStatsT<LockTrait>* container) {
+  void init(Container* container) {
     value_.setData(reinterpret_cast<intptr_t>(container));
   }
 
@@ -352,11 +354,12 @@ class ContainerWithPicoSpinLock {
 class ContainerWithSharedMutex {
  public:
   using LockTrait = TLStatsThreadSafeT<ContainerWithSharedMutex>;
+  using Container = ThreadLocalStatsT<LockTrait>;
 
-  explicit ContainerWithSharedMutex(ThreadLocalStatsT<LockTrait>* container)
+  explicit ContainerWithSharedMutex(Container* container)
       : container_(container) {}
 
-  ThreadLocalStatsT<LockTrait>* getContainer() const {
+  Container* getContainer() const {
     return container_;
   }
 
@@ -370,12 +373,12 @@ class ContainerWithSharedMutex {
   void clear() {
     container_ = nullptr;
   }
-  void init(ThreadLocalStatsT<LockTrait>* container) {
+  void init(Container* container) {
     container_ = container;
   }
 
  private:
-  ThreadLocalStatsT<LockTrait>* container_ = nullptr;
+  Container* container_ = nullptr;
   mutable folly::SharedMutex lock_;
 };
 
