@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 #include <fb303/ThreadLocalStats.h>
+#include <fb303/test/StartingGate.h>
+#include <folly/test/TestUtils.h>
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
@@ -276,5 +278,52 @@ TEST(ThreadLocalStats, destroyThreadContainerBeforeStat) {
   {
     SCOPED_TRACE("TLStatsNoLocking");
     testDestroyContainerBeforeStat<TLStatsNoLocking>();
+  }
+}
+
+struct ContainerAndStats {
+  std::optional<ThreadLocalStatsT<TLStatsThreadSafe>> container;
+  std::optional<TLCounterT<TLStatsThreadSafe>> stat1;
+  std::optional<TLCounterT<TLStatsThreadSafe>> stat2;
+  std::optional<TLCounterT<TLStatsThreadSafe>> stat3;
+};
+
+TEST(ThreadLocalStats, stressStatDestructionRace) {
+  SKIP() << "Currently failing";
+
+  ServiceData data;
+
+  StartingGate gate(FLAGS_num_threads * 4);
+
+  std::vector<std::thread> threads;
+  for (unsigned i = 0; i < FLAGS_num_threads; ++i) {
+    auto c = std::make_shared<ContainerAndStats>();
+    c->container.emplace(&data);
+    c->stat1.emplace(&c->container.value(), "stat1");
+    c->stat2.emplace(&c->container.value(), "stat2");
+    c->stat3.emplace(&c->container.value(), "stat3");
+
+    threads.emplace_back([&, c] {
+      gate.wait();
+      c->container.reset();
+    });
+    threads.emplace_back([&, c] {
+      gate.wait();
+      c->stat1.reset();
+    });
+    threads.emplace_back([&, c] {
+      gate.wait();
+      c->stat2.reset();
+    });
+    threads.emplace_back([&, c] {
+      gate.wait();
+      c->stat3.reset();
+    });
+  }
+
+  gate.waitThenOpen();
+
+  for (auto& thread : threads) {
+    thread.join();
   }
 }
