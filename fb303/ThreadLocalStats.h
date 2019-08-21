@@ -321,7 +321,7 @@ class TLStatT {
   class StatGuard : public LockTraits::StatGuard {
    public:
     explicit StatGuard(const TLStatT<LockTraits>* stat)
-        : LockTraits::StatGuard(&stat->containerAndLock_) {}
+        : LockTraits::StatGuard(stat->containerAndLock_) {}
   };
 
   /**

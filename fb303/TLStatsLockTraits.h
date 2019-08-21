@@ -91,7 +91,7 @@ class TLStatsNoLocking {
 
   class StatGuard {
    public:
-    explicit StatGuard(const ContainerAndLock* containerAndLock) {
+    explicit StatGuard(const ContainerAndLock& containerAndLock) {
       // To prevent 'containerAndLock' from violating -Wunused-parameter
       // in opt builds.
       (void)containerAndLock;
@@ -101,8 +101,8 @@ class TLStatsNoLocking {
       //
       // In opt builds, asserts are compiled out, and no checking is performed.
       assert(
-          (*containerAndLock == nullptr) ||
-          (*containerAndLock)->getMainLock()->isInCorrectThread());
+          (containerAndLock == nullptr) ||
+          containerAndLock->getMainLock()->isInCorrectThread());
     }
   };
 
@@ -198,20 +198,7 @@ class TLStatsThreadSafeT {
  public:
   using ContainerAndLock = C;
 
-  class StatGuard {
-   public:
-    explicit StatGuard(const ContainerAndLock* containerAndLock)
-        : lock_(containerAndLock) {
-      lock_->lock();
-    }
-
-    ~StatGuard() {
-      lock_->unlock();
-    }
-
-   private:
-    const ContainerAndLock* lock_;
-  };
+  using StatGuard = std::lock_guard<const ContainerAndLock>;
 
   /*
    * The registry in the main ThreadLocalStatsT object is protected with a
