@@ -236,8 +236,8 @@ class ThreadLocalStatsT {
   }
 
  private:
-  using MainLock = typename LockTraits::MainLock;
-  using MainGuard = std::lock_guard<MainLock>;
+  using RegistryLock = typename LockTraits::RegistryLock;
+  using RegistryGuard = std::lock_guard<RegistryLock>;
   using TLStat = TLStatT<LockTraits>;
 
   /**
@@ -260,7 +260,7 @@ class ThreadLocalStatsT {
   /**
    * Get the lock for this ThreadLocalStats object.
    */
-  const typename LockTraits::MainLock* getMainLock() const {
+  const RegistryLock* getRegistryLock() const {
     return &lock_;
   }
 
@@ -275,7 +275,7 @@ class ThreadLocalStatsT {
 
   // lock_ protects access to tlStats_ (when LockTraits actually provides
   // thread-safety guarantees).
-  MainLock lock_;
+  RegistryLock lock_;
   std::unordered_set<TLStat*> tlStats_;
 
   friend class TLStatsNoLocking;

@@ -102,11 +102,11 @@ class TLStatsNoLocking {
       // In opt builds, asserts are compiled out, and no checking is performed.
       assert(
           (containerAndLock == nullptr) ||
-          containerAndLock->getMainLock()->isInCorrectThread());
+          containerAndLock->getRegistryLock()->isInCorrectThread());
     }
   };
 
-  using MainLock = detail::NoLock;
+  using RegistryLock = detail::NoLock;
 
   /**
    * The type to use for integer counter values.
@@ -165,7 +165,7 @@ class TLStatsNoLocking {
     *containerAndLock = container;
   }
 
-  static void swapThreads(MainLock& lock) {
+  static void swapThreads(RegistryLock& lock) {
     lock.swapThreads();
   }
 };
@@ -204,7 +204,7 @@ class TLStatsThreadSafeT {
    * The registry in the main ThreadLocalStatsT object is protected with a
    * spinlock.
    */
-  using MainLock = folly::SpinLock;
+  using RegistryLock = folly::SpinLock;
 
   /**
    * The type to use for integer counter values.
@@ -286,7 +286,7 @@ class TLStatsThreadSafeT {
     containerAndLock->init(container);
   }
 
-  static void swapThreads(MainLock& /*lock*/) {}
+  static void swapThreads(RegistryLock& /*lock*/) {}
 };
 
 /*

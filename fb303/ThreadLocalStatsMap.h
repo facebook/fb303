@@ -103,7 +103,7 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
    * accessed from a single thread, it doesn't provide real locking, but
    * instead only asserts that the accesses occur from the correct thread.
    *
-   * If we used TLStatsThreadSafe::MainLock this would make the code truly
+   * If we used TLStatsThreadSafe::RegistryLock this would make the code truly
    * thread safe, so that any thread could update stats by name.  We could turn
    * this into a template parameter in the future, but for now no one needs the
    * fully thread-safe behavior.

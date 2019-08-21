@@ -505,7 +505,7 @@ ThreadLocalStatsT<LockTraits>::~ThreadLocalStatsT() {
 
 template <class LockTraits>
 void ThreadLocalStatsT<LockTraits>::registerStat(TLStatT<LockTraits>* stat) {
-  MainGuard g(lock_);
+  RegistryGuard g(lock_);
 
   auto inserted = tlStats_.insert(stat).second;
   CHECK(inserted) << "attempted to register a stat twice: " << stat->name()
@@ -514,7 +514,7 @@ void ThreadLocalStatsT<LockTraits>::registerStat(TLStatT<LockTraits>* stat) {
 
 template <class LockTraits>
 void ThreadLocalStatsT<LockTraits>::unregisterStat(TLStatT<LockTraits>* stat) {
-  MainGuard g(lock_);
+  RegistryGuard g(lock_);
 
   size_t numErased = tlStats_.erase(stat);
   (void)numErased; // opt build unused
@@ -525,14 +525,14 @@ void ThreadLocalStatsT<LockTraits>::unregisterStat(TLStatT<LockTraits>* stat) {
 
 template <class LockTraits>
 bool ThreadLocalStatsT<LockTraits>::isRegistered(TLStatT<LockTraits>* stat) {
-  MainGuard g(lock_);
+  RegistryGuard g(lock_);
   auto it = tlStats_.find(stat);
   return (it != tlStats_.end());
 }
 
 template <class LockTraits>
 void ThreadLocalStatsT<LockTraits>::aggregate() {
-  MainGuard g(lock_);
+  RegistryGuard g(lock_);
 
   // TODO: In the future it would be nice if the stats code used a
   // std::chrono::time_point instead of just a std::chrono::duration
