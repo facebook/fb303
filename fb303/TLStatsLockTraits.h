@@ -19,7 +19,6 @@
 #include <thread>
 
 #include <folly/SharedMutex.h>
-#include <folly/SpinLock.h>
 #include <folly/synchronization/SmallLocks.h>
 
 #include <fb303/ThreadLocalStats.h>
@@ -200,11 +199,7 @@ class TLStatsThreadSafeT {
 
   using StatGuard = std::lock_guard<const ContainerAndLock>;
 
-  /*
-   * The registry in the main ThreadLocalStatsT object is protected with a
-   * spinlock.
-   */
-  using RegistryLock = folly::SpinLock;
+  using RegistryLock = folly::SharedMutex;
 
   /**
    * The type to use for integer counter values.
