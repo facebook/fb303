@@ -109,13 +109,6 @@ class TLStatsNoLocking {
 #endif
   };
 
-  class MainGuard {
-   public:
-    explicit MainGuard(MainLock& lock) {
-      lock.lock();
-    }
-  };
-
   /**
    * The type to use for integer counter values.
    */
@@ -226,7 +219,6 @@ class TLStatsThreadSafeT {
    * spinlock.
    */
   using MainLock = folly::SpinLock;
-  using MainGuard = folly::SpinLockGuard;
 
   /**
    * The type to use for integer counter values.

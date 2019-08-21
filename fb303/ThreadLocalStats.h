@@ -235,11 +235,9 @@ class ThreadLocalStatsT {
     LockTraits::swapThreads(&lock_);
   }
 
- protected:
-  typedef typename LockTraits::MainGuard MainGuard;
-  typedef typename LockTraits::MainLock MainLock;
-
  private:
+  using MainLock = typename LockTraits::MainLock;
+  using MainGuard = std::lock_guard<MainLock>;
   using TLStat = TLStatT<LockTraits>;
 
   /**
