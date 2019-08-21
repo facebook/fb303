@@ -108,56 +108,50 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
    * this into a template parameter in the future, but for now no one needs the
    * fully thread-safe behavior.
    */
-  typedef typename TLStatsNoLocking::MainGuard NamedMapGuard;
-  typedef typename TLStatsNoLocking::MainLock NamedMapLock;
+  using NamedMapLock = typename TLStatsNoLocking::MainLock;
 
   template <class StatType>
   using StatMap = folly::F14FastMap<std::string, std::shared_ptr<StatType>>;
 
+  struct State;
+
   /*
    * Get the TLTimeseries with the given name.
    *
-   * Must be called with namedMapsLock_ held, and the caller must
-   * continue to hold namedMapsLock_ until they no longer need the return
-   * value.
+   * Must be called with the state lock held.
    *
    * Never returns NULL.
    */
-  TLTimeseries* getTimeseriesLocked(folly::StringPiece name);
+  TLTimeseries* getTimeseriesLocked(State& state, folly::StringPiece name);
 
   /*
    * Get the TLHistogram with the given name.
    *
-   * Must be called with namedMapsLock_ held, and the caller must
-   * continue to hold namedMapsLock_ until they no longer need the return
-   * value.
+   * Must be called with the state lock held.
    *
    * May return NULL if no histogram with this name has been created in the
    * global ExportedHistogramMapImpl.  (If no histogram exists, this function
    * cannot automatically create one without knowing the histogram min, max,
    * and bucket width.)
    */
-  TLHistogram* getHistogramLocked(folly::StringPiece name);
+  TLHistogram* getHistogramLocked(State& state, folly::StringPiece name);
 
   /*
    * Get the TLCounter with the given name.
    *
-   * Must be called with namedMapsLock_ held, and the caller must
-   * continue to hold namedMapsLock_ until they no longer need the return
-   * value.
+   * Must be called with the state lock held.
    *
    * Never returns NULL.
    */
-  TLCounter* getCounterLocked(folly::StringPiece name);
+  TLCounter* getCounterLocked(State& state, folly::StringPiece name);
 
-  /*
-   * namedMapsLock_ proctects access to namedTimeseries_, namedHistograms_,
-   * and namedCounters_.
-   */
-  NamedMapLock namedMapsLock_;
-  StatMap<TLTimeseries> namedTimeseries_;
-  StatMap<TLHistogram> namedHistograms_;
-  StatMap<TLCounter> namedCounters_;
+  struct State {
+    StatMap<TLTimeseries> namedTimeseries_;
+    StatMap<TLHistogram> namedHistograms_;
+    StatMap<TLCounter> namedCounters_;
+  };
+
+  folly::Synchronized<State, NamedMapLock> state_;
 };
 
 } // namespace fb303

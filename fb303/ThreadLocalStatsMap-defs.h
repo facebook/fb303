@@ -28,8 +28,8 @@ template <class LockTraits>
 void ThreadLocalStatsMapT<LockTraits>::addStatValue(
     folly::StringPiece name,
     int64_t value) {
-  NamedMapGuard g(namedMapsLock_);
-  getTimeseriesLocked(name)->addValue(value);
+  auto state = state_.lock();
+  getTimeseriesLocked(*state, name)->addValue(value);
 }
 
 template <class LockTraits>
@@ -37,16 +37,16 @@ void ThreadLocalStatsMapT<LockTraits>::addStatValueAggregated(
     folly::StringPiece name,
     int64_t sum,
     int64_t numSamples) {
-  NamedMapGuard g(namedMapsLock_);
-  getTimeseriesLocked(name)->addValueAggregated(sum, numSamples);
+  auto state = state_.lock();
+  getTimeseriesLocked(*state, name)->addValueAggregated(sum, numSamples);
 }
 
 template <class LockTraits>
 void ThreadLocalStatsMapT<LockTraits>::addHistogramValue(
     folly::StringPiece name,
     int64_t value) {
-  NamedMapGuard g(namedMapsLock_);
-  TLHistogram* histogram = getHistogramLocked(name);
+  auto state = state_.lock();
+  TLHistogram* histogram = getHistogramLocked(*state, name);
   if (histogram) {
     histogram->addValue(value);
   }
@@ -56,15 +56,15 @@ template <class LockTraits>
 void ThreadLocalStatsMapT<LockTraits>::incrementCounter(
     folly::StringPiece name,
     int64_t amount) {
-  NamedMapGuard g(namedMapsLock_);
-  getCounterLocked(name)->incrementValue(amount);
+  auto state = state_.lock();
+  getCounterLocked(*state, name)->incrementValue(amount);
 }
 
 template <class LockTraits>
 std::shared_ptr<typename ThreadLocalStatsMapT<LockTraits>::TLTimeseries>
 ThreadLocalStatsMapT<LockTraits>::getTimeseriesSafe(folly::StringPiece name) {
-  NamedMapGuard g(namedMapsLock_);
-  auto& entry = namedTimeseries_[name];
+  auto state = state_.lock();
+  auto& entry = state->namedTimeseries_[name];
   if (!entry) {
     entry = std::make_shared<TLTimeseries>(this, name);
   }
@@ -78,8 +78,8 @@ ThreadLocalStatsMapT<LockTraits>::getTimeseriesSafe(
     size_t numBuckets,
     size_t numLevels,
     const int levelDurations[]) {
-  NamedMapGuard g(namedMapsLock_);
-  auto& entry = namedTimeseries_[name];
+  auto state = state_.lock();
+  auto& entry = state->namedTimeseries_[name];
   if (!entry) {
     entry = std::make_shared<TLTimeseries>(
         this, name, numBuckets, numLevels, levelDurations);
@@ -88,9 +88,9 @@ ThreadLocalStatsMapT<LockTraits>::getTimeseriesSafe(
 }
 
 template <class LockTraits>
-typename ThreadLocalStatsMapT<LockTraits>::TLTimeseries*
-ThreadLocalStatsMapT<LockTraits>::getTimeseriesLocked(folly::StringPiece name) {
-  auto& entry = namedTimeseries_[name];
+typename ThreadLocalStatsMapT<LockTraits>::TLTimeseries* ThreadLocalStatsMapT<
+    LockTraits>::getTimeseriesLocked(State& state, folly::StringPiece name) {
+  auto& entry = state.namedTimeseries_[name];
   if (!entry) {
     entry = std::make_shared<TLTimeseries>(this, name);
   }
@@ -98,9 +98,9 @@ ThreadLocalStatsMapT<LockTraits>::getTimeseriesLocked(folly::StringPiece name) {
 }
 
 template <class LockTraits>
-typename ThreadLocalStatsMapT<LockTraits>::TLHistogram*
-ThreadLocalStatsMapT<LockTraits>::getHistogramLocked(folly::StringPiece name) {
-  auto& entry = namedHistograms_[name];
+typename ThreadLocalStatsMapT<LockTraits>::TLHistogram* ThreadLocalStatsMapT<
+    LockTraits>::getHistogramLocked(State& state, folly::StringPiece name) {
+  auto& entry = state.namedHistograms_[name];
   if (!entry) {
     // Uncommon case: We don't know about this histogram in this thread yet.
     // Look up the global histogram info.
@@ -123,8 +123,8 @@ ThreadLocalStatsMapT<LockTraits>::getHistogramLocked(folly::StringPiece name) {
 template <class LockTraits>
 std::shared_ptr<typename ThreadLocalStatsMapT<LockTraits>::TLCounter>
 ThreadLocalStatsMapT<LockTraits>::getCounterSafe(folly::StringPiece name) {
-  NamedMapGuard g(namedMapsLock_);
-  auto& entry = namedCounters_[name];
+  auto state = state_.lock();
+  auto& entry = state->namedCounters_[name];
   if (!entry) {
     entry = std::make_shared<TLCounter>(this, name);
   }
@@ -132,9 +132,9 @@ ThreadLocalStatsMapT<LockTraits>::getCounterSafe(folly::StringPiece name) {
 }
 
 template <class LockTraits>
-typename ThreadLocalStatsMapT<LockTraits>::TLCounter*
-ThreadLocalStatsMapT<LockTraits>::getCounterLocked(folly::StringPiece name) {
-  auto& entry = namedCounters_[name];
+typename ThreadLocalStatsMapT<LockTraits>::TLCounter* ThreadLocalStatsMapT<
+    LockTraits>::getCounterLocked(State& state, folly::StringPiece name) {
+  auto& entry = state.namedCounters_[name];
   if (!entry) {
     entry = std::make_shared<TLCounter>(this, name);
   }

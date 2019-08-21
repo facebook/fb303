@@ -70,6 +70,13 @@ class TLStatsNoLocking {
    * performed from the correct thread.
    */
   class MainLock {
+   public:
+    void lock() {
+      assert(isInCorrectThread());
+    }
+
+    void unlock() {}
+
 #ifndef NDEBUG
    public:
     bool isInCorrectThread() const {
@@ -105,10 +112,7 @@ class TLStatsNoLocking {
   class MainGuard {
    public:
     explicit MainGuard(MainLock& lock) {
-      // To prevent 'lock' from violating -Wunused-parameter in opt builds.
-      (void)lock;
-
-      assert(lock.isInCorrectThread());
+      lock.lock();
     }
   };
 
