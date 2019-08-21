@@ -27,6 +27,49 @@
 namespace facebook {
 namespace fb303 {
 
+namespace detail {
+/**
+ * NoLock is a fake lock that provides no locking. In debug builds, it
+ * ensures that all locks are performed from the same thread.
+ */
+class NoLock {
+ public:
+  void lock() {
+    assert(isInCorrectThread());
+  }
+
+  void unlock() {}
+
+#ifndef NDEBUG
+  void swapThreads() {
+    threadID_ = std::thread::id();
+  }
+
+  bool isInCorrectThread() const {
+    // The first time we are called, set the thread ID.
+    // We do this here rather than in the constructor, since some users
+    // create a ThreadLocalStats object in one thread before spawning the
+    // thread that will actually use the ThreadLocalStats object.
+    if (threadID_ == std::thread::id()) {
+      threadID_ = std::this_thread::get_id();
+      return true;
+    }
+
+    return (threadID_ == std::this_thread::get_id());
+  }
+
+  mutable std::thread::id threadID_;
+#else
+  void swapThreads() {}
+
+  bool isInCorrectThread() {
+    return true;
+  }
+#endif
+};
+
+} // namespace detail
+
 /**
  * TLStatsNoLocking doesn't perform any locking.
  *
@@ -56,58 +99,14 @@ class TLStatsNoLocking {
       // In debug builds, StatGuard checks that the ThreadLocalStats
       // are being accessed from the correct thread.
       //
-      // In opt builds asssers are compiled out, and no checking is performed.
+      // In opt builds, asserts are compiled out, and no checking is performed.
       assert(
           (*containerAndLock == nullptr) ||
           (*containerAndLock)->getMainLock()->isInCorrectThread());
     }
   };
 
-  /*
-   * MainLock is stored in the ThreadLocalStatsT object.
-   *
-   * In debug builds, MainLock is used to ensure that all accesses are
-   * performed from the correct thread.
-   */
-  class MainLock {
-   public:
-    void lock() {
-      assert(isInCorrectThread());
-    }
-
-    void unlock() {}
-
-#ifndef NDEBUG
-   public:
-    bool isInCorrectThread() const {
-      // The first time we are called, set the thread ID.
-      // We do this here rather than in the constructor, since some users
-      // create a ThreadLocalStats object in one thread before spawning the
-      // thread that will actually use the ThreadLocalStats object.
-      if (threadID_ == std::thread::id()) {
-        threadID_ = std::this_thread::get_id();
-        return true;
-      }
-
-      return (threadID_ == std::this_thread::get_id());
-    }
-
-    void swapThreads() {
-      threadID_ = std::thread::id();
-    }
-
-   private:
-    mutable std::thread::id threadID_;
-
-#else
-   public:
-    bool isInCorrectThread() const {
-      return true;
-    }
-
-    void swapThreads() {}
-#endif
-  };
+  using MainLock = detail::NoLock;
 
   /**
    * The type to use for integer counter values.
@@ -166,8 +165,8 @@ class TLStatsNoLocking {
     *containerAndLock = container;
   }
 
-  static void swapThreads(MainLock* lock) {
-    lock->swapThreads();
+  static void swapThreads(MainLock& lock) {
+    lock.swapThreads();
   }
 };
 
@@ -300,7 +299,7 @@ class TLStatsThreadSafeT {
     containerAndLock->init(container);
   }
 
-  static void swapThreads(MainLock* /*lock*/) {}
+  static void swapThreads(MainLock& /*lock*/) {}
 };
 
 /*

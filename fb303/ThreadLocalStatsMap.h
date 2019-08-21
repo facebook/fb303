@@ -108,7 +108,7 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
    * this into a template parameter in the future, but for now no one needs the
    * fully thread-safe behavior.
    */
-  using NamedMapLock = typename TLStatsNoLocking::MainLock;
+  using NamedMapLock = detail::NoLock;
 
   template <class StatType>
   using StatMap = folly::F14FastMap<std::string, std::shared_ptr<StatType>>;

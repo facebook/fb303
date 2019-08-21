@@ -232,7 +232,7 @@ class ThreadLocalStatsT {
    * the ThreadLocalStats object for the lifetime of the program.
    */
   void swapThreads() {
-    LockTraits::swapThreads(&lock_);
+    LockTraits::swapThreads(lock_);
   }
 
  private:
