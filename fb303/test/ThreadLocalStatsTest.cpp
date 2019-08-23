@@ -19,6 +19,7 @@
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
+#include <future>
 #include <thread>
 
 using namespace facebook::fb303;
@@ -326,4 +327,32 @@ TEST(ThreadLocalStats, stressStatDestructionRace) {
   for (auto& thread : threads) {
     thread.join();
   }
+}
+
+TEST(ThreadLocalStats, handOffBetweenThreads) {
+  using ThreadLocalStats = ThreadLocalStatsT<TLStatsNoLocking>;
+  using TLTimeseries = TLTimeseriesT<TLStatsNoLocking>;
+
+  ServiceData serviceData;
+
+  std::optional<TLTimeseries> t;
+
+  auto f = std::async(std::launch::async, [&] {
+    auto p = std::make_unique<ThreadLocalStats>(&serviceData);
+    t = TLTimeseries{p.get(), "foo", SUM, COUNT};
+    t->addValue(1);
+    return p;
+  });
+
+  auto container = f.get();
+  container->swapThreads();
+
+  t->addValue(2);
+
+  // Try registering a new stat.
+  auto u = TLTimeseries{container.get(), "bar", SUM, COUNT};
+  u.addValue(3);
+
+  // This test asserts that handoff between threads does not assert or
+  // throw an exception.
 }

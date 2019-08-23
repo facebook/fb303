@@ -18,53 +18,61 @@
 #include <atomic>
 #include <thread>
 
+#include <folly/MicroLock.h>
 #include <folly/SharedMutex.h>
-#include <folly/synchronization/SmallLocks.h>
-
-#include <fb303/ThreadLocalStats.h>
 
 namespace facebook {
 namespace fb303 {
 
 namespace detail {
+
 /**
- * NoLock is a fake lock that provides no locking. In debug builds, it
- * ensures that all locks are performed from the same thread.
+ * NoLock is a fake lock that provides no locking.
  */
-class NoLock {
- public:
+struct NoLock {
+  void lock() {}
+  void unlock() {}
+};
+
+/**
+ * DebugCheckedLock asserts that the lock is only ever acquired from
+ * the same thread.
+ */
+struct DebugCheckedLock {
   void lock() {
-    assert(isInCorrectThread());
+    assertOnCorrectThread();
   }
 
   void unlock() {}
 
-#ifndef NDEBUG
-  void swapThreads() {
-    threadID_ = std::thread::id();
-  }
-
-  bool isInCorrectThread() const {
+  void assertOnCorrectThread() {
     // The first time we are called, set the thread ID.
     // We do this here rather than in the constructor, since some users
     // create a ThreadLocalStats object in one thread before spawning the
     // thread that will actually use the ThreadLocalStats object.
     if (threadID_ == std::thread::id()) {
       threadID_ = std::this_thread::get_id();
-      return true;
+      return;
     }
 
-    return (threadID_ == std::this_thread::get_id());
+    assert(threadID_ == std::this_thread::get_id());
   }
 
-  mutable std::thread::id threadID_;
-#else
-  void swapThreads() {}
-
-  bool isInCorrectThread() {
-    return true;
+  void swapThreads() {
+    threadID_ = std::thread::id();
   }
-#endif
+
+ private:
+  std::thread::id threadID_;
+};
+
+/**
+ * folly::MicroLock does not have a default constructor, so it must be
+ * explicitly zeroed ourselves.
+ */
+class InitedMicroLock : public folly::MicroLock {
+ public:
+  InitedMicroLock() : folly::MicroLock{} {}
 };
 
 } // namespace detail
@@ -81,31 +89,12 @@ class NoLock {
  */
 class TLStatsNoLocking {
  public:
-  /*
-   * Each individual TLStatT contains a ContainerAndLock object.
-   *
-   * For TLStatsNoLocking, ContainerAndLock is just a pointer to the container.
-   */
-  using ContainerAndLock = ThreadLocalStatsT<TLStatsNoLocking>*;
-
-  class StatGuard {
-   public:
-    explicit StatGuard(const ContainerAndLock& containerAndLock) {
-      // To prevent 'containerAndLock' from violating -Wunused-parameter
-      // in opt builds.
-      (void)containerAndLock;
-
-      // In debug builds, StatGuard checks that the ThreadLocalStats
-      // are being accessed from the correct thread.
-      //
-      // In opt builds, asserts are compiled out, and no checking is performed.
-      assert(
-          (containerAndLock == nullptr) ||
-          containerAndLock->getRegistryLock()->isInCorrectThread());
-    }
-  };
-
+#ifndef NDEBUG
+  using RegistryLock = detail::DebugCheckedLock;
+#else
   using RegistryLock = detail::NoLock;
+#endif
+  using StatLock = detail::NoLock;
 
   /**
    * The type to use for integer counter values.
@@ -130,42 +119,20 @@ class TLStatsNoLocking {
     T value_{0};
   };
 
-  static ThreadLocalStatsT<TLStatsNoLocking>* getContainer(
-      const ContainerAndLock& containerAndLock) {
-    return containerAndLock;
-  }
-
-  /**
-   * Clear the ThreadLocalStatsT object from a ContainerAndLock.
-   *
-   * The lock on the ContainerAndLock must be held during this call.
-   * The StatGuard parameter is required purely to help ensure that the caller
-   * is holding the lock.
-   */
-  static void clearContainer(
-      const StatGuard& /* guard */,
-      ContainerAndLock* containerAndLock) {
-    *containerAndLock = nullptr;
-  }
-
-  /**
-   * Set the ThreadLocalStatsT container.
-   *
-   * The container should currently be null when initContainer() is called.
-   * The StatGuard parameter is required purely to help ensure that the caller
-   * is holding the lock when calling this method.
-   */
-  static void initContainer(
-      const StatGuard& /* guard */,
-      ContainerAndLock* containerAndLock,
-      ThreadLocalStatsT<TLStatsNoLocking>* container) {
-    DCHECK(!*containerAndLock);
-    DCHECK(container);
-    *containerAndLock = container;
+  static void willAcquireStatLock(RegistryLock& registryLock) {
+#ifndef NDEBUG
+    registryLock.assertOnCorrectThread();
+#else
+    (void)registryLock;
+#endif
   }
 
   static void swapThreads(RegistryLock& lock) {
+#ifndef NDEBUG
     lock.swapThreads();
+#else
+    (void)lock;
+#endif
   }
 };
 
@@ -192,14 +159,10 @@ class TLStatsNoLocking {
  * aggregate the TLStatT object during any operation that registers or
  * unregisters it with a ThreadLocalStatsT container.
  */
-template <typename C>
-class TLStatsThreadSafeT {
+class TLStatsThreadSafe {
  public:
-  using ContainerAndLock = C;
-
-  using StatGuard = std::lock_guard<const ContainerAndLock>;
-
   using RegistryLock = folly::SharedMutex;
+  using StatLock = detail::InitedMicroLock;
 
   /**
    * The type to use for integer counter values.
@@ -240,94 +203,9 @@ class TLStatsThreadSafeT {
     std::atomic<T> value_{0};
   };
 
-  /**
-   * Get the ThreadLocalStatsT object from a ContainerAndLock.
-   *
-   * The lock on the ContainerAndLock does not need to be held during this
-   * call.  (The owner of the TLStatsT is responsible for performing any
-   * necessary synchronization around operations that update the container.)
-   */
-  static ThreadLocalStatsT<TLStatsThreadSafeT>* getContainer(
-      const ContainerAndLock& containerAndLock) {
-    return containerAndLock.getContainer();
-  }
-
-  /**
-   * Clear the ThreadLocalStatsT object from a ContainerAndLock.
-   *
-   * The lock on the ContainerAndLock must be held during this call.
-   * The StatGuard parameter is required purely to help ensure that the caller
-   * is holding the lock.
-   */
-  static void clearContainer(
-      const StatGuard& /* guard */,
-      ContainerAndLock* containerAndLock) {
-    containerAndLock->clear();
-  }
-
-  /**
-   * Set the ThreadLocalStatsT container.
-   *
-   * The container should currently be null when initContainer() is called.
-   * The StatGuard parameter is required purely to help ensure that the caller
-   * is holding the lock when calling this method.
-   */
-  static void initContainer(
-      const StatGuard& /* guard */,
-      ContainerAndLock* containerAndLock,
-      ThreadLocalStatsT<TLStatsThreadSafeT>* container) {
-    DCHECK(!containerAndLock->getContainer());
-    DCHECK(container);
-    containerAndLock->init(container);
-  }
-
+  static void willAcquireStatLock(RegistryLock& /*registryLock*/) {}
   static void swapThreads(RegistryLock& /*lock*/) {}
 };
 
-/*
- * ContainerAndLock implementations for TLStatsThreadSafeT.
- * Each individual TLStatT contains a ContainerAndLock object.
- * Currently two thread-safe implementations are supported:
- *
- * 1. ContainerWithPicoSpinLock - uses a PicoSpinLock to store a pointer to the
- * container, while using the least significant bit of the pointer as a spinlock
- *
- * 2. ContainerWithSharedMutex - uses a folly::SharedMutex instead of
- * PicoSpinLock for cases where the spin lock can be inefficient.
- */
-
-class ContainerWithPicoSpinLock {
- public:
-  using LockTrait = TLStatsThreadSafeT<ContainerWithPicoSpinLock>;
-  using Container = ThreadLocalStatsT<LockTrait>;
-
-  explicit ContainerWithPicoSpinLock(Container* container) {
-    static_assert(alignof(Container) >= 2, "Low bit is used for the spin lock");
-    value_.init(reinterpret_cast<intptr_t>(container));
-  }
-
-  Container* getContainer() const {
-    return reinterpret_cast<Container*>(value_.getData());
-  }
-
-  void lock() const {
-    value_.lock();
-  }
-  void unlock() const {
-    value_.unlock();
-  }
-
-  void clear() {
-    value_.setData(0);
-  }
-  void init(Container* container) {
-    value_.setData(reinterpret_cast<intptr_t>(container));
-  }
-
- private:
-  folly::PicoSpinLock<intptr_t, 0> value_;
-};
-
-using TLStatsThreadSafe = TLStatsThreadSafeT<ContainerWithPicoSpinLock>;
 } // namespace fb303
 } // namespace facebook

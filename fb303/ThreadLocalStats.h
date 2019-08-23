@@ -257,13 +257,6 @@ class ThreadLocalStatsT {
    */
   bool isRegistered(TLStat* stat);
 
-  /**
-   * Get the lock for this ThreadLocalStats object.
-   */
-  const RegistryLock* getRegistryLock() const {
-    return &lock_;
-  }
-
   // Forbidden copy constructor and assignment operator
   ThreadLocalStatsT(const ThreadLocalStatsT&) = delete;
   ThreadLocalStatsT& operator=(const ThreadLocalStatsT&) = delete;
@@ -278,7 +271,6 @@ class ThreadLocalStatsT {
   RegistryLock lock_;
   std::unordered_set<TLStat*> tlStats_;
 
-  friend class TLStatsNoLocking;
   template <typename T>
   friend class TLStatT;
 };
@@ -318,10 +310,14 @@ class TLStatT {
 
  protected:
   enum SubclassMove { SUBCLASS_MOVE };
-  class StatGuard : public LockTraits::StatGuard {
-   public:
-    explicit StatGuard(const TLStatT<LockTraits>* stat)
-        : LockTraits::StatGuard(stat->containerAndLock_) {}
+
+  std::unique_lock<typename LockTraits::StatLock> guardStatLock() const {
+    // Assert the stat is being used by the thread currently responsible
+    // for the container in debug mode.
+    if (container_) {
+      LockTraits::willAcquireStatLock(container_->lock_);
+    }
+    return std::unique_lock<typename LockTraits::StatLock>{statLock_};
   };
 
   /**
@@ -392,7 +388,7 @@ class TLStatT {
    * Get the ThreadLocalStats object that contains this stat.
    */
   Container* getContainer() const {
-    return LockTraits::getContainer(containerAndLock_);
+    return container_;
   }
 
   /**
@@ -421,8 +417,21 @@ class TLStatT {
   TLStatT& operator=(TLStatT&&) = delete;
   TLStatT& operator=(const TLStatT&) = delete;
 
-  typename LockTraits::ContainerAndLock containerAndLock_;
+  Container* container_;
   std::string name_;
+
+  /**
+   * Synchronizes access to this TLStat's value. This class used to
+   * use the bottom bit of the container_ pointer as a spin lock which
+   * saves some space, but MicroLock is slightly cheaper in the common
+   * uncontended case and doesn't degrade as poorly under contention,
+   * such as when one thread is updating the stats and another is
+   * aggregating.
+   *
+   * If the space matters, we can buy a word by storing name_ in a
+   * folly::fbstring.
+   */
+  mutable typename LockTraits::StatLock statLock_;
 };
 
 /**
@@ -477,14 +486,14 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
    * Add a new data point
    */
   void addValue(int64_t value) {
-    StatGuard g(this);
+    auto g = this->guardStatLock();
 
     sum_ += value;
     count_ += 1;
   }
 
   void addValueAggregated(int64_t value, int64_t nsamples) {
-    StatGuard g(this);
+    auto g = this->guardStatLock();
 
     sum_ += value;
     count_ += nsamples;
@@ -502,18 +511,16 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
   void aggregate(std::chrono::seconds now) override;
 
   int64_t count() const {
-    StatGuard g(this);
+    auto g = this->guardStatLock();
     return count_;
   }
 
   int64_t sum() const {
-    StatGuard g(this);
+    auto g = this->guardStatLock();
     return sum_;
   }
 
  private:
-  typedef typename TLStatT<LockTraits>::StatGuard StatGuard;
-
   void init(ThreadLocalStatsT<LockTraits>* stats);
 
   void init(
@@ -588,13 +595,13 @@ class TLHistogramT : public TLStatT<LockTraits> {
   int64_t getMax() const;
 
   void addValue(int64_t value) {
-    StatGuard g(this);
+    auto g = this->guardStatLock();
     simpleHistogram_.addValue(value);
     dirty_ = true;
   }
 
   void addRepeatedValue(int64_t value, int64_t nsamples) {
-    StatGuard g(this);
+    auto g = this->guardStatLock();
     simpleHistogram_.addRepeatedValue(value, nsamples);
     dirty_ = true;
   }
@@ -630,8 +637,6 @@ class TLHistogramT : public TLStatT<LockTraits> {
   void aggregate(std::chrono::seconds now) override;
 
  private:
-  typedef typename TLStatT<LockTraits>::StatGuard StatGuard;
-
   void initGlobalStat(ThreadLocalStatsT<LockTraits>* stats);
 
   ExportedHistogramMapImpl* getHistogramMap(const char* errorMsg) {
@@ -704,7 +709,6 @@ class TLCounterT : public TLStatT<LockTraits> {
   void aggregate();
 
  private:
-  using StatGuard = typename TLStatT<LockTraits>::StatGuard;
   using ValueType =
       typename LockTraits::template CounterType<fb303::CounterType>;
 

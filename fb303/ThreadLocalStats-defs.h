@@ -32,7 +32,7 @@ namespace fb303 {
 
 template <class LockTraits>
 TLStatT<LockTraits>::TLStatT(Container* stats, folly::StringPiece name)
-    : containerAndLock_{stats}, name_(name.str()) {}
+    : container_{stats}, name_(name.str()) {}
 
 template <class LockTraits>
 TLStatT<LockTraits>::~TLStatT() {
@@ -91,7 +91,7 @@ TLStatT<LockTraits>::TLStatT(SubclassMove, TLStatT<LockTraits>& other) noexcept(
       // and unregister it from its container.  Initialize containerAndLock_
       // with the result, but note that we are not registered with the
       // container yet.
-      containerAndLock_{other.clearContainer()},
+      container_{other.clearContainer()},
       // Move other.name_ to our name_.  Note that it is important that this
       // step happens only after calling other.clearContainer().
       name_{std::move(other.name_)} {}
@@ -139,9 +139,7 @@ void TLStatT<LockTraits>::moveAssignment(
     // Call registerStat() before updating containerAndLock_,
     // so that containerAndLock_ will still be null if registerStat() throws.
     container->registerStat(this);
-
-    StatGuard guard(this);
-    LockTraits::initContainer(guard, &containerAndLock_, container);
+    container_ = container;
   }
 }
 
@@ -156,10 +154,7 @@ ThreadLocalStatsT<LockTraits>* TLStatT<LockTraits>::clearContainer() {
   // cached since the last aggregation.
   aggregate(std::chrono::seconds(get_legacy_stats_time()));
 
-  {
-    StatGuard guard(this);
-    LockTraits::clearContainer(guard, &containerAndLock_);
-  }
+  container_ = nullptr;
 
   // Make sure we aren't holding our stat lock when we call unregisterStat().
   // unregisterStat() will acquire the ThreadLocalStats's main lock, and we
@@ -248,7 +243,7 @@ void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
   int64_t currentSum;
   int64_t currentCount;
   {
-    StatGuard g(this);
+    auto g = this->guardStatLock();
     currentSum = sum_;
     currentCount = count_;
     sum_ = 0;
@@ -358,13 +353,13 @@ TLHistogramT<LockTraits>& TLHistogramT<LockTraits>::operator=(
     fb303::CounterType min;
     fb303::CounterType max;
     {
-      StatGuard g(&other);
+      auto g = this->guardStatLock();
       bucketSize = other.simpleHistogram_.getBucketSize();
       min = other.simpleHistogram_.getMin();
       max = other.simpleHistogram_.getMax();
     }
     {
-      StatGuard g(this);
+      auto g = this->guardStatLock();
       DCHECK_EQ(0, simpleHistogram_.computeTotalCount());
       simpleHistogram_ =
           folly::Histogram<fb303::CounterType>{bucketSize, min, max};
@@ -381,25 +376,25 @@ TLHistogramT<LockTraits>::~TLHistogramT() {
 
 template <class LockTraits>
 int64_t TLHistogramT<LockTraits>::getBucketSize() const {
-  StatGuard g(this);
+  auto g = this->guardStatLock();
   return simpleHistogram_.getBucketSize();
 }
 
 template <class LockTraits>
 int64_t TLHistogramT<LockTraits>::getMin() const {
-  StatGuard g(this);
+  auto g = this->guardStatLock();
   return simpleHistogram_.getMin();
 }
 
 template <class LockTraits>
 int64_t TLHistogramT<LockTraits>::getMax() const {
-  StatGuard g(this);
+  auto g = this->guardStatLock();
   return simpleHistogram_.getMax();
 }
 
 template <class LockTraits>
 void TLHistogramT<LockTraits>::aggregate(std::chrono::seconds now) {
-  StatGuard g(this);
+  auto g = this->guardStatLock();
   if (!dirty_) {
     return;
   }
