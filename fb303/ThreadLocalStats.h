@@ -676,10 +676,7 @@ class TLHistogramT : public TLStatT<LockTraits> {
 template <class LockTraits>
 class TLCounterT : public TLStatT<LockTraits> {
  public:
-  TLCounterT(ThreadLocalStatsT<LockTraits>* stats, folly::StringPiece name)
-      : TLStatT<LockTraits>(stats, name) {
-    this->postInit(stats);
-  }
+  TLCounterT(ThreadLocalStatsT<LockTraits>* stats, folly::StringPiece name);
   ~TLCounterT() override;
 
   /**
@@ -711,6 +708,13 @@ class TLCounterT : public TLStatT<LockTraits> {
  private:
   using ValueType =
       typename LockTraits::template CounterType<fb303::CounterType>;
+
+  /**
+   * Save a pointer to ServiceData because the container may be
+   * destroyed while aggregate is running and it is not safe to
+   * read container_ from aggregate().
+   */
+  ServiceData* serviceData_;
 
   /**
    * The current thread-local counter delta.

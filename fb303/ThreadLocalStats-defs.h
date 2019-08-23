@@ -419,13 +419,22 @@ void TLHistogramT<LockTraits>::initGlobalStat(
  */
 
 template <class LockTraits>
+TLCounterT<LockTraits>::TLCounterT(
+    ThreadLocalStatsT<LockTraits>* stats,
+    folly::StringPiece name)
+    : TLStatT<LockTraits>(stats, name), serviceData_(stats->getServiceData()) {
+  this->postInit(stats);
+}
+
+template <class LockTraits>
 TLCounterT<LockTraits>::~TLCounterT() {
   this->preDestroy();
 }
 
 template <class LockTraits>
 TLCounterT<LockTraits>::TLCounterT(TLCounterT&& other) noexcept(false)
-    : TLStatT<LockTraits>(TLStatT<LockTraits>::SUBCLASS_MOVE, other) {
+    : TLStatT<LockTraits>(TLStatT<LockTraits>::SUBCLASS_MOVE, other),
+      serviceData_(other.serviceData_) {
   // We don't need to update value_ here.  other.value_ should already be 0
   // since we just finished aggregating it in startMove().
 
@@ -437,6 +446,7 @@ template <class LockTraits>
 TLCounterT<LockTraits>& TLCounterT<LockTraits>::operator=(
     TLCounterT&& other) noexcept(false) {
   this->moveAssignment(other, [&] {
+    serviceData_ = other.serviceData_;
     // We don't need to update value_ here.  Both value_ and other.value_
     // should have been reset to 0 by aggregating them in startMove().
   });
@@ -450,29 +460,12 @@ void TLCounterT<LockTraits>::aggregate(std::chrono::seconds /*now*/) {
 
 template <class LockTraits>
 void TLCounterT<LockTraits>::aggregate() {
-  auto* container = this->getContainer();
-  if (!container) {
-    // Do nothing if the container is currently unset.
-    //
-    // This can happen in TLStatsThreadSafe mode when the TLCounter is
-    // currently in the process of being unregistered or destroyed.
-    // - The ThreadLocalStatsT::aggregate() function may see that this object
-    //   is still registered when it runs, causing it to call aggregate().
-    // - However, a clearContainer() call may be occurring simultaneously in
-    //   another thread.  This will clear containerAndLock_ before
-    //   unregistering us from the container.  (The unregistration will block
-    //   until ThreadLocalStatsT::aggregate() completes, since it has to wait
-    //   on the ThreadLocalStats MainLock.)
-    return;
-  }
-
   auto delta = value_.reset();
   if (delta == 0) {
     return;
   }
 
-  auto serviceData = container->getServiceData();
-  serviceData->incrementCounter(this->name(), delta);
+  serviceData_->incrementCounter(this->name(), delta);
 }
 
 /*
