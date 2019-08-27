@@ -31,8 +31,10 @@ namespace fb303 {
  */
 
 template <class LockTraits>
-TLStatT<LockTraits>::TLStatT(Container* stats, folly::StringPiece name)
-    : container_{stats}, name_(name.str()) {}
+TLStatT<LockTraits>::TLStatT(const Container* stats, folly::StringPiece name)
+    : link_{typename detail::TLStatLinkPtr<LockTraits>::FromOther{},
+            stats->link_},
+      name_(name.str()) {}
 
 template <class LockTraits>
 TLStatT<LockTraits>::~TLStatT() {
@@ -47,7 +49,7 @@ TLStatT<LockTraits>::~TLStatT() {
   // constructor, but we should not be registered with the container yet, since
   // that only happens as the very last step of the subclass constructor, in
   // postInit()/finishMove().
-  DCHECK(getContainer() == nullptr || !getContainer()->isRegistered(this));
+  DCHECK(!link_.isLinked());
 }
 
 template <class LockTraits>
@@ -58,27 +60,57 @@ void TLStatT<LockTraits>::postInit(Container* stats) {
   // construction.  As soon as we call registerStat(), other threads may start
   // calling aggregate() on us.  This should only happen once we are fully
   // constructed.
-  stats->registerStat(this);
+  link();
 }
 
 template <class LockTraits>
 void TLStatT<LockTraits>::preDestroy() {
-  // Call clearContainer().  It does all of the cleanup that we need:
-  // it aggregates the stats one final time, and unregisters ourself from the
-  // container.
-  //
-  // This is done in preDestroy() as we need to unregister ourself before we
-  // start cleaning up.  Calling unregisterStat() prevents other threads from
-  // calling aggregate() on us again.  We have to stop all calls to aggregate()
-  // before we start destroying our state.
-  clearContainer();
+  // Unregister ourself from our container. This is done in preDestroy() to
+  // prevent another thread from aggregating us while we are cleaning up.
+  unlink();
+}
+
+template <class LockTraits>
+void TLStatT<LockTraits>::link() {
+  if (link_.linked_) {
+    return;
+  }
+  auto guard = link_->lock();
+  if (link_->container_) {
+    bool inserted = link_->container_->tlStats_.insert(this)
+                        .second; // May throw, so do this first.
+    CHECK(inserted) << "attempted to register a stat twice: " << name() << "("
+                    << link_->container_->tlStats_.size() << " registered)";
+  }
+  link_.linked_ = true;
+}
+
+template <class LockTraits>
+void TLStatT<LockTraits>::unlink() {
+  if (!link_.linked_) {
+    return;
+  }
+
+  // Before we unlink from the container, aggegrate one final time.
+  aggregate(std::chrono::seconds{get_legacy_stats_time()});
+
+  // Acquire the registry lock. This prevents ThreadLocalStats from trying to
+  // call aggregate() on this TLStat while we update the link_ pointer.
+  auto guard = link_->lock();
+  if (link_->container_) {
+    size_t erased = link_->container_->tlStats_.erase(this); // noexcept
+    CHECK(erased) << "attempted to unregister a stat that was not registered: "
+                  << name() << " (" << link_->container_->tlStats_.size()
+                  << " registered)";
+  }
+  link_.linked_ = false;
 }
 
 /*
  * Constructor for subclasses to invoke when performing move construction.
  *
- * This calls other.clearContainer(), and initializes our container and name
- * from the other stat's data.
+ * This unlinks the other stat from its container and initializes our
+ * name from the other stat's data.
  *
  * After invoking this constructor the subclass should move construct its
  * statistic data, and then call finishMove() to complete registration of this
@@ -87,22 +119,21 @@ void TLStatT<LockTraits>::preDestroy() {
 template <class LockTraits>
 TLStatT<LockTraits>::TLStatT(SubclassMove, TLStatT<LockTraits>& other) noexcept(
     false)
-    : // Call other.clearContainer() on the other stat, to aggregate its data
-      // and unregister it from its container.  Initialize containerAndLock_
-      // with the result, but note that we are not registered with the
-      // container yet.
-      container_{other.clearContainer()},
-      // Move other.name_ to our name_.  Note that it is important that this
-      // step happens only after calling other.clearContainer().
-      name_{std::move(other.name_)} {}
+    // Copy a reference to the TLStatLink, but don't link us into the container
+    // until finishMove().
+    : link_{typename detail::TLStatLinkPtr<LockTraits>::FromOther{},
+            other.link_} {
+  other.unlink();
+
+  // Move other.name_ to our name_.  Note that it is important that this
+  // step happens only after unlinking the other from the container.
+  name_ = std::move(other.name_);
+}
 
 template <class LockTraits>
 void TLStatT<LockTraits>::finishMove() {
-  // Register ourself with the container stored in containerAndLock_
-  auto container = getContainer();
-  if (container) {
-    container->registerStat(this);
-  }
+  // Register ourself with the linked container.
+  link();
 }
 
 template <typename LockTraits>
@@ -115,67 +146,36 @@ void TLStatT<LockTraits>::moveAssignment(
     return;
   }
 
-  // Remove us from our current container.
-  // This aggregates our stats, and makes sure that aggregate() won't be called
-  // on us during the move operation.
-  clearContainer();
+  // Remove us from our container while moving stats around.
+  unlink();
 
-  // Remove the other TLStatT from its container.
-  //
-  // We do not set containerAndLock_ yet.  We only set that below, after
-  // moveContents() and container->registerStat() have both succeeded.
-  // This ensures that containerAndLock_ is never set when we are not
-  // registered.
-  auto container = other.clearContainer();
+  // Remove the other TLStatT from its container.  Wait to relink
+  // ourselves until moveContents has succeeded.
+  other.unlink();
 
-  // Take the other stat's name.
+  // Take the other stat's name and container.
+  link_.replaceFromOther(other.link_);
   name_ = std::move(other.name_);
 
-  // Call moveContents() to move the stat data structures
+  // Move the stat data structures.
   moveContents();
 
-  // Register ourself with the container, and set containerAndLock_
-  if (container) {
-    // Call registerStat() before updating containerAndLock_,
-    // so that containerAndLock_ will still be null if registerStat() throws.
-    container->registerStat(this);
-    container_ = container;
-  }
+  // Now it's safe to register ourselves with our new container.
+  link();
 }
 
-template <class LockTraits>
-ThreadLocalStatsT<LockTraits>* TLStatT<LockTraits>::clearContainer() {
-  auto* container = getContainer();
-  if (!container) {
-    return nullptr;
-  }
-
-  // Aggregate the statistics one last time to ensure that we don't lose data
-  // cached since the last aggregation.
-  aggregate(std::chrono::seconds(get_legacy_stats_time()));
-
-  container_ = nullptr;
-
-  // Make sure we aren't holding our stat lock when we call unregisterStat().
-  // unregisterStat() will acquire the ThreadLocalStats's main lock, and we
-  // should never be holding one of the individual stat locks when we try to
-  // acquire the main lock.
-  container->unregisterStat(this);
-  return container;
-}
-
-template <class LockTraits>
-ThreadLocalStatsT<LockTraits>* TLStatT<LockTraits>::checkContainer(
-    const char* errorMsg) {
-  auto* container = getContainer();
-  if (!container) {
+template <typename LockTraits>
+template <typename Fn>
+auto TLStatT<LockTraits>::withContainerChecked(const char* errorMsg, Fn&& fn) {
+  auto guard = link_->lock();
+  if (!link_->container_) {
     throw std::runtime_error(folly::to<std::string>(
         name_,
-        ": ThreadLocalStats container has already been "
-        "destroyed while ",
+        ": ThreadLocalStats container has already been destroyed while ",
         errorMsg));
   }
-  return container;
+
+  return fn(*link_->container_);
 }
 
 /*
@@ -204,7 +204,6 @@ TLTimeseriesT<LockTraits>::TLTimeseriesT(TLTimeseriesT&& other) noexcept(false)
   // other.count_ and other.sum_ should always be 0 since the TLStatT
   // SUBCLASS_MOVE constructor just called aggregate() on the other stat.
 
-  // Call finishMove()
   this->finishMove();
 }
 
@@ -234,7 +233,9 @@ void TLTimeseriesT<LockTraits>::exportStat(fb303::ExportType exportType) {
   // calls to re-export the stat with the same stat type are essentially
   // no-ops.  Therefore we don't worry about registering the stat in exactly
   // one thread for now.
-  auto statMap = this->checkContainer("exporting a stat")->getStatsMap();
+  auto statMap = this->withContainerChecked(
+      "exporting a stat",
+      [](Container& container) { return container.getStatsMap(); });
   statMap->exportStat(globalStat_, this->name(), exportType);
 }
 
@@ -330,7 +331,6 @@ TLHistogramT<LockTraits>::TLHistogramT(TLHistogramT&& other) noexcept(false)
   // The SUBCLASS_MOVE constructor just called other.aggregate(), so
   // other.simpleHistogram_ should be empty now.
 
-  // Call finishMove()
   this->finishMove();
 }
 
@@ -342,7 +342,7 @@ TLHistogramT<LockTraits>& TLHistogramT<LockTraits>::operator=(
     globalStat_.swap(other.globalStat_);
 
     // Update simpleHistogram_ to have the desired parameters.
-    // It should already be empty since the clearContainer() call above will
+    // It should already be empty since the moveAssignment() call above will
     // have just aggregated it.
     //
     // We hold the StatGuards during this operation just to be safe.  However,
@@ -414,6 +414,14 @@ void TLHistogramT<LockTraits>::initGlobalStat(
       this->name(), &histToCopy);
 }
 
+template <class LockTraits>
+ExportedHistogramMapImpl* TLHistogramT<LockTraits>::getHistogramMap(
+    const char* errorMsg) {
+  return this->withContainerChecked(errorMsg, [](Container& container) {
+    return container.getHistogramMap();
+  });
+}
+
 /*
  * TLCounterT
  */
@@ -435,10 +443,6 @@ template <class LockTraits>
 TLCounterT<LockTraits>::TLCounterT(TLCounterT&& other) noexcept(false)
     : TLStatT<LockTraits>(TLStatT<LockTraits>::SUBCLASS_MOVE, other),
       serviceData_(other.serviceData_) {
-  // We don't need to update value_ here.  other.value_ should already be 0
-  // since we just finished aggregating it in startMove().
-
-  // Call finishMove()
   this->finishMove();
 }
 
@@ -474,53 +478,28 @@ void TLCounterT<LockTraits>::aggregate() {
 
 template <class LockTraits>
 ThreadLocalStatsT<LockTraits>::ThreadLocalStatsT(ServiceData* serviceData)
-    : serviceData_(serviceData ? serviceData : fbData.ptr()) {}
+    : serviceData_{serviceData ? serviceData : fbData.ptr()},
+      link_{new detail::TLStatLink<LockTraits>{this}} {}
 
 template <class LockTraits>
 ThreadLocalStatsT<LockTraits>::~ThreadLocalStatsT() {
+  // Under the registry lock, break all links between ThreadLocalStats
+  // and the TLStats.
+  auto guard = link_->lock();
+  link_->container_ = nullptr;
   if (!tlStats_.empty()) {
     LOG(WARNING) << "Deleting parent container while " << tlStats_.size()
                  << " stats are registered:";
-    for (auto stat = tlStats_.begin(); stat != tlStats_.end();) {
-      VLOG(1) << " - " << (*stat)->name();
-      auto toClear = stat++;
-      (*toClear)->clearContainer();
-    }
   }
-
-  DCHECK(tlStats_.empty());
-}
-
-template <class LockTraits>
-void ThreadLocalStatsT<LockTraits>::registerStat(TLStatT<LockTraits>* stat) {
-  RegistryGuard g(lock_);
-
-  auto inserted = tlStats_.insert(stat).second;
-  CHECK(inserted) << "attempted to register a stat twice: " << stat->name()
-                  << " (" << tlStats_.size() << " registered)";
-}
-
-template <class LockTraits>
-void ThreadLocalStatsT<LockTraits>::unregisterStat(TLStatT<LockTraits>* stat) {
-  RegistryGuard g(lock_);
-
-  size_t numErased = tlStats_.erase(stat);
-  (void)numErased; // opt build unused
-  DCHECK_EQ(1, numErased)
-      << "attempted to unregister a stat that was not registered: "
-      << stat->name() << " (" << tlStats_.size() << " registered)";
-}
-
-template <class LockTraits>
-bool ThreadLocalStatsT<LockTraits>::isRegistered(TLStatT<LockTraits>* stat) {
-  RegistryGuard g(lock_);
-  auto it = tlStats_.find(stat);
-  return (it != tlStats_.end());
+  for (auto* stat : tlStats_) {
+    VLOG(1) << " - " << stat->name();
+  }
+  tlStats_.clear();
 }
 
 template <class LockTraits>
 void ThreadLocalStatsT<LockTraits>::aggregate() {
-  RegistryGuard g(lock_);
+  auto guard = link_->lock();
 
   // TODO: In the future it would be nice if the stats code used a
   // std::chrono::time_point instead of just a std::chrono::duration
@@ -528,6 +507,11 @@ void ThreadLocalStatsT<LockTraits>::aggregate() {
   for (TLStatT<LockTraits>* stat : tlStats_) {
     stat->aggregate(now);
   }
+}
+
+template <class LockTraits>
+void ThreadLocalStatsT<LockTraits>::swapThreads() {
+  link_->swapThreads();
 }
 
 } // namespace fb303

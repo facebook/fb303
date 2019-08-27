@@ -282,6 +282,31 @@ TEST(ThreadLocalStats, destroyThreadContainerBeforeStat) {
   }
 }
 
+template <typename LockTraits>
+void testDestroyContainerBeforeMovingStat() {
+  ServiceData data;
+  std::optional<ThreadLocalStatsT<LockTraits>> tlstats{std::in_place, &data};
+
+  TLCounterT<LockTraits> ctr1{&*tlstats, "foo"};
+  TLHistogramT<LockTraits> ctr2{&*tlstats, "bar", 1, 20, 30, SUM, COUNT, 50};
+
+  tlstats.reset();
+
+  TLCounterT<LockTraits> ctr3{std::move(ctr1)};
+  TLHistogramT<LockTraits> ctr4{std::move(ctr2)};
+}
+
+TEST(ThreadLocalStats, destroyContainerBeforeMovingStat) {
+  {
+    SCOPED_TRACE("TLStatsThreadSafe");
+    testDestroyContainerBeforeMovingStat<TLStatsThreadSafe>();
+  }
+  {
+    SCOPED_TRACE("TLStatsNoLocking");
+    testDestroyContainerBeforeMovingStat<TLStatsNoLocking>();
+  }
+}
+
 struct ContainerAndStats {
   std::optional<ThreadLocalStatsT<TLStatsThreadSafe>> container;
   std::optional<TLCounterT<TLStatsThreadSafe>> stat1;
@@ -290,8 +315,6 @@ struct ContainerAndStats {
 };
 
 TEST(ThreadLocalStats, stressStatDestructionRace) {
-  SKIP() << "Currently failing";
-
   ServiceData data;
 
   StartingGate gate(FLAGS_num_threads * 4);
@@ -355,4 +378,43 @@ TEST(ThreadLocalStats, handOffBetweenThreads) {
 
   // This test asserts that handoff between threads does not assert or
   // throw an exception.
+}
+
+template <typename LockTraits>
+void moveHistogramAcrossContainers() {
+  ServiceData data1;
+  ThreadLocalStatsT<LockTraits> tlstats1(&data1);
+
+  ServiceData data2;
+  ThreadLocalStatsT<LockTraits> tlstats2(&data2);
+
+  TLHistogramT<LockTraits> hist1{&tlstats1, "foo", 10, 0, 1000, SUM, COUNT, 50};
+  hist1.addValue(10);
+
+  TLHistogramT<LockTraits> hist2{&tlstats2, "foo", 10, 0, 1000, SUM, COUNT, 50};
+  hist2.addValue(20);
+
+  hist1 = std::move(hist2);
+  hist1.addValue(30);
+
+  tlstats1.aggregate();
+  tlstats2.aggregate();
+
+  hist1.addValue(40);
+  tlstats1.aggregate();
+  tlstats2.aggregate();
+
+  EXPECT_EQ(10, data1.getCounter("foo.sum"));
+  EXPECT_EQ(90, data2.getCounter("foo.sum"));
+}
+
+TEST(ThreadLocalStats, moveStatFromOneContainerToAnother) {
+  {
+    SCOPED_TRACE("TLStatsThreadSafe");
+    moveHistogramAcrossContainers<TLStatsThreadSafe>();
+  }
+  {
+    SCOPED_TRACE("TLStatsNoLocking");
+    moveHistogramAcrossContainers<TLStatsNoLocking>();
+  }
 }

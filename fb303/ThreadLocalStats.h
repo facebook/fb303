@@ -39,6 +39,13 @@ class TLHistogramT;
 template <class LockTraits>
 class TLTimeseriesT;
 
+namespace detail {
+template <typename LockTraits>
+class TLStatLink;
+template <typename LockTraits>
+class TLStatLinkPtr;
+} // namespace detail
+
 /*
  * A ThreadLocalStats object stores thread-local copies of a group of
  * statistics.
@@ -231,31 +238,10 @@ class ThreadLocalStatsT {
    * one thread before spawning the thread that will ultimately end up using
    * the ThreadLocalStats object for the lifetime of the program.
    */
-  void swapThreads() {
-    LockTraits::swapThreads(lock_);
-  }
+  void swapThreads();
 
  private:
-  using RegistryLock = typename LockTraits::RegistryLock;
-  using RegistryGuard = std::lock_guard<RegistryLock>;
   using TLStat = TLStatT<LockTraits>;
-
-  /**
-   * Register a new TLStat object. Only called from the TLStat constructor.
-   */
-  void registerStat(TLStat* stat);
-
-  /**
-   * Unregister a new TLStat object. Only called from the TLStat destructor.
-   */
-  void unregisterStat(TLStat* stat);
-
-  /**
-   * Check if the specified TLStat is registered with this container.
-   *
-   * This function is mainly used for sanity checks.
-   */
-  bool isRegistered(TLStat* stat);
 
   // Forbidden copy constructor and assignment operator
   ThreadLocalStatsT(const ThreadLocalStatsT&) = delete;
@@ -266,9 +252,20 @@ class ThreadLocalStatsT {
   // from multiple threads.
   ServiceData* const serviceData_;
 
-  // lock_ protects access to tlStats_ (when LockTraits actually provides
-  // thread-safety guarantees).
-  RegistryLock lock_;
+  /**
+   * ThreadLocalStats and every TLStat in tlStats_ has a pointer to
+   * the TLStatLink.  On destruction, ThreadLocalStats clears
+   * link_->container_.
+   *
+   * The registry lock must never be acquired while a stat's lock
+   * is held.
+   */
+  detail::TLStatLinkPtr<LockTraits> link_;
+
+  /**
+   * link_->mutex protects access to tlStats_ (when LockTraits actually
+   * provides thread-safety guarantees).
+   */
   std::unordered_set<TLStat*> tlStats_;
 
   template <typename T>
@@ -285,26 +282,12 @@ class TLStatT {
  public:
   using Container = ThreadLocalStatsT<LockTraits>;
 
-  TLStatT(Container* stats, folly::StringPiece name);
+  TLStatT(const Container* stats, folly::StringPiece name);
   virtual ~TLStatT();
 
   const std::string& name() const {
     return name_;
   }
-
-  /**
-   * Reset the pointer to the ThreadLocalStatsT that contains this stat.
-   *
-   * This is called by the ThreadLocalStatsT object if it is destroyed before
-   * this TLStat object is destroyed.
-   *
-   * The caller is responsible for performing synchronization around this call,
-   * and ensuring that no other threads are calling aggregate() or updating the
-   * stat while clearing the container.
-   *
-   * Returns the container it was registered with.
-   */
-  Container* clearContainer();
 
   virtual void aggregate(std::chrono::seconds now) = 0;
 
@@ -314,9 +297,7 @@ class TLStatT {
   std::unique_lock<typename LockTraits::StatLock> guardStatLock() const {
     // Assert the stat is being used by the thread currently responsible
     // for the container in debug mode.
-    if (container_) {
-      LockTraits::willAcquireStatLock(container_->lock_);
-    }
+    LockTraits::willAcquireStatLock(link_->mutex_);
     return std::unique_lock<typename LockTraits::StatLock>{statLock_};
   };
 
@@ -332,7 +313,7 @@ class TLStatT {
    * old stat unregistered as well.  (Failure should be rare, typically only
    * memory allocation failure can cause this to fail.)
    */
-  explicit TLStatT(SubclassMove, TLStatT<LockTraits>& other) noexcept(false);
+  explicit TLStatT(SubclassMove, TLStatT& other) noexcept(false);
 
   /*
    * Subclasses of TLStat must call postInit() once they have finished
@@ -381,22 +362,13 @@ class TLStatT {
    * constructor.
    */
   template <typename Fn>
-  void moveAssignment(TLStatT<LockTraits>& other, Fn&& moveContents) noexcept(
-      false);
+  void moveAssignment(TLStatT& other, Fn&& moveContents) noexcept(false);
 
   /**
-   * Get the ThreadLocalStats object that contains this stat.
+   * WARNING: The ThreadLocalStats's RegistryLock is held while `fn` runs.
    */
-  Container* getContainer() const {
-    return container_;
-  }
-
-  /**
-   * Verify that the container is non-null, and return it.
-   * If the container is null, an exception with the specified message is
-   * thrown.
-   */
-  Container* checkContainer(const char* errorMsg);
+  template <typename Fn>
+  auto withContainerChecked(const char* errorMsg, Fn&& fn);
 
  private:
   /**
@@ -417,7 +389,26 @@ class TLStatT {
   TLStatT& operator=(TLStatT&&) = delete;
   TLStatT& operator=(const TLStatT&) = delete;
 
-  Container* container_;
+  /**
+   * Links this structure into its container.
+   *
+   * Not thread safe. Will only be called in situations where races
+   * are already undefined, such as constructors, destructors, and
+   * moves.
+   */
+  void link();
+
+  /**
+   * Aggregates this stat one last time, and detaches it from its
+   * container. Safe to call if already unlinked.
+   *
+   * Not thread safe. Will only be called in situations where races
+   * are already undefined, such as constructors, destructors, and
+   * moves.
+   */
+  void unlink();
+
+  detail::TLStatLinkPtr<LockTraits> link_;
   std::string name_;
 
   /**
@@ -441,6 +432,8 @@ class TLStatT {
 template <class LockTraits>
 class TLTimeseriesT : public TLStatT<LockTraits> {
  public:
+  using typename TLStatT<LockTraits>::Container;
+
   TLTimeseriesT(ThreadLocalStatsT<LockTraits>* stats, folly::StringPiece name);
 
   template <typename... ExportTypes>
@@ -637,19 +630,11 @@ class TLHistogramT : public TLStatT<LockTraits> {
   void aggregate(std::chrono::seconds now) override;
 
  private:
+  using typename TLStatT<LockTraits>::Container;
+
   void initGlobalStat(ThreadLocalStatsT<LockTraits>* stats);
 
-  ExportedHistogramMapImpl* getHistogramMap(const char* errorMsg) {
-    // Note that we do not hold the StatGuard during this operation.
-    //
-    // The LockTraits template parameter only protects access to this stat's
-    // contents (i.e., the timeseries/histogram/counter data).  The caller is
-    // responsible for synchronizing around registration/unregistration from
-    // the container.  Therefore it is safe to call checkContainer() without
-    // any of our own synchronization, and to return the result of
-    // getHistogramMap() without any lock.
-    return this->checkContainer(errorMsg)->getHistogramMap();
-  }
+  ExportedHistogramMapImpl* getHistogramMap(const char* errorMsg);
 
   ExportedHistogramMapImpl::LockableHistogram globalStat_;
   folly::Histogram<fb303::CounterType> simpleHistogram_;
@@ -724,6 +709,172 @@ class TLCounterT : public TLStatT<LockTraits> {
    */
   ValueType value_;
 };
+
+namespace detail {
+/**
+ * ThreadLocalStats knows all of its referenced TLStat objects. Each
+ * TLStat knows its ThreadLocalStats container.  In TLStatsThreadSafe
+ * locking mode, the container and its elements can be destroyed
+ * independently on arbitrary threads.  TLStatsLink implements the
+ * locking model for the backpointers, ensuring that the bidirectional
+ * references between a ThreadLocalStats and its TLStats are
+ * atomically kept in sync. It also guarantees that, if a TLStat wants
+ * to access its containing ThreadLocalStats, the ThreadLocalStats
+ * will remain alive.
+ */
+template <typename LockTraits>
+class TLStatLink {
+ public:
+  using Container = ThreadLocalStatsT<LockTraits>;
+  using Lock = typename LockTraits::RegistryLock;
+  using Guard = std::unique_lock<Lock>;
+
+  explicit TLStatLink(Container* container)
+      : container_{container}, refCount_{1} {}
+
+  TLStatLink(const TLStatLink&) = delete;
+  TLStatLink(TLStatLink&&) = delete;
+
+  TLStatLink& operator=(const TLStatLink&) = delete;
+  TLStatLink& operator=(TLStatLink&&) = delete;
+
+  void incRef() {
+    Guard guard{mutex_};
+    ++refCount_;
+  }
+
+  void decRef() {
+    size_t after;
+    {
+      Guard guard{mutex_};
+      DCHECK_GT(refCount_, 0);
+      after = --refCount_;
+    }
+    if (after == 0) {
+      delete this;
+    }
+  }
+
+  void swapThreads() {
+    LockTraits::swapThreads(mutex_);
+  }
+
+  Guard lock() {
+    return Guard{mutex_};
+  }
+
+ private:
+  /**
+   * Protects refcount_, container_, and container_->tlStats_.
+   */
+  Lock mutex_;
+
+  // If container_ is non-null, then the pointee Container is guaranteed to be
+  // alive. ThreadLocalStats's destructor zeroes this pointer.
+  Container* container_{nullptr};
+
+  // TODO: It's slightly inefficient to keep the refcount under a
+  // mutex. It is not updated simultaneously with container_ or
+  // tlStats_, so it could be replaced with std::atomic<size_t> or
+  // size_t depending on LockTraits.
+  size_t refCount_{0};
+
+  friend class ThreadLocalStatsT<LockTraits>;
+  friend class TLStatT<LockTraits>;
+  friend class TLStatLinkPtr<LockTraits>;
+};
+
+/**
+ * TLStatLinkPtr manages the reference count and memory of its
+ * TLStatLink. Each ThreadLocalStats has a strong reference to one
+ * TLStatLink.
+ *
+ * TLStatLinkPtr can be in one of two states:
+ *
+ * - unlinked: has a reference to a TLStatLink, but the TLStat owning
+ *   this pointer is not in the Container's registry.
+ *
+ * - linked: has a reference to a TLStatLink, and the owning TLStat is
+ *   in the Container's registry.
+ *
+ * This complexity exists to make concurrent destruction of ThreadLocalStats and
+ * TLStats safe while also enabling move assignment and move construction.
+ */
+template <typename LockTraits>
+class TLStatLinkPtr {
+ public:
+  struct FromOther {};
+
+  /**
+   * Construct the initial link pointer, owned by the container. This
+   * one is always unlinked.
+   */
+  explicit TLStatLinkPtr(TLStatLink<LockTraits>* ptr) : ptr_{ptr} {
+    DCHECK(ptr_);
+    DCHECK_EQ(1, ptr_->refCount_);
+    // Starts in unlinked state.
+  }
+
+  /**
+   * Given an existing link pointer, create a new unlinked one.
+   */
+  TLStatLinkPtr(FromOther, const TLStatLinkPtr& other) : ptr_{other.ptr_} {
+    ptr_->incRef();
+  }
+
+  ~TLStatLinkPtr() {
+    DCHECK(!linked_)
+        << "The owner of this linked pointer must unlink before destroying it";
+    ptr_->decRef();
+  }
+
+  void replaceFromOther(const TLStatLinkPtr& other) {
+    DCHECK(!linked_) << "Must be unlinked before replacing";
+    DCHECK_NE(this, &other) << "Cannot replace with self";
+    ptr_->decRef();
+    ptr_ = other.ptr_;
+    ptr_->incRef();
+  }
+
+  TLStatLink<LockTraits>* operator->() const {
+    return ptr_;
+  }
+
+  TLStatLink<LockTraits>* get() const {
+    return ptr_;
+  }
+
+  bool isLinked() const {
+    return linked_;
+  }
+
+ private:
+  /*
+   * No copying or moving - each link is associated with a specific
+   * TLStat's lifetime.
+   */
+
+  TLStatLinkPtr() = delete;
+  TLStatLinkPtr(const TLStatLinkPtr&) = delete;
+  TLStatLinkPtr(TLStatLinkPtr&&) = delete;
+  TLStatLinkPtr& operator=(const TLStatLinkPtr&) = delete;
+  TLStatLinkPtr& operator=(TLStatLinkPtr&&) = delete;
+
+  TLStatLink<LockTraits>* ptr_ = nullptr;
+
+  /**
+   * Represents whether this Ptr currently represents a valid link
+   * between ThreadLocalStats and a TLStat. Transient during a move
+   * operation.
+   *
+   * TODO: Reusing the bottom bit of ptr_ as the linked state would
+   * save a pointer in every TLStat.
+   */
+  bool linked_ = false;
+
+  friend class TLStatT<LockTraits>;
+};
+} // namespace detail
 
 } // namespace fb303
 } // namespace facebook
