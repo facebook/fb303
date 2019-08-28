@@ -77,14 +77,6 @@ install(
   LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
   ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
 )
-install(
-  TARGETS fb303_thrift_cpp
-  EXPORT fb303-exports
-  LIBRARY DESTINATION "${LIB_INSTALL_DIR}"
-  ARCHIVE DESTINATION "${LIB_INSTALL_DIR}"
-  PUBLIC_HEADER DESTINATION
-    "$<TARGET_PROPERTY:fb303_thrift_cpp,HEADER_INSTALL_DIR>"
-)
 
 # Install CMake package configuration files for fb303
 include(CMakePackageConfigHelpers)
