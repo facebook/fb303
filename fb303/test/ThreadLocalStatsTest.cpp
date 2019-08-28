@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include <fb303/ThreadLocalStats.h>
-#include <fb303/test/StartingGate.h>
+#include <folly/synchronization/test/Barrier.h>
 #include <folly/test/TestUtils.h>
 
 #include <gflags/gflags.h>
@@ -317,7 +317,7 @@ struct ContainerAndStats {
 TEST(ThreadLocalStats, stressStatDestructionRace) {
   ServiceData data;
 
-  StartingGate gate(FLAGS_num_threads * 4);
+  folly::test::Barrier gate(FLAGS_num_threads * 4);
 
   std::vector<std::thread> threads;
   for (unsigned i = 0; i < FLAGS_num_threads; ++i) {
@@ -344,8 +344,6 @@ TEST(ThreadLocalStats, stressStatDestructionRace) {
       c->stat3.reset();
     });
   }
-
-  gate.waitThenOpen();
 
   for (auto& thread : threads) {
     thread.join();
