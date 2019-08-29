@@ -39,7 +39,7 @@ find_package(wangle CONFIG REQUIRED)
 find_package(yarpl CONFIG REQUIRED)
 find_package(rsocket CONFIG REQUIRED)
 
-include(ThriftCppLibrary)
+include(FBThriftCppLibrary)
 
 include_directories(
   ${CMAKE_SOURCE_DIR}

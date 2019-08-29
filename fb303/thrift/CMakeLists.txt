@@ -1,4 +1,4 @@
-add_thrift_cpp2_library(
+add_fbthrift_cpp_library(
   fb303_thrift_cpp
   fb303_core.thrift
   THRIFT_INCLUDE_DIR "${INCLUDE_INSTALL_DIR}/thrift-files"
