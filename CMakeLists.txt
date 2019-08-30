@@ -1,12 +1,8 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.8)
 
 project("fb303" LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 14)
-
-# Tell CMake to also look in the directories where getdeps.py installs
-# our third-party dependencies.
-list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/external/install")
 
 set(INCLUDE_INSTALL_DIR include CACHE STRING
     "The subdirectory where header files should be installed")
@@ -17,9 +13,6 @@ set(CMAKE_INSTALL_DIR lib/cmake/fb303 CACHE STRING
 
 # CMake include directories
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/CMake"
-  # For in-fbsource builds on mac
-  "${CMAKE_CURRENT_SOURCE_DIR}/../opensource/fbcode_builder/CMake"
-  # For shipit-transformed builds
   "${CMAKE_CURRENT_SOURCE_DIR}/build/fbcode_builder/CMake"
   ${CMAKE_MODULE_PATH})
 
@@ -41,11 +34,6 @@ find_package(rsocket CONFIG REQUIRED)
 
 include(FBThriftCppLibrary)
 
-include_directories(
-  ${CMAKE_SOURCE_DIR}
-  ${CMAKE_BINARY_DIR}
-)
-
 add_subdirectory(fb303/thrift)
 
 file(GLOB fb303_SOURCES fb303/*.cpp fb303/detail/*.cpp)
@@ -63,6 +51,8 @@ target_include_directories(fb303 PUBLIC
   ${GFLAGS_INCLUDE_DIR}
   ${GLOG_INCLUDE_DIR}
   ${DOUBLE_CONVERSION_INCLUDE_DIR}
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+  $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}>
 )
 
 target_link_libraries(fb303
