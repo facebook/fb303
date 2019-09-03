@@ -53,7 +53,7 @@ TLStatT<LockTraits>::~TLStatT() {
 }
 
 template <class LockTraits>
-void TLStatT<LockTraits>::postInit(Container* stats) {
+void TLStatT<LockTraits>::postInit() {
   // Register ourself with our ThreadLocalStats container.
   //
   // This is done in postInit(), as this should be the very last step of
@@ -265,7 +265,7 @@ void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
 template <class LockTraits>
 void TLTimeseriesT<LockTraits>::init(ThreadLocalStatsT<LockTraits>* stats) {
   globalStat_ = stats->getStatsMap()->getLockableStatNoExport(this->name());
-  this->postInit(stats);
+  this->postInit();
 }
 
 template <class LockTraits>
@@ -277,7 +277,7 @@ void TLTimeseriesT<LockTraits>::init(
   ExportedStat levels(numLevels, numBuckets, levelDurations);
   globalStat_ = stats->getStatsMap()->getLockableStatNoExport(
       this->name(), nullptr, &levels);
-  this->postInit(stats);
+  this->postInit();
 }
 
 /*
@@ -294,7 +294,7 @@ TLHistogramT<LockTraits>::TLHistogramT(
       globalStat_(),
       simpleHistogram_(bucketWidth, min, max) {
   initGlobalStat(stats);
-  this->postInit(stats);
+  this->postInit();
 }
 
 template <class LockTraits>
@@ -317,7 +317,7 @@ TLHistogramT<LockTraits>::TLHistogramT(
           globalStat.getBucketSize(),
           globalStat.getMin(),
           globalStat.getMax()) {
-  this->postInit(stats);
+  this->postInit();
 }
 
 template <class LockTraits>
@@ -431,7 +431,7 @@ TLCounterT<LockTraits>::TLCounterT(
     ThreadLocalStatsT<LockTraits>* stats,
     folly::StringPiece name)
     : TLStatT<LockTraits>(stats, name), serviceData_(stats->getServiceData()) {
-  this->postInit(stats);
+  this->postInit();
 }
 
 template <class LockTraits>

@@ -327,7 +327,7 @@ class TLStatT {
    *
    * Similarly, preDestroy() must be called as the first step of destruction.
    */
-  void postInit(Container* stats);
+  void postInit();
 
   /*
    * Subclasses of TLStat must call preDestroy() as the very first step of
@@ -553,7 +553,7 @@ class TLHistogramT : public TLStatT<LockTraits> {
         simpleHistogram_(bucketWidth, min, max) {
     initGlobalStat(stats);
     exportStat(exportArgs...);
-    this->postInit(stats);
+    this->postInit();
   }
 
   /*
