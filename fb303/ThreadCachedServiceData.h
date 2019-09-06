@@ -663,23 +663,39 @@ class TimeseriesWrapper {
       const Arg1& key,
       const Args&... args)
       : key_(key) {
-    exportStats(args...);
+    exportStats(nullptr, args...);
   }
   template <
       typename Arg1,
       typename... Args,
       typename std::enable_if<
-          !std::is_convertible<Arg1, std::string>::value>::type* = nullptr>
+          std::is_convertible<Arg1, ExportedStat>::value>::type* = nullptr,
+      typename std::enable_if<!std::is_lvalue_reference<Arg1>::value>::type* =
+          nullptr>
+  TimeseriesWrapper(
+      const std::string& varname,
+      Arg1&& prototype,
+      const Args&... args)
+      : key_(varname) {
+    exportStats(&prototype, args...);
+  }
+  template <
+      typename Arg1,
+      typename... Args,
+      typename std::enable_if<
+          !std::is_convertible<Arg1, std::string>::value>::type* = nullptr,
+      typename std::enable_if<
+          !std::is_convertible<Arg1, ExportedStat>::value>::type* = nullptr>
   TimeseriesWrapper(
       const std::string& varname,
       const Arg1& arg1,
       const Args&... args)
       : key_(varname) {
-    exportStats(arg1, args...);
+    exportStats(nullptr, arg1, args...);
   }
   template <typename... Args>
   TimeseriesWrapper(const std::string& key, const Args&... args) : key_(key) {
-    exportStats(args...);
+    exportStats(nullptr, args...);
   }
 
   void add(int64_t value = 1) {
@@ -709,8 +725,10 @@ class TimeseriesWrapper {
   }
 
   template <typename... Args>
-  void exportStats(const Args&... args) {
-    int _[] = {(ServiceData::get()->addStatExportType(key_, args), 0)...};
+  void exportStats(const ExportedStat* statPrototype, const Args&... args) {
+    int _[] = {
+        (ServiceData::get()->addStatExportType(key_, args, statPrototype),
+         0)...};
     (void)_;
   }
 };
