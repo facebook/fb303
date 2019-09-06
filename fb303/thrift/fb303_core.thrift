@@ -67,7 +67,7 @@ service BaseService {
   /**
    * Gets the counters for this service
    */
-  map<string, i64> getCounters()
+  map<string, i64> getCounters() (thread = 'eb')
 
   /**
    * Gets a subset of counters which match a
