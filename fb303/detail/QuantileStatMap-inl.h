@@ -13,11 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <fb303/detail/QuantileStatMap.h>
+#pragma once
 
 #include <folly/Format.h>
-
-#include <fb303/QuantileStat-defs.h>
 
 namespace facebook {
 namespace fb303 {

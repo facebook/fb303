@@ -14,15 +14,12 @@
  * limitations under the License.
  */
 #include <fb303/ThreadLocalStats.h>
-#include <fb303/ThreadLocalStats-defs.h>
 
 namespace facebook {
 namespace fb303 {
 
 /*
  * Explicitly instantiate the commonly-used instantations of ThreadLocalStatsT.
- * This way most users never need to include ThreadLocalStats-defs.h, which
- * helps speed up the build.
  */
 
 // Explicitly instantiate ThreadLocalStatsT and related classes

@@ -879,8 +879,4 @@ class TLStatLinkPtr {
 } // namespace fb303
 } // namespace facebook
 
-/*
- * Include the LockTraits definitions, and provide typedefs
- * for ThreadLocalStatsT implementations with the various locking behaviors.
- */
-#include <fb303/TLStatsLockTraits.h>
+#include <fb303/ThreadLocalStats-inl.h>

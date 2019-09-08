@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 #include <fb303/Timeseries.h>
-#include <fb303/Timeseries-defs.h>
 
 #include <gtest/gtest.h>
 

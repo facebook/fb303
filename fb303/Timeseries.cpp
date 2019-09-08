@@ -15,15 +15,10 @@
  */
 #include <fb303/Timeseries.h>
 
-#include <fb303/Timeseries-defs.h>
-
 namespace facebook {
 namespace fb303 {
 
 // Explicitly instantiate the timeseries datastructures using int64_t.
-//
-// This way anyone who only needs these instantiations won't ever need to
-// include Timeseries-defs.h
 
 template class MultiLevelTimeSeries<int64_t>;
 

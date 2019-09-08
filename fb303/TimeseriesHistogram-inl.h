@@ -17,10 +17,6 @@
 
 #include <sstream>
 
-#include <fb303/Timeseries-defs.h>
-#include <folly/stats/Histogram-defs.h>
-#include <folly/stats/TimeseriesHistogram-defs.h>
-
 namespace facebook {
 namespace fb303 {
 

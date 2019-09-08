@@ -280,3 +280,5 @@ class TenMinutesChunksTimeSeries : public MultiLevelTimeSeries<T> {
 };
 } // namespace fb303
 } // namespace facebook
+
+#include <fb303/Timeseries-inl.h>

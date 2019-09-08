@@ -15,31 +15,15 @@
  */
 #pragma once
 
-/*
- * This file contains method definitions for the template classes in
- * Timeseries.h
- *
- * Most users will not need to include this file.  Timeseries.cpp contains
- * explicit template instantiations for the most commonly used versions
- * of the timeseries data structures.  Callers using these types do not need to
- * include Timeseries-defs.h.  This speeds up the build for most callers, since
- * Timeseries-defs.h does not need to be re-processed for every .cpp file.
- *
- * If you use Timeseries with uncommon template arguments that are not
- * explicitly instantiated in Timeseries.cpp, then you will need to include
- * Timeseries-defs.h to see these method definitions.
- */
-
 #include <vector>
-
-#include <folly/stats/BucketedTimeSeries-defs.h>
-#include <folly/stats/MultiLevelTimeSeries-defs.h>
 
 namespace facebook {
 namespace fb303 {
 
+namespace detail {
+
 template <class TimeType>
-static std::vector<TimeType> convertToDuration(
+std::vector<TimeType> convertToDuration(
     int num_levels,
     const int* level_durations) {
   std::vector<TimeType> result;
@@ -51,6 +35,8 @@ static std::vector<TimeType> convertToDuration(
   return result;
 }
 
+} // namespace detail
+
 template <class T>
 MultiLevelTimeSeries<T>::MultiLevelTimeSeries(
     int num_levels,
@@ -59,7 +45,9 @@ MultiLevelTimeSeries<T>::MultiLevelTimeSeries(
     : BaseType(
           num_buckets,
           num_levels,
-          &(convertToDuration<TimeType>(num_levels, level_durations))[0]) {
+          &(detail::convertToDuration<TimeType>(
+              num_levels,
+              level_durations))[0]) {
   // Note: the version of MultiLevelTimeSeries in folly is updated to work with
   // std::chrono::duration rather then integer/time_t directly. Therefore it
   // expects an array of std::chrono::duration in the constructor. However, we

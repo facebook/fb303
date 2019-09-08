@@ -14,15 +14,13 @@
  * limitations under the License.
  */
 #include <fb303/ThreadLocalStatsMap.h>
-#include <fb303/ThreadLocalStatsMap-defs.h>
 
 namespace facebook {
 namespace fb303 {
 
 /*
  * Explicitly instantiate the commonly-used instantations of
- * ThreadLocalStatsMapT.  This way most users never need to include
- * ThreadLocalStatsMapT-defs.h, which helps speed up the build.
+ * ThreadLocalStatsMapT.
  */
 template class ThreadLocalStatsMapT<TLStatsNoLocking>;
 template class ThreadLocalStatsMapT<TLStatsThreadSafe>;

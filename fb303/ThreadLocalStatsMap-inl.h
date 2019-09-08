@@ -15,8 +15,6 @@
  */
 #pragma once
 
-#include <fb303/ThreadLocalStatsMap.h>
-
 namespace facebook {
 namespace fb303 {
 

@@ -156,3 +156,5 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
 
 } // namespace fb303
 } // namespace facebook
+
+#include <fb303/ThreadLocalStatsMap-inl.h>

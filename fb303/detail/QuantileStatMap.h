@@ -115,3 +115,5 @@ extern template class BasicQuantileStatMap<std::chrono::steady_clock>;
 } // namespace detail
 } // namespace fb303
 } // namespace facebook
+
+#include <fb303/detail/QuantileStatMap-inl.h>

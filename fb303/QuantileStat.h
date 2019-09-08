@@ -91,3 +91,5 @@ extern template class BasicQuantileStat<std::chrono::steady_clock>;
 
 } // namespace fb303
 } // namespace facebook
+
+#include <fb303/QuantileStat-inl.h>

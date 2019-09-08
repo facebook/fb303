@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#include <fb303/detail/QuantileStatMap-defs.h>
+#include <fb303/detail/QuantileStatMap.h>
 
 namespace facebook {
 namespace fb303 {

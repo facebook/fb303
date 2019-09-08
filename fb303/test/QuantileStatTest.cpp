@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <fb303/QuantileStat-defs.h>
+#include <fb303/QuantileStat.h>
 
 #include <gtest/gtest.h>
 

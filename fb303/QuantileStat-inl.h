@@ -15,10 +15,6 @@
  */
 #pragma once
 
-#include <fb303/QuantileStat.h>
-
-#include <folly/stats/QuantileEstimator-defs.h>
-
 namespace facebook {
 namespace fb303 {
 

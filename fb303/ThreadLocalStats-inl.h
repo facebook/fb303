@@ -15,9 +15,8 @@
  */
 #pragma once
 
-#include <fb303/ThreadLocalStats.h>
-
 #include <fb303/LegacyClock.h>
+#include <fb303/TLStatsLockTraits.h>
 #include <fb303/TimeseriesExporter.h>
 #include <folly/Conv.h>
 
