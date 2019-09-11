@@ -32,7 +32,7 @@ find_package(wangle CONFIG REQUIRED)
 find_package(yarpl CONFIG REQUIRED)
 find_package(rsocket CONFIG REQUIRED)
 
-include(FBThriftCppLibrary)
+include(FBThriftLibrary)
 
 add_subdirectory(fb303/thrift)
 
