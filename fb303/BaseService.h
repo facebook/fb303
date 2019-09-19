@@ -17,6 +17,7 @@
 
 #include <fb303/ServiceData.h>
 #include <fb303/thrift/gen-cpp2/BaseService.h>
+#include <folly/executors/CPUThreadPoolExecutor.h>
 #include <folly/small_vector.h>
 
 namespace facebook {
@@ -198,9 +199,31 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
     return &thriftFuncHistParams_;
   }
 
+  /**
+   * getCounters() is processed in event base so that it won't be blocked by
+   * unhealthy cpu thread pool. We also don't want to mark as high priority
+   * because it's more time consuming than getStatus().
+   */
+  void async_eb_getCounters(
+      std::unique_ptr<apache::thrift::HandlerCallback<
+          std::unique_ptr<std::map<std::string, int64_t>>>> callback) override {
+    getCountersExecutor_.add([this, callback_ = std::move(callback)]() {
+      try {
+        std::map<std::string, int64_t> res;
+        getCounters(res);
+        callback_->result(res);
+      } catch (...) {
+        callback_->exception(std::current_exception());
+      }
+    });
+  }
+
  private:
   const std::string name_;
   std::vector<ThriftFuncHistParams> thriftFuncHistParams_;
+  folly::CPUThreadPoolExecutor getCountersExecutor_{
+      2,
+      std::make_shared<folly::NamedThreadFactory>("GetCountersCPU")};
 };
 
 } // namespace fb303
