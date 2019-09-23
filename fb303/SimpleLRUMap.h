@@ -273,7 +273,7 @@ struct SimpleLRUMap {
       mapped_type value,
       bool moveToFront = true,
       callback_type evictCallback = callback_type()) {
-    switch (try_set(key, value, moveToFront, evictCallback)) {
+    switch (try_set(key, std::move(value), moveToFront, evictCallback)) {
       case 1:
         return true;
 
