@@ -73,7 +73,7 @@ service BaseService {
    * Gets a subset of counters which match a
    * Perl Compatible Regular Expression for this service
    */
-  map<string, i64> getRegexCounters(1: string regex)
+  map<string, i64> getRegexCounters(1: string regex) (thread = 'eb')
 
   /**
    * Get counter values for a specific list of keys.  Returns a map from

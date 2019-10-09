@@ -97,4 +97,5 @@ TEST_F(GetCountersConcurrencyTest, concurrentGetCounters) {
   handler->waitForBurning();
 
   client->sync_getCounters(opt, counters);
+  client->sync_getRegexCounters(opt, counters, ".");
 }

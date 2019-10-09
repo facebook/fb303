@@ -218,6 +218,23 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
     });
   }
 
+  void async_eb_getRegexCounters(
+      std::unique_ptr<apache::thrift::HandlerCallback<
+          std::unique_ptr<std::map<std::string, int64_t>>>> callback,
+      std::unique_ptr<std::string> regex) override {
+    getCountersExecutor_.add([this,
+                              callback_ = std::move(callback),
+                              regex_ = std::move(regex)]() mutable {
+      try {
+        std::map<std::string, int64_t> res;
+        getRegexCounters(res, std::move(regex_));
+        callback_->result(res);
+      } catch (...) {
+        callback_->exception(std::current_exception());
+      }
+    });
+  }
+
  private:
   const std::string name_;
   std::vector<ThriftFuncHistParams> thriftFuncHistParams_;
