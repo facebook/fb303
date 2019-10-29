@@ -108,7 +108,7 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   int64_t getCounter(std::unique_ptr<std::string> key) override {
     try {
       return ServiceData::get()->getCounter(*key);
-    } catch (const std::invalid_argument& ex) {
+    } catch (const std::invalid_argument&) {
       return 0;
     }
   }
