@@ -35,8 +35,11 @@ enum : uint64_t {
   TIMESERIES_A_INCR1 = 3,
   TIMESERIES_A_INCR2 = 5,
   TIMESERIES_B_INCR = 7,
+  TIMESERIES_C_INCR = 9,
   COUNTER_INCR = 13,
 };
+
+const int kTimeseriesIntervalsC[] = {5, 15};
 
 class WorkerThread {
  public:
@@ -76,6 +79,14 @@ class WorkerThread {
       TLTimeseriesT<TLStatsThreadSafe> tsB(&stats_, "timeseriesB",
                                            AVG, COUNT, SUM, RATE);
       tsB.addValue(TIMESERIES_B_INCR);
+
+      TLTimeseriesT<TLStatsThreadSafe> tsC(
+          &stats_,
+          "timeseriesC",
+          static_cast<size_t>(60),
+          static_cast<size_t>(2),
+          kTimeseriesIntervalsC);
+      tsC.addValue(TIMESERIES_C_INCR);
 
       TLCounterT<TLStatsThreadSafe> c(&stats_, "counter");
       c.incrementValue(COUNTER_INCR);

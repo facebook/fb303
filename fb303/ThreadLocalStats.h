@@ -447,6 +447,16 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
     exportStat(types...);
   }
 
+  TLTimeseriesT(
+      ThreadLocalStatsT<LockTraits>* stats,
+      folly::StringPiece name,
+      size_t numBuckets,
+      size_t numLevels,
+      const int levelDurations[])
+      : TLStatT<LockTraits>(stats, name), sum_(0), count_(0) {
+    init(numBuckets, numLevels, levelDurations, stats);
+  }
+
   template <typename... ExportTypes>
   TLTimeseriesT(
       ThreadLocalStatsT<LockTraits>* stats,
