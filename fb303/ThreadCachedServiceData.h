@@ -292,8 +292,8 @@ class ThreadCachedServiceData {
     return getServiceData()->hasCounter(key);
   }
 
-  void setExportedValue(folly::StringPiece key, folly::StringPiece value) {
-    getServiceData()->setExportedValue(key, value);
+  void setExportedValue(folly::StringPiece key, std::string value) {
+    getServiceData()->setExportedValue(key, std::move(value));
   }
   void getExportedValue(std::string& _return, folly::StringPiece key) {
     getServiceData()->getExportedValue(_return, key);

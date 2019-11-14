@@ -467,12 +467,11 @@ void ServiceData::deleteExportedKey(StringPiece key) {
   exportedValuesWLock->erase(it);
 }
 
-void ServiceData::setExportedValue(StringPiece key, StringPiece value) {
-  auto value_ = value.str(); // TODO: change the param to std::string
+void ServiceData::setExportedValue(StringPiece key, string value) {
   {
     auto exportedValuesRLock = exportedValues_.rlock();
     if (auto ptr = folly::get_ptr(*exportedValuesRLock, key)) {
-      as_mutable(*ptr).swap(value_);
+      as_mutable(*ptr).swap(value);
       return;
     }
   }
@@ -481,7 +480,7 @@ void ServiceData::setExportedValue(StringPiece key, StringPiece value) {
   auto& entry = (*exportedValuesWLock)[key];
 
   auto exportedValuesRLock = exportedValuesWLock.moveFromWriteToRead();
-  entry.swap(value_);
+  entry.swap(value);
 }
 
 void ServiceData::getExportedValue(string& _return, StringPiece key) const {

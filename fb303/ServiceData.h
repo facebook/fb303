@@ -436,7 +436,7 @@ class ServiceData {
    *
    * Creates a new value if this key doesn't already exist.
    */
-  void setExportedValue(folly::StringPiece key, folly::StringPiece value);
+  void setExportedValue(folly::StringPiece key, std::string value);
   void deleteExportedKey(folly::StringPiece key);
   void getExportedValue(std::string& _return, folly::StringPiece key) const;
   std::string getExportedValue(folly::StringPiece key) const;
