@@ -208,32 +208,37 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   void async_eb_getCounters(
       std::unique_ptr<apache::thrift::HandlerCallback<
           std::unique_ptr<std::map<std::string, int64_t>>>> callback) override {
-    getCountersExecutor_.add([this, callback_ = std::move(callback)]() {
-      try {
-        std::map<std::string, int64_t> res;
-        getCounters(res);
-        callback_->result(res);
-      } catch (...) {
-        callback_->exception(std::current_exception());
-      }
-    });
+    getCountersExecutor_.add(
+        [this,
+         callback_ = std::move(callback),
+         keepAlive = folly::getKeepAliveToken(getCountersExecutor_)]() {
+          try {
+            std::map<std::string, int64_t> res;
+            getCounters(res);
+            callback_->result(res);
+          } catch (...) {
+            callback_->exception(std::current_exception());
+          }
+        });
   }
 
   void async_eb_getRegexCounters(
       std::unique_ptr<apache::thrift::HandlerCallback<
           std::unique_ptr<std::map<std::string, int64_t>>>> callback,
       std::unique_ptr<std::string> regex) override {
-    getCountersExecutor_.add([this,
-                              callback_ = std::move(callback),
-                              regex_ = std::move(regex)]() mutable {
-      try {
-        std::map<std::string, int64_t> res;
-        getRegexCounters(res, std::move(regex_));
-        callback_->result(res);
-      } catch (...) {
-        callback_->exception(std::current_exception());
-      }
-    });
+    getCountersExecutor_.add(
+        [this,
+         callback_ = std::move(callback),
+         regex_ = std::move(regex),
+         keepAlive = folly::getKeepAliveToken(getCountersExecutor_)]() mutable {
+          try {
+            std::map<std::string, int64_t> res;
+            getRegexCounters(res, std::move(regex_));
+            callback_->result(res);
+          } catch (...) {
+            callback_->exception(std::current_exception());
+          }
+        });
   }
 
  private:
