@@ -51,7 +51,7 @@ TEST(TimeseriesHistogram, Percentile) {
     EXPECT_EQ(10, h.getMin());
     EXPECT_EQ(110, h.getMax());
 
-    for (int i = 0; i < h.getNumBuckets(); ++i) {
+    for (size_t i = 0; i < h.getNumBuckets(); ++i) {
       EXPECT_EQ(4, h.getBucket(i).numLevels());
     }
 
@@ -108,7 +108,7 @@ TEST(TimeseriesHistogram, String) {
 
     CHECK_EQ(std::size(kStringValues1), hist.getNumLevels());
 
-    for (int level = 0; level < hist.getNumLevels(); ++level) {
+    for (size_t level = 0; level < hist.getNumLevels(); ++level) {
       EXPECT_EQ(kStringValues1[level], hist.getString(level));
     }
 
@@ -125,7 +125,7 @@ TEST(TimeseriesHistogram, String) {
 
     CHECK_EQ(std::size(kStringValues2), hist.getNumLevels());
 
-    for (int level = 0; level < hist.getNumLevels(); ++level) {
+    for (size_t level = 0; level < hist.getNumLevels(); ++level) {
       EXPECT_EQ(kStringValues2[level], hist.getString(level));
     }
   }
@@ -146,7 +146,7 @@ TEST(TimeseriesHistogram, Clear) {
     // check clearing
     hist.clear();
 
-    for (int b = 0; b < hist.getNumBuckets(); ++b) {
+    for (size_t b = 0; b < hist.getNumBuckets(); ++b) {
       EXPECT_EQ(0, hist.getBucket(b).count(TS::MINUTE));
       EXPECT_EQ(0, hist.getBucket(b).count(TS::TEN_MINUTE));
       EXPECT_EQ(0, hist.getBucket(b).count(TS::HOUR));
@@ -188,7 +188,7 @@ TEST(TimeseriesHistogram, Basic) {
       EXPECT_EQ(expected, hist.getPercentileBucketMin(pct, TS::ALLTIME));
     }
 
-    for (int b = 1; (b + 1) < hist.getNumBuckets(); ++b) {
+    for (size_t b = 1; (b + 1) < hist.getNumBuckets(); ++b) {
       EXPECT_EQ(600, hist.getBucket(b).count(TS::MINUTE));
       EXPECT_EQ(6000, hist.getBucket(b).count(TS::TEN_MINUTE));
       EXPECT_EQ(36000, hist.getBucket(b).count(TS::HOUR));
@@ -218,7 +218,7 @@ TEST(TimeseriesHistogram, Basic) {
       EXPECT_EQ(expected, hist.getPercentileBucketMin(pct, TS::ALLTIME));
     }
 
-    for (int b = 1; (b + 1) < hist.getNumBuckets(); ++b) {
+    for (size_t b = 1; (b + 1) < hist.getNumBuckets(); ++b) {
       EXPECT_EQ(600 * 2, hist.getBucket(b).count(TS::MINUTE));
       EXPECT_EQ(6000 * 2, hist.getBucket(b).count(TS::TEN_MINUTE));
       EXPECT_EQ(36000 * 2, hist.getBucket(b).count(TS::HOUR));
@@ -258,7 +258,7 @@ TEST(TimeseriesHistogram, Basic) {
     EXPECT_EQ(0, hist.getBucket(hist.getNumBuckets() - 1).count(TS::HOUR));
     EXPECT_EQ(0, hist.getBucket(hist.getNumBuckets() - 1).count(TS::ALLTIME));
 
-    for (int b = 1; (b + 1) < hist.getNumBuckets(); ++b) {
+    for (size_t b = 1; (b + 1) < hist.getNumBuckets(); ++b) {
       EXPECT_EQ(600, hist.getBucket(b).count(TS::MINUTE));
       EXPECT_EQ(6000, hist.getBucket(b).count(TS::TEN_MINUTE));
       EXPECT_EQ(36000, hist.getBucket(b).count(TS::HOUR));
@@ -410,7 +410,6 @@ TEST(TimeseriesHistogram, QueryByInterval) {
 
   for (int i = 0; i < 12; i++) {
     const auto& itv = intervals[i];
-    int c = mhts.count(itv.start, itv.end);
     // Some of the older intervals that fall in the alltime bucket
     // are off by 1 or 2 in their estimated counts.
     size_t tolerance = 0;
@@ -428,7 +427,7 @@ TEST(TimeseriesHistogram, QueryByInterval) {
 
 TEST(TimeseriesHistogram, SingleUniqueValue) {
   int values[] = {-1, 0, 500, 1000, 1500};
-  for (int ii = 0; ii < std::size(values); ++ii) {
+  for (size_t ii = 0; ii < std::size(values); ++ii) {
     int value = values[ii];
     TimeseriesHistogram<int> h(10, 0, 1000);
     const int kNumIters = 1000;

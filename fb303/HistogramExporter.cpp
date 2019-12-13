@@ -97,7 +97,7 @@ void HistogramExporter::exportBuckets(
   const ExportedHistogram::ContainerType& stat = hist->lock()->getBucket(0);
 
   // now, export each level
-  for (int level = 0; level < stat.numLevels(); ++level) {
+  for (size_t level = 0; level < stat.numLevels(); ++level) {
     std::string valueName;
     if (stat.getLevel(level).isAllTime()) {
       // example name: ad_request_elapsed_time.hist
@@ -128,7 +128,7 @@ void HistogramExporter::forEachPercentileName(
   CHECK_LE(percentile, 100);
 
   const ExportedHistogram::ContainerType& stat = hist->lock()->getBucket(0);
-  for (int level = 0; level < stat.numLevels(); ++level) {
+  for (size_t level = 0; level < stat.numLevels(); ++level) {
     // NOTE:  We access the histogram's stat object here without locking.  This
     // depends on the fact that getLevel(), and Level::isAllTime() and
     // Level::duration() are all non-volatile calls meaning they only read
@@ -189,7 +189,7 @@ void HistogramExporter::forEachStatName(
   folly::small_vector<char, 200> counterName(kNameSize);
 
   const ExportedHistogram::ContainerType& stat = hist->lock()->getBucket(0);
-  for (int level = 0; level < stat.numLevels(); ++level) {
+  for (size_t level = 0; level < stat.numLevels(); ++level) {
     TimeseriesExporter::getCounterName(
         counterName.data(), kNameSize, &stat, name, exportType, level);
     fn(counterName.data(), level);

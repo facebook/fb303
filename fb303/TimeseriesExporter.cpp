@@ -120,7 +120,7 @@ void TimeseriesExporter::exportStat(
   folly::small_vector<char, 200> counterName(kNameSize);
 
   auto statObj = stat->lock().operator->();
-  for (int lev = 0; lev < stat->lock()->numLevels(); ++lev) {
+  for (size_t lev = 0; lev < stat->lock()->numLevels(); ++lev) {
     getCounterName(counterName.data(), kNameSize, statObj, statName, type, lev);
 
     // register the actual counter callback with the DynamicCounters obj
@@ -142,7 +142,7 @@ void TimeseriesExporter::unExportStat(
   folly::small_vector<char, 200> counterName(kNameSize);
 
   auto statObj = stat->lock().operator->();
-  for (int lev = 0; lev < stat->lock()->numLevels(); ++lev) {
+  for (size_t lev = 0; lev < stat->lock()->numLevels(); ++lev) {
     getCounterName(counterName.data(), kNameSize, statObj, statName, type, lev);
 
     // unregister the counter callback from the DynamicCounters obj

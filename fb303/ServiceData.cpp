@@ -601,9 +601,11 @@ void ServiceData::setOptionThrowIfAbsent(StringPiece key, StringPiece value) {
 
   // By default allow modifying glog verbosity (options 'v' or 'vmodule')
   auto useOptionsAsFlags = useOptionsAsFlags_.load(std::memory_order_relaxed);
-  static std::set<StringPiece> blacklistedOptions(
-      {"logmailer", "whitelist_flags"});
-  if (blacklistedOptions.count(key) > 0) {
+  static constexpr StringPiece blacklistedOptions[] = {
+      StringPiece{"logmailer"}, StringPiece{"whitelist_flags"}};
+  if (std::count(
+          std::begin(blacklistedOptions), std::end(blacklistedOptions), key) >
+      0) {
     throw std::runtime_error(
         folly::to<string>("Cannot change blacklisted flag: ", key));
   }
@@ -647,7 +649,7 @@ void ServiceData::setOptionAsFlagsThrowIfAbsent(
 void ServiceData::setVModuleOption(StringPiece /*key*/, StringPiece value) {
   vector<string> values;
   folly::split(",", value, values);
-  for (int i = 0; i < values.size(); ++i) {
+  for (size_t i = 0; i < values.size(); ++i) {
     vector<string> module_value;
     folly::split("=", values[i], module_value);
     if (module_value.size() != 2) {

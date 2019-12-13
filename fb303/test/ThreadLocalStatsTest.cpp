@@ -25,10 +25,14 @@
 
 using namespace facebook::fb303;
 
-DEFINE_int32(num_threads, 20,
-             "The number of worker threads concurrently updating stats");
-DEFINE_int32(duration, 3,
-             "How long to run the ConcurrentOperations test, in seconds");
+DEFINE_int32(
+    num_threads,
+    20,
+    "The number of worker threads concurrently updating stats");
+DEFINE_int32(
+    duration,
+    3,
+    "How long to run the ConcurrentOperations test, in seconds");
 
 enum : uint64_t {
   HIST_INCR = 11,
@@ -44,9 +48,7 @@ const int kTimeseriesIntervalsC[] = {5, 15};
 class WorkerThread {
  public:
   WorkerThread(ServiceData* serviceData, std::atomic<bool>* stop)
-    : stop_(stop),
-      stats_(serviceData),
-      thread_([this] { this->run(); }) {}
+      : stop_(stop), stats_(serviceData), thread_([this] { this->run(); }) {}
 
   void aggregate() {
     stats_.aggregate();
@@ -65,19 +67,17 @@ class WorkerThread {
     while (!stop_->load()) {
       ++numIters_;
 
-      TLHistogramT<TLStatsThreadSafe> hist(&stats_, "histogram",
-                                           10, 0, 1000,
-                                           AVG, COUNT, SUM,
-                                           50, 95, 99);
+      TLHistogramT<TLStatsThreadSafe> hist(
+          &stats_, "histogram", 10, 0, 1000, AVG, COUNT, SUM, 50, 95, 99);
       hist.addValue(HIST_INCR);
 
-      TLTimeseriesT<TLStatsThreadSafe> tsA(&stats_, "timeseriesA",
-                                           AVG, COUNT, SUM);
+      TLTimeseriesT<TLStatsThreadSafe> tsA(
+          &stats_, "timeseriesA", AVG, COUNT, SUM);
       tsA.addValue(TIMESERIES_A_INCR1);
       tsA.addValue(TIMESERIES_A_INCR2);
 
-      TLTimeseriesT<TLStatsThreadSafe> tsB(&stats_, "timeseriesB",
-                                           AVG, COUNT, SUM, RATE);
+      TLTimeseriesT<TLStatsThreadSafe> tsB(
+          &stats_, "timeseriesB", AVG, COUNT, SUM, RATE);
       tsB.addValue(TIMESERIES_B_INCR);
 
       TLTimeseriesT<TLStatsThreadSafe> tsC(
@@ -109,7 +109,7 @@ TEST(ThreadSafeStats, ConcurrentOperations) {
   // destroying thread local stats objects
   std::atomic<bool> stop(false);
   std::vector<std::unique_ptr<WorkerThread>> threads;
-  for (uint32_t n = 0; n < FLAGS_num_threads; ++n) {
+  for (gflags::int32 n = 0; n < FLAGS_num_threads; ++n) {
     threads.emplace_back(new WorkerThread(&data, &stop));
   }
 
@@ -132,19 +132,21 @@ TEST(ThreadSafeStats, ConcurrentOperations) {
   }
   threads.clear();
 
-  LOG(INFO) << "Ran " << numIters << " iterations across " <<
-    FLAGS_num_threads << " threads";
+  LOG(INFO) << "Ran " << numIters << " iterations across " << FLAGS_num_threads
+            << " threads";
 
   // Verify that the global counters are now what we expect
   EXPECT_EQ(numIters * HIST_INCR, data.getCounter("histogram.sum"));
   EXPECT_EQ(numIters, data.getCounter("histogram.count"));
   EXPECT_EQ(HIST_INCR, data.getCounter("histogram.avg"));
 
-  EXPECT_EQ(numIters * (TIMESERIES_A_INCR1 + TIMESERIES_A_INCR2),
-            data.getCounter("timeseriesA.sum"));
+  EXPECT_EQ(
+      numIters * (TIMESERIES_A_INCR1 + TIMESERIES_A_INCR2),
+      data.getCounter("timeseriesA.sum"));
   EXPECT_EQ(numIters * 2, data.getCounter("timeseriesA.count"));
-  EXPECT_EQ((TIMESERIES_A_INCR1 + TIMESERIES_A_INCR2) / 2.0,
-            data.getCounter("timeseriesA.avg"));
+  EXPECT_EQ(
+      (TIMESERIES_A_INCR1 + TIMESERIES_A_INCR2) / 2.0,
+      data.getCounter("timeseriesA.avg"));
 
   EXPECT_EQ(numIters * TIMESERIES_B_INCR, data.getCounter("timeseriesB.sum"));
   EXPECT_EQ(numIters, data.getCounter("timeseriesB.count"));
@@ -332,7 +334,7 @@ TEST(ThreadLocalStats, stressStatDestructionRace) {
   folly::test::Barrier gate(FLAGS_num_threads * 4);
 
   std::vector<std::thread> threads;
-  for (unsigned i = 0; i < FLAGS_num_threads; ++i) {
+  for (gflags::int32 i = 0; i < FLAGS_num_threads; ++i) {
     auto c = std::make_shared<ContainerAndStats>();
     c->container.emplace(&data);
     c->stat1.emplace(&c->container.value(), "stat1");

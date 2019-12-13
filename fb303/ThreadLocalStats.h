@@ -300,7 +300,7 @@ class TLStatT {
     // for the container in debug mode.
     LockTraits::willAcquireStatLock(link_->mutex_);
     return std::unique_lock<typename LockTraits::StatLock>{statLock_};
-  };
+  }
 
   /**
    * Helper constructor for move-construction of subclasses

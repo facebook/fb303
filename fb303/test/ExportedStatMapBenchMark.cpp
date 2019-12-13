@@ -138,14 +138,14 @@ void MultiThreadedHistogramOperation(int iters, size_t kThreads) {
   });
 }
 
-BENCHMARK_PARAM(MultiThreadedStatOperation, 1);
-BENCHMARK_PARAM(MultiThreadedStatOperation, 4);
-BENCHMARK_PARAM(MultiThreadedStatOperation, 16);
-BENCHMARK_PARAM(MultiThreadedStatOperation, 64);
-BENCHMARK_PARAM(MultiThreadedHistogramOperation, 1);
-BENCHMARK_PARAM(MultiThreadedHistogramOperation, 4);
-BENCHMARK_PARAM(MultiThreadedHistogramOperation, 16);
-BENCHMARK_PARAM(MultiThreadedHistogramOperation, 64);
+BENCHMARK_PARAM(MultiThreadedStatOperation, 1)
+BENCHMARK_PARAM(MultiThreadedStatOperation, 4)
+BENCHMARK_PARAM(MultiThreadedStatOperation, 16)
+BENCHMARK_PARAM(MultiThreadedStatOperation, 64)
+BENCHMARK_PARAM(MultiThreadedHistogramOperation, 1)
+BENCHMARK_PARAM(MultiThreadedHistogramOperation, 4)
+BENCHMARK_PARAM(MultiThreadedHistogramOperation, 16)
+BENCHMARK_PARAM(MultiThreadedHistogramOperation, 64)
 
 int main(int argc, char** argv) {
   folly::Init init{&argc, &argv, true};

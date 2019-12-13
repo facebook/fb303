@@ -117,7 +117,7 @@ void checkStats(
 
 lru_map::mapped_type factory(lru_map::key_type key) {
   return to<string>(key);
-};
+}
 
 // TESTS
 

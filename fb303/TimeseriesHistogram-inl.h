@@ -30,7 +30,7 @@ std::string TimeseriesHistogram<T>::debugString() const {
     << ", min: " << BaseType::getMin() << ", max: " << BaseType::getMax()
     << "\n";
 
-  for (int i = 0; i < BaseType::getNumBuckets(); i++) {
+  for (size_t i = 0; i < BaseType::getNumBuckets(); i++) {
     o << "  " << BaseType::getBucketMin(i) << "\n";
   }
 
