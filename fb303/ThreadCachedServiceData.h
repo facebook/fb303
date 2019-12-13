@@ -1103,23 +1103,22 @@ inline fb303::ThreadCachedServiceData& tcData() {
 } // namespace facebook
 
 #define DECLARE_timeseries(varname) \
-  extern ::facebook::fb303::TimeseriesWrapper STATS_##varname;
+  extern ::facebook::fb303::TimeseriesWrapper STATS_##varname
 
 #define DECLARE_histogram(varname) \
-  extern ::facebook::fb303::HistogramWrapper STATS_##varname;
+  extern ::facebook::fb303::HistogramWrapper STATS_##varname
 
-#define DECLARE_dynamic_timeseries(varname, keyNumArgs)          \
-  extern ::facebook::fb303::DynamicTimeseriesWrapper<keyNumArgs> \
-      STATS_##varname;
+#define DECLARE_dynamic_timeseries(varname, keyNumArgs) \
+  extern ::facebook::fb303::DynamicTimeseriesWrapper<keyNumArgs> STATS_##varname
 
 #define DECLARE_dynamic_histogram(varname, keyNumArgs) \
-  extern ::facebook::fb303::DynamicHistogramWrapper<keyNumArgs> STATS_##varname;
+  extern ::facebook::fb303::DynamicHistogramWrapper<keyNumArgs> STATS_##varname
 
 #define DEFINE_timeseries(varname, ...) \
-  ::facebook::fb303::TimeseriesWrapper STATS_##varname(#varname, ##__VA_ARGS__);
+  ::facebook::fb303::TimeseriesWrapper STATS_##varname(#varname, ##__VA_ARGS__)
 
 #define DEFINE_histogram(varname, ...) \
-  ::facebook::fb303::HistogramWrapper STATS_##varname(#varname, ##__VA_ARGS__);
+  ::facebook::fb303::HistogramWrapper STATS_##varname(#varname, ##__VA_ARGS__)
 
 // We use this function to extract the number of placeholders from our keyformat
 // at compile-time.
@@ -1140,7 +1139,7 @@ constexpr int countPlaceholders(folly::StringPiece keyformat) {
       countPlaceholders(keyformat) > 0,                                     \
       "Must have at least one placeholder.");                               \
   ::facebook::fb303::DynamicTimeseriesWrapper<countPlaceholders(keyformat)> \
-      STATS_##varname(keyformat, {__VA_ARGS__});
+      STATS_##varname(keyformat, {__VA_ARGS__})
 
 #define DEFINE_dynamic_histogram(                                          \
     varname, keyformat, bucketWidth, min, max, ...)                        \
@@ -1148,4 +1147,4 @@ constexpr int countPlaceholders(folly::StringPiece keyformat) {
       countPlaceholders(keyformat) > 0,                                    \
       "Must have at least one placeholder.");                              \
   ::facebook::fb303::DynamicHistogramWrapper<countPlaceholders(keyformat)> \
-      STATS_##varname(keyformat, bucketWidth, min, max, __VA_ARGS__);
+      STATS_##varname(keyformat, bucketWidth, min, max, __VA_ARGS__)
