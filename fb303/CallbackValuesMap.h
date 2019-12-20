@@ -22,6 +22,11 @@
 namespace facebook {
 namespace fb303 {
 
+// Track information to help debeug callback issues.
+struct CallbackValuesMapDebug {
+  static FOLLY_TLS const char* callbackName; // Name of callback being invoked.
+};
+
 template <typename T>
 class CallbackValuesMap {
  public:
