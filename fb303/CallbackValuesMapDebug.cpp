@@ -19,7 +19,7 @@
 namespace facebook {
 namespace fb303 {
 
-FOLLY_TLS const char* CallbackValuesMapDebug::callbackName = nullptr;
+FOLLY_TLS folly::StringPiece CallbackValuesMapDebug::callbackName = "";
 
 } // namespace fb303
 } // namespace facebook
