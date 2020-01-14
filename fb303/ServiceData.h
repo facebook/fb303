@@ -107,7 +107,7 @@ class ServiceData {
   DynamicStrings* getDynamicStrings() {
     return &dynamicStrings_;
   }
-  fb303::detail::QuantileStatMap* getQuantilStatMap() {
+  fb303::detail::QuantileStatMap* getQuantileStatMap() {
     return &quantileMap_;
   }
 
