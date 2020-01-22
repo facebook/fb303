@@ -524,6 +524,15 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
     return sum_;
   }
 
+  /**
+   * Return const reference to underlying globalStat. Caller is expected to use
+   * this judiciously (for sanity checking) instead of trying to update the stat
+   * through it.
+   */
+  const ExportedStatMapImpl::LockableStat& getGlobalStat() {
+    return globalStat_;
+  }
+
  private:
   void init(ThreadLocalStatsT<LockTraits>* stats);
 

@@ -54,7 +54,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
     }
 
     /* Return the StatPtr object held by the LockableStat. */
-    StatPtr getStatPtr() {
+    StatPtr getStatPtr() const {
       return stat_;
     }
 
