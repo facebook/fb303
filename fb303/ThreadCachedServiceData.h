@@ -1102,6 +1102,9 @@ inline fb303::ThreadCachedServiceData& tcData() {
 
 } // namespace facebook
 
+#define DECLARE_counter(varname) \
+  extern ::facebook::fb303::CounterWrapper STATS_##varname
+
 #define DECLARE_timeseries(varname) \
   extern ::facebook::fb303::TimeseriesWrapper STATS_##varname
 
@@ -1113,6 +1116,9 @@ inline fb303::ThreadCachedServiceData& tcData() {
 
 #define DECLARE_dynamic_histogram(varname, keyNumArgs) \
   extern ::facebook::fb303::DynamicHistogramWrapper<keyNumArgs> STATS_##varname
+
+#define DEFINE_counter(varname) \
+  ::facebook::fb303::CounterWrapper STATS_##varname(#varname)
 
 #define DEFINE_timeseries(varname, ...) \
   ::facebook::fb303::TimeseriesWrapper STATS_##varname(#varname, ##__VA_ARGS__)
