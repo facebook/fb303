@@ -23,7 +23,7 @@ namespace fb303 {
 namespace detail {
 
 template <typename ClockT>
-static std::chrono::seconds statDuration(
+std::chrono::seconds statDuration(
     const folly::Optional<std::chrono::seconds>& slidingWindowLength,
     typename ClockT::time_point creationTime) {
   auto now = ClockT::now();
