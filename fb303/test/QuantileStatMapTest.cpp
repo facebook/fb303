@@ -179,7 +179,7 @@ TEST_F(QuantileStatMapTest, getValue) {
   EXPECT_EQ(0, *value);
 
   value = statMap.getValue("DoesNotExist");
-  EXPECT_FALSE(value.hasValue());
+  EXPECT_FALSE(value.has_value());
 
   stat->addValue(42);
 

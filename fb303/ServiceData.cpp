@@ -339,7 +339,7 @@ folly::Optional<int64_t> ServiceData::getCounterIfExists(
 int64_t ServiceData::getCounter(StringPiece key) const {
   folly::Optional<int64_t> ret = getCounterIfExists(key);
 
-  if (ret.hasValue()) {
+  if (ret.has_value()) {
     return *ret;
   }
   throw std::invalid_argument(
