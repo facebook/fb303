@@ -17,9 +17,8 @@
 #pragma once
 
 #include <fb303/ExportType.h>
+#include <fb303/MutexWrapper.h>
 #include <fb303/Timeseries.h>
-#include <folly/SpinLock.h>
-#include <folly/Synchronized.h>
 #include <folly/experimental/StringKeyedUnorderedMap.h>
 
 namespace facebook {
@@ -37,7 +36,7 @@ using ExportedStat = MultiLevelTimeSeries<CounterType>;
 
 class ExportedStatMap {
  public:
-  using SyncStat = folly::Synchronized<ExportedStat, folly::SpinLock>;
+  using SyncStat = folly::Synchronized<ExportedStat, MutexWrapper>;
   using StatPtr = std::shared_ptr<SyncStat>;
   using LockedStatPtr = SyncStat::LockedPtr;
   using StatMap = folly::StringKeyedUnorderedMap<StatPtr>;
@@ -245,7 +244,7 @@ class ExportedStatMap {
   void clearAllStats();
 
  protected:
-  folly::Synchronized<StatMap, folly::SpinLock> statMap_;
+  folly::Synchronized<StatMap, MutexWrapper> statMap_;
   DynamicCounters* dynamicCounters_;
 
   std::vector<ExportType> defaultTypes_;

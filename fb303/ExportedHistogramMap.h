@@ -18,10 +18,9 @@
 
 #include <fb303/DynamicCounters.h>
 #include <fb303/ExportType.h>
+#include <fb303/MutexWrapper.h>
 #include <fb303/TimeseriesHistogram.h>
 #include <folly/MapUtil.h>
-#include <folly/SpinLock.h>
-#include <folly/Synchronized.h>
 #include <folly/experimental/StringKeyedUnorderedMap.h>
 #include <folly/small_vector.h>
 
@@ -59,7 +58,7 @@ using ExportedStat = MultiLevelTimeSeries<CounterType>;
 
 class ExportedHistogramMap {
  public:
-  using SyncHistogram = folly::Synchronized<ExportedHistogram, folly::SpinLock>;
+  using SyncHistogram = folly::Synchronized<ExportedHistogram, MutexWrapper>;
   using HistogramPtr = std::shared_ptr<SyncHistogram>;
   using LockedHistogramPtr = SyncHistogram::LockedPtr;
   using HistMap = folly::StringKeyedUnorderedMap<HistogramPtr>;
@@ -377,7 +376,7 @@ class ExportedHistogramMap {
       int64_t min,
       int64_t max) const;
 
-  folly::Synchronized<HistMap, folly::SpinLock> histMap_;
+  folly::Synchronized<HistMap, MutexWrapper> histMap_;
 
   DynamicCounters* dynamicCounters_;
   DynamicStrings* dynamicStrings_;

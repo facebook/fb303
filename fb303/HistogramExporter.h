@@ -18,16 +18,15 @@
 
 #include <fb303/DynamicCounters.h>
 #include <fb303/ExportedStatMapImpl.h>
+#include <fb303/MutexWrapper.h>
 #include <fb303/TimeseriesHistogram.h>
-#include <folly/SpinLock.h>
-#include <folly/Synchronized.h>
 
 namespace facebook {
 namespace fb303 {
 
 using ExportedHistogram = TimeseriesHistogram<CounterType>;
 using HistogramPtr =
-    std::shared_ptr<folly::Synchronized<ExportedHistogram, folly::SpinLock>>;
+    std::shared_ptr<folly::Synchronized<ExportedHistogram, MutexWrapper>>;
 
 class HistogramExporter {
  public:
