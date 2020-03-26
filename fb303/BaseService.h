@@ -196,8 +196,8 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
         max);
   }
 
-  std::vector<ThriftFuncHistParams>* getExportedThriftFuncHist() {
-    return &thriftFuncHistParams_;
+  const std::vector<ThriftFuncHistParams>& getExportedThriftFuncHist() const {
+    return thriftFuncHistParams_;
   }
 
   /**
