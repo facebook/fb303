@@ -421,5 +421,10 @@ class TFunctionStatHandler
       bool declared) override;
 };
 
+void withThriftFunctionStats(
+    const char* serviceName,
+    BaseService* service,
+    folly::Function<void()>&& fn);
+
 } // namespace fb303
 } // namespace facebook

@@ -492,5 +492,77 @@ TStatsPerThread* TFunctionStatHandler::getStats(const std::string& fn_name) {
   return it->second.get();
 }
 
+namespace {
+
+class StandardStatsPerThread : public TStatsPerThread {
+  void logContextDataProcessed(const TStatsRequestContext& context) override {
+    // for thrift servers, reads happen first, then writes
+    if (!context.writeBeginCalled_) {
+      return;
+    }
+    CHECK(context.readEndCalled_);
+    processed_++;
+    if (context.measureTime_) {
+      processTime_.addValue(
+          count_usec(context.writeBeginTime_ - context.readEndTime_));
+    }
+  }
+};
+
+class StandardStatHandler : public TFunctionStatHandler {
+ public:
+  StandardStatHandler(const char* serviceName)
+      : TFunctionStatHandler{fbData->getDynamicCounters(), serviceName} {
+    postConstruct();
+  }
+
+  ~StandardStatHandler() {
+    preDestroy();
+  }
+
+  std::shared_ptr<TStatsPerThread> createStatsPerThread() override {
+    return std::make_shared<StandardStatsPerThread>();
+  }
+};
+
+template <class TStatHandler_>
+class TThriftStatsHandlerFactory
+    : public apache::thrift::TProcessorEventHandlerFactory {
+ public:
+  explicit TThriftStatsHandlerFactory(std::shared_ptr<TStatHandler_> handler)
+      : handler_{std::move(handler)} {}
+
+  std::shared_ptr<apache::thrift::TProcessorEventHandler> getEventHandler()
+      override {
+    return handler_;
+  }
+
+ private:
+  std::shared_ptr<TStatHandler_> handler_;
+};
+
+} // namespace
+
+void withThriftFunctionStats(
+    const char* serviceName,
+    BaseService* service,
+    folly::Function<void()>&& fn) {
+  auto handler = std::make_shared<StandardStatHandler>(serviceName);
+  for (auto& thriftFuncHistParams : service->getExportedThriftFuncHist()) {
+    handler->addThriftFuncHistParams(thriftFuncHistParams);
+  }
+
+  auto factory =
+      std::make_shared<TThriftStatsHandlerFactory<StandardStatHandler>>(
+          handler);
+
+  apache::thrift::TProcessorBase::addProcessorEventHandlerFactory(factory);
+  SCOPE_EXIT {
+    apache::thrift::TProcessorBase::removeProcessorEventHandlerFactory(factory);
+  };
+
+  fn();
+}
+
 } // namespace fb303
 } // namespace facebook
