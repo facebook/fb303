@@ -98,38 +98,25 @@ void TStatsPerThread::setSampleRate(double rate) {
   sampleRate_ = rate;
 }
 
-void TStatsPerThread::StatsPerThreadHist::reset() {
-  percentiles_ = folly::small_vector<int>();
-  bucketSize_ = 0;
-  min_ = 0;
-  max_ = 0;
-
-  if (hist_) {
-    delete hist_;
-    hist_ = nullptr;
-  }
-  if (exportedHist_) {
-    delete exportedHist_;
-    exportedHist_ = nullptr;
-  }
-}
-
 void TStatsPerThread::StatsPerThreadHist::set(
     folly::small_vector<int> percentiles,
     CounterType bucketSize,
     CounterType min,
     CounterType max) {
-  reset();
+  // Allocate these first to make this function exception-atomic.
+  auto exportedHist = std::make_unique<ExportedHistogram>(bucketSize, min, max);
+  exportedHist->clear();
+  auto hist =
+      std::make_unique<folly::Histogram<CounterType>>(bucketSize, min, max);
+  hist->clear();
 
+  // Everything beloew is noexcept.
   percentiles_ = std::move(percentiles);
   bucketSize_ = bucketSize;
   min_ = min;
   max_ = max;
-
-  exportedHist_ = new ExportedHistogram(bucketSize, min, max);
-  exportedHist_->clear();
-  hist_ = new folly::Histogram<CounterType>(bucketSize, min, max);
-  hist_->clear();
+  exportedHist_ = std::move(exportedHist);
+  hist_ = std::move(hist);
 }
 
 void TStatsPerThread::logContextData(const TStatsRequestContext& context) {

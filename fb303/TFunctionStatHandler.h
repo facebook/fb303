@@ -103,9 +103,7 @@ class TStatsPerThread {
 
   class StatsPerThreadHist {
    public:
-    ~StatsPerThreadHist() {
-      reset();
-    }
+    ~StatsPerThreadHist() = default;
 
     void setParameters(
         folly::small_vector<int> percentiles,
@@ -124,15 +122,14 @@ class TStatsPerThread {
     }
 
     ExportedHistogram* getExportedHistogram() {
-      return exportedHist_;
+      return exportedHist_.get();
     }
 
     folly::Histogram<CounterType>* getHistogram() {
-      return hist_;
+      return hist_.get();
     }
 
    private:
-    void reset();
     void set(
         folly::small_vector<int> percentiles,
         CounterType bucketSize,
@@ -144,8 +141,8 @@ class TStatsPerThread {
     CounterType min_ = 0;
     CounterType max_ = 0;
 
-    folly::Histogram<CounterType>* hist_ = nullptr;
-    ExportedHistogram* exportedHist_ = nullptr; // For consolidation
+    std::unique_ptr<folly::Histogram<CounterType>> hist_;
+    std::unique_ptr<ExportedHistogram> exportedHist_; // For consolidation
   };
 
   struct TimeSeries {
