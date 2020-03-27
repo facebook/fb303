@@ -414,8 +414,7 @@ class TFunctionStatHandler
       void* ctx,
       const char* fn_name,
       const std::string& ex,
-      const std::string& ex_what,
-      bool declared) override;
+      const std::string& ex_what) override;
 };
 
 void withThriftFunctionStats(

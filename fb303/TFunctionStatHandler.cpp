@@ -234,8 +234,7 @@ void TFunctionStatHandler::userException(
     void* ctx,
     const char* /* fn_name */,
     const std::string& /* ex */,
-    const std::string& /* ex_what */,
-    bool /* declared */) {
+    const std::string& /* ex_what */) {
   if (ctx != nullptr) {
     static_cast<TStatsRequestContext*>(ctx)->userExceptionThrown();
   }
