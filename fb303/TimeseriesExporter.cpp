@@ -41,26 +41,26 @@ std::array<const char* const, 5> kTypeString = {{
 
 /* static */
 CounterType TimeseriesExporter::getStatValue(
-    const StatPtr& stat,
+    ExportedStat& stat,
     ExportType type,
     int level) {
   // update the stat with the current time -- if no new items are being
   // inserted, the stats won't decay properly without this update()
-  stat->lock()->update(get_legacy_stats_time());
+  stat.update(get_legacy_stats_time());
 
   // retrieve the correct type of info from the stat
   switch (type) {
     case SUM:
-      return stat->lock()->sum(level);
+      return stat.sum(level);
     case AVG:
-      return stat->lock()->avg<CounterType>(level);
+      return stat.avg<CounterType>(level);
     case RATE:
-      return stat->lock()->rate<CounterType>(level);
+      return stat.rate<CounterType>(level);
     case PERCENT:
-      return static_cast<CounterType>(100.0 * stat->lock()->avg<double>(level));
+      return static_cast<CounterType>(100.0 * stat.avg<double>(level));
     case COUNT:
       // getCount() returns int64_t, so we cast it to CounterType to be safe
-      return static_cast<CounterType>(stat->lock()->count(level));
+      return static_cast<CounterType>(stat.count(level));
   };
   // We intentionally avoid having a default switch statement so gcc's
   // -Wswitch flag will warn if we do not handle all enum values here.
@@ -124,8 +124,9 @@ void TimeseriesExporter::exportStat(
     getCounterName(counterName.data(), kNameSize, statObj, statName, type, lev);
 
     // register the actual counter callback with the DynamicCounters obj
-    counters->registerCallback(
-        counterName.data(), [=] { return getStatValue(stat, type, lev); });
+    counters->registerCallback(counterName.data(), [=] {
+      return getStatValue(*stat->lock(), type, lev);
+    });
   }
 }
 

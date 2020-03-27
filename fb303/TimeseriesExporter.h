@@ -52,7 +52,7 @@ class TimeseriesExporter {
       DynamicCounters* counters);
 
   /**
-   * Computer the counter name from the given type and level and copy
+   * Compute the counter name from the given type and level and copy
    * into counterName. The counterName buffer will always be
    * null-terminated, even if counterNameSize is too small to hold the
    * entire output.
@@ -73,7 +73,7 @@ class TimeseriesExporter {
    * decay properly without this if no new items are being inserted)
    */
   static CounterType
-  getStatValue(const StatPtr& stat, ExportType type, int level);
+  getStatValue(ExportedStat& stat, ExportType type, int level);
 };
 } // namespace fb303
 } // namespace facebook
