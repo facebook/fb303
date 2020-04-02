@@ -39,7 +39,7 @@ const std::vector<std::pair<std::chrono::seconds, size_t>> slidingWindowDefs = {
     {std::chrono::seconds{10}, 60},
     {std::chrono::seconds{60}, 60}};
 
-const std::vector<double> quantiles = {.95, .99, .999};
+const std::vector<double> quantiles = {.95, .99, .999, 1.0};
 
 class QuantileStatTest : public ::testing::Test {
  public:
@@ -55,33 +55,37 @@ class QuantileStatTest : public ::testing::Test {
 TEST_F(QuantileStatTest, AllEstimatesReported) {
   auto estimates = stat.getEstimates(quantiles);
 
-  EXPECT_EQ(3, estimates.allTimeEstimate.quantiles.size());
+  EXPECT_EQ(4, estimates.allTimeEstimate.quantiles.size());
   EXPECT_EQ(.95, estimates.allTimeEstimate.quantiles[0].first);
   EXPECT_EQ(.99, estimates.allTimeEstimate.quantiles[1].first);
   EXPECT_EQ(.999, estimates.allTimeEstimate.quantiles[2].first);
+  EXPECT_EQ(1.0, estimates.allTimeEstimate.quantiles[3].first);
 
   EXPECT_EQ(3, estimates.slidingWindows.size());
 
   EXPECT_EQ(std::chrono::seconds{1}, estimates.slidingWindows[0].windowLength);
   EXPECT_EQ(60, estimates.slidingWindows[0].nWindows);
-  EXPECT_EQ(3, estimates.slidingWindows[0].estimate.quantiles.size());
+  EXPECT_EQ(4, estimates.slidingWindows[0].estimate.quantiles.size());
   EXPECT_EQ(.95, estimates.slidingWindows[0].estimate.quantiles[0].first);
   EXPECT_EQ(.99, estimates.slidingWindows[0].estimate.quantiles[1].first);
   EXPECT_EQ(.999, estimates.slidingWindows[0].estimate.quantiles[2].first);
+  EXPECT_EQ(1.0, estimates.slidingWindows[1].estimate.quantiles[3].first);
 
   EXPECT_EQ(std::chrono::seconds{10}, estimates.slidingWindows[1].windowLength);
   EXPECT_EQ(60, estimates.slidingWindows[1].nWindows);
-  EXPECT_EQ(3, estimates.slidingWindows[1].estimate.quantiles.size());
+  EXPECT_EQ(4, estimates.slidingWindows[1].estimate.quantiles.size());
   EXPECT_EQ(.95, estimates.slidingWindows[1].estimate.quantiles[0].first);
   EXPECT_EQ(.99, estimates.slidingWindows[1].estimate.quantiles[1].first);
   EXPECT_EQ(.999, estimates.slidingWindows[1].estimate.quantiles[2].first);
+  EXPECT_EQ(1.0, estimates.slidingWindows[1].estimate.quantiles[3].first);
 
   EXPECT_EQ(std::chrono::seconds{60}, estimates.slidingWindows[2].windowLength);
   EXPECT_EQ(60, estimates.slidingWindows[2].nWindows);
-  EXPECT_EQ(3, estimates.slidingWindows[2].estimate.quantiles.size());
+  EXPECT_EQ(4, estimates.slidingWindows[2].estimate.quantiles.size());
   EXPECT_EQ(.95, estimates.slidingWindows[2].estimate.quantiles[0].first);
   EXPECT_EQ(.99, estimates.slidingWindows[2].estimate.quantiles[1].first);
   EXPECT_EQ(.999, estimates.slidingWindows[2].estimate.quantiles[2].first);
+  EXPECT_EQ(1.0, estimates.slidingWindows[1].estimate.quantiles[3].first);
 }
 
 TEST_F(QuantileStatTest, getEstimate) {
@@ -95,11 +99,13 @@ TEST_F(QuantileStatTest, getEstimate) {
   EXPECT_EQ(5050, estimates.allTimeEstimate.sum);
   EXPECT_EQ(100, estimates.allTimeEstimate.count);
   EXPECT_EQ(95.5, estimates.allTimeEstimate.quantiles[0].second);
+  EXPECT_EQ(100, estimates.allTimeEstimate.quantiles[3].second);
 
   for (const auto& slidingWindow : estimates.slidingWindows) {
     EXPECT_EQ(5050, slidingWindow.estimate.sum);
     EXPECT_EQ(100, slidingWindow.estimate.count);
     EXPECT_EQ(95.5, slidingWindow.estimate.quantiles[0].second);
+    EXPECT_EQ(100, slidingWindow.estimate.quantiles[3].second);
   }
 }
 
@@ -115,18 +121,22 @@ TEST_F(QuantileStatTest, SlidingWindows) {
   EXPECT_EQ(5050, estimates.allTimeEstimate.sum);
   EXPECT_EQ(100, estimates.allTimeEstimate.count);
   EXPECT_EQ(95.5, estimates.allTimeEstimate.quantiles[0].second);
+  EXPECT_EQ(100, estimates.allTimeEstimate.quantiles[3].second);
 
   EXPECT_EQ(0, estimates.slidingWindows[0].estimate.sum);
   EXPECT_EQ(0, estimates.slidingWindows[0].estimate.count);
   EXPECT_EQ(0, estimates.slidingWindows[0].estimate.quantiles[0].second);
+  EXPECT_EQ(0, estimates.slidingWindows[0].estimate.quantiles[3].second);
 
   EXPECT_EQ(5050, estimates.slidingWindows[1].estimate.sum);
   EXPECT_EQ(100, estimates.slidingWindows[1].estimate.count);
   EXPECT_EQ(95.5, estimates.slidingWindows[1].estimate.quantiles[0].second);
+  EXPECT_EQ(100, estimates.slidingWindows[1].estimate.quantiles[3].second);
 
   EXPECT_EQ(5050, estimates.slidingWindows[2].estimate.sum);
   EXPECT_EQ(100, estimates.slidingWindows[2].estimate.count);
   EXPECT_EQ(95.5, estimates.slidingWindows[2].estimate.quantiles[0].second);
+  EXPECT_EQ(100, estimates.slidingWindows[1].estimate.quantiles[3].second);
 }
 
 TEST_F(QuantileStatTest, BufferFlush) {
@@ -139,10 +149,12 @@ TEST_F(QuantileStatTest, BufferFlush) {
   EXPECT_EQ(5050, estimates.allTimeEstimate.sum);
   EXPECT_EQ(100, estimates.allTimeEstimate.count);
   EXPECT_EQ(95.5, estimates.allTimeEstimate.quantiles[0].second);
+  EXPECT_EQ(100, estimates.allTimeEstimate.quantiles[3].second);
 
   for (const auto& slidingWindow : estimates.slidingWindows) {
     EXPECT_EQ(5050, slidingWindow.estimate.sum);
     EXPECT_EQ(100, slidingWindow.estimate.count);
     EXPECT_EQ(95.5, slidingWindow.estimate.quantiles[0].second);
+    EXPECT_EQ(100, slidingWindow.estimate.quantiles[3].second);
   }
 }
