@@ -16,17 +16,10 @@
 
 #include <fb303/BaseService.h>
 #include <fb303/test/gen-cpp2/TestService.h>
-#include <thrift/lib/cpp/async/TAsyncSocket.h>
-#include <thrift/lib/cpp2/async/HeaderClientChannel.h>
-#include <thrift/lib/cpp2/server/ThriftServer.h>
 #include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
 #include <chrono>
 
 #include <gtest/gtest.h>
-
-using apache::thrift::ScopedServerInterfaceThread;
-using apache::thrift::concurrency::PosixThreadFactory;
-using apache::thrift::concurrency::ThreadManager;
 
 using namespace facebook::fb303;
 
@@ -78,7 +71,7 @@ class GetCountersConcurrencyTest : public testing::Test {};
 
 TEST_F(GetCountersConcurrencyTest, concurrentGetCounters) {
   auto handler = std::make_shared<TestHandler>();
-  ScopedServerInterfaceThread server(handler);
+  apache::thrift::ScopedServerInterfaceThread server(handler);
   auto const address = server.getAddress();
 
   auto client = server.newClient<facebook::fb303::TestServiceAsyncClient>();
