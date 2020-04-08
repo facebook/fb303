@@ -248,9 +248,9 @@ class TFunctionStatHandler
   int32_t nThreads_; // active threads counted last period
   int32_t secondsPerPeriod_;
   double desiredSamplesPerPeriod_; // overall samples/period wanted
-  std::unique_ptr<fb303::ExportedStatMap> statMapSum_; // sums/rates
-  std::unique_ptr<fb303::ExportedStatMap> statMapAvg_; // averages
-  std::unique_ptr<ExportedHistogramMapImpl> histogramMap_; // histogram
+  fb303::ExportedStatMap statMapSum_; // sums/rates
+  fb303::ExportedStatMap statMapAvg_; // averages
+  ExportedHistogramMapImpl histogramMap_; // histogram
 
   static const std::string kDefaultCounterNamePrefix;
 
@@ -316,8 +316,8 @@ class TFunctionStatHandler
    * aggregation timeout expires (~5 seconds from object creation). Task 950790.
    */
   void setDefaultStat(const ExportedStat& defaultStat) {
-    statMapSum_->setDefaultStat(defaultStat);
-    statMapAvg_->setDefaultStat(defaultStat);
+    statMapSum_.setDefaultStat(defaultStat);
+    statMapAvg_.setDefaultStat(defaultStat);
   }
 
   /**

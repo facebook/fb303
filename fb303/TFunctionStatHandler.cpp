@@ -171,14 +171,10 @@ TFunctionStatHandler::TFunctionStatHandler(
       counters_(counters),
       nThreads_(1),
       secondsPerPeriod_(secondsPerPeriod),
-      desiredSamplesPerPeriod_(secondsPerPeriod * sampPerSecond) {
-  std::lock_guard<std::recursive_mutex> lock(statMutex_);
-
-  statMapSum_.reset(new ExportedStatMapImpl(counters, {SUM, RATE}));
-  statMapAvg_.reset(new ExportedStatMapImpl(counters, AVG));
-  histogramMap_.reset(
-      new ExportedHistogramMapImpl(counters, &dynamicStrings_, dummyHist_));
-
+      desiredSamplesPerPeriod_(secondsPerPeriod * sampPerSecond),
+      statMapSum_(counters_, {SUM, RATE}),
+      statMapAvg_(counters_, AVG),
+      histogramMap_(counters_, &dynamicStrings_, dummyHist_) {
   assert(desiredSamplesPerPeriod_ > 0);
 }
 
@@ -298,60 +294,60 @@ int32_t TFunctionStatHandler::consolidateStats(
   auto calls = spt.calls_;
   auto addAllValues = [&](const auto& prefix) {
     // update counts
-    statMapSum_->addValue(prefix + ".num_calls", now, spt.calls_);
-    statMapSum_->addValue(prefix + ".num_reads", now, spt.readData_.count);
-    statMapSum_->addValue(prefix + ".num_writes", now, spt.writeData_.count);
-    statMapSum_->addValue(prefix + ".num_processed", now, spt.processed_);
-    statMapSum_->addValue(prefix + ".num_asyncs", now, spt.asyncs_);
+    statMapSum_.addValue(prefix + ".num_calls", now, spt.calls_);
+    statMapSum_.addValue(prefix + ".num_reads", now, spt.readData_.count);
+    statMapSum_.addValue(prefix + ".num_writes", now, spt.writeData_.count);
+    statMapSum_.addValue(prefix + ".num_processed", now, spt.processed_);
+    statMapSum_.addValue(prefix + ".num_asyncs", now, spt.asyncs_);
     // userExceptions is Thrift name for all exceptions escaped from the handler
     // counter is named differently to better represent what it actually means
-    statMapSum_->addValue(
+    statMapSum_.addValue(
         prefix + ".num_all_exceptions", now, spt.userExceptions_);
     // this counter only includes exceptions not declared in the Thrift schema
-    statMapSum_->addValue(prefix + ".num_exceptions", now, spt.exceptions_);
-    statMapSum_->addValue(prefix + ".num_samples", now, spt.samples_);
-    statMapSum_->addValue(prefix + ".bytes_read", now, spt.readData_.sum);
-    statMapSum_->addValue(prefix + ".bytes_written", now, spt.writeData_.sum);
+    statMapSum_.addValue(prefix + ".num_exceptions", now, spt.exceptions_);
+    statMapSum_.addValue(prefix + ".num_samples", now, spt.samples_);
+    statMapSum_.addValue(prefix + ".bytes_read", now, spt.readData_.sum);
+    statMapSum_.addValue(prefix + ".bytes_written", now, spt.writeData_.sum);
 
     if (spt.requestStatsMeasureRate_ > 1e-9) {
-      statMapAvg_->addValue(
+      statMapAvg_.addValue(
           prefix + ".request_stats_rate",
           now,
           1 / spt.requestStatsMeasureRate_);
     }
     if (spt.requestStatsLogRate_ > 1e-9) {
-      statMapAvg_->addValue(
+      statMapAvg_.addValue(
           prefix + ".request_stats_log_rate",
           now,
           1 / spt.requestStatsLogRate_);
     }
 
     // update averages
-    statMapAvg_->addValueAggregated(
+    statMapAvg_.addValueAggregated(
         prefix + ".bytes_read", now, spt.readData_.sum, spt.readData_.count);
-    statMapAvg_->addValueAggregated(
+    statMapAvg_.addValueAggregated(
         prefix + ".bytes_written",
         now,
         spt.writeData_.sum,
         spt.writeData_.count);
-    statMapAvg_->addValueAggregated(
+    statMapAvg_.addValueAggregated(
         prefix + ".time_read_us", now, spt.readTime_.sum, spt.readTime_.count);
-    statMapAvg_->addValueAggregated(
+    statMapAvg_.addValueAggregated(
         prefix + ".time_write_us",
         now,
         spt.writeTime_.sum,
         spt.writeTime_.count);
-    statMapAvg_->addValueAggregated(
+    statMapAvg_.addValueAggregated(
         prefix + ".time_process_us",
         now,
         spt.processTime_.sum,
         spt.processTime_.count);
-    statMapAvg_->addValueAggregated(
+    statMapAvg_.addValueAggregated(
         prefix + ".total_cpu_us",
         now,
         spt.totalCpuTime_.sum,
         spt.totalCpuTime_.count);
-    statMapAvg_->addValueAggregated(
+    statMapAvg_.addValueAggregated(
         prefix + ".total_worked_us",
         now,
         spt.totalWorkedTime_.sum,
@@ -359,7 +355,7 @@ int32_t TFunctionStatHandler::consolidateStats(
 
     // update histogram
     if (spt.readTime_.hist.isEnabled()) {
-      histogramMap_->addValues(
+      histogramMap_.addValues(
           prefix + ".time_read_us",
           now,
           *spt.readTime_.hist.getHistogram(),
@@ -368,7 +364,7 @@ int32_t TFunctionStatHandler::consolidateStats(
     }
 
     if (spt.writeTime_.hist.isEnabled()) {
-      histogramMap_->addValues(
+      histogramMap_.addValues(
           prefix + ".time_write_us",
           now,
           *spt.writeTime_.hist.getHistogram(),
@@ -377,7 +373,7 @@ int32_t TFunctionStatHandler::consolidateStats(
     }
 
     if (spt.processTime_.hist.isEnabled()) {
-      histogramMap_->addValues(
+      histogramMap_.addValues(
           prefix + ".time_process_us",
           now,
           *spt.processTime_.hist.getHistogram(),
@@ -385,7 +381,7 @@ int32_t TFunctionStatHandler::consolidateStats(
           spt.processTime_.hist.getPercentiles());
     }
     if (spt.readData_.hist.isEnabled()) {
-      histogramMap_->addValues(
+      histogramMap_.addValues(
           prefix + ".bytes_read",
           now,
           *spt.readData_.hist.getHistogram(),
@@ -393,7 +389,7 @@ int32_t TFunctionStatHandler::consolidateStats(
           spt.readData_.hist.getPercentiles());
     }
     if (spt.writeData_.hist.isEnabled()) {
-      histogramMap_->addValues(
+      histogramMap_.addValues(
           prefix + ".bytes_written",
           now,
           *spt.writeData_.hist.getHistogram(),
