@@ -16,6 +16,12 @@
 
 #include <fb303/detail/QuantileStatMap.h>
 
+DEFINE_bool(
+    fb303_qstat_legacy_use_count_for_rate,
+    false,
+    "If true use count of the samples over a time window to compute rate. "
+    " Else default to the better behavior of using sum");
+
 namespace facebook {
 namespace fb303 {
 namespace detail {

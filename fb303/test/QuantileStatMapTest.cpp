@@ -120,8 +120,8 @@ TEST_F(QuantileStatMapTest, GetValues) {
   EXPECT_EQ(42, values.find("StatName.avg.60")->second);
   EXPECT_EQ(0, values.find("StatName.avg.600")->second);
   EXPECT_EQ(0, values.find("StatName.avg.3600")->second);
-  EXPECT_EQ(1, values.find("StatName.rate")->second);
-  EXPECT_EQ(1, values.find("StatName.rate.60")->second);
+  EXPECT_EQ(42, values.find("StatName.rate")->second);
+  EXPECT_EQ(42, values.find("StatName.rate.60")->second); // 84 / 2s
   EXPECT_EQ(0, values.find("StatName.rate.600")->second);
   EXPECT_EQ(0, values.find("StatName.rate.3600")->second);
   EXPECT_EQ(42, values.find("StatName.p95")->second);
@@ -153,9 +153,9 @@ TEST_F(QuantileStatMapTest, GetValues) {
   EXPECT_EQ(42, values.find("StatName.avg.60")->second);
   EXPECT_EQ(42, values.find("StatName.avg.600")->second);
   EXPECT_EQ(0, values.find("StatName.avg.3600")->second);
-  EXPECT_EQ(0, values.find("StatName.rate")->second);
-  EXPECT_EQ(0, values.find("StatName.rate.60")->second);
-  EXPECT_EQ(0, values.find("StatName.rate.600")->second);
+  EXPECT_EQ(7, values.find("StatName.rate")->second); // 84 / 12s
+  EXPECT_EQ(7, values.find("StatName.rate.60")->second); // 84 / 12s
+  EXPECT_EQ(7, values.find("StatName.rate.600")->second); // 84 / 12s
   EXPECT_EQ(0, values.find("StatName.rate.3600")->second);
   EXPECT_EQ(42, values.find("StatName.p95")->second);
   EXPECT_EQ(42, values.find("StatName.p95.60")->second);
@@ -205,20 +205,21 @@ TEST_F(QuantileStatMapTest, getSelectedValues) {
                                            "StatName.rate.60"};
   MockClock::Now += std::chrono::seconds{1};
 
-  stat->addValue(42);
-  stat->addValue(42);
+  stat->addValue(120);
+  stat->addValue(120);
+  stat->addValue(120);
 
   MockClock::Now += std::chrono::seconds{1};
 
   std::map<std::string, int64_t> values;
   statMap.getSelectedValues(values, selectedKeys);
   EXPECT_EQ(4, values.size());
-  EXPECT_EQ(84, values["StatName.sum"]);
-  EXPECT_EQ(84, values["StatName.sum.60"]);
+  EXPECT_EQ(360, values["StatName.sum"]);
+  EXPECT_EQ(360, values["StatName.sum.60"]);
 
   // The average value is still in the 600 buffer.
   EXPECT_EQ(0, values["StatName.avg.600"]);
-  EXPECT_EQ(1, values["StatName.rate.60"]);
+  EXPECT_EQ(180, values["StatName.rate.60"]); // "360 / 2"
 }
 
 TEST_F(QuantileStatMapTest, Overflow) {

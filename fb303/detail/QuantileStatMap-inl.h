@@ -265,7 +265,10 @@ double extractValueImpl(
       return 0;
     case ExportType::RATE:
       if (duration.count() > 0) {
-        return estimate.count / duration.count();
+        const auto& numerator = FLAGS_fb303_qstat_legacy_use_count_for_rate
+            ? estimate.count
+            : estimate.sum;
+        return numerator / duration.count();
       }
       return estimate.count;
     default:

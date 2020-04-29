@@ -20,12 +20,20 @@
 #include <unordered_map>
 #include <vector>
 
+#include <gflags/gflags.h>
+
 #include <folly/Optional.h>
 #include <folly/SharedMutex.h>
 #include <folly/experimental/StringKeyedUnorderedMap.h>
 
 #include <fb303/ExportType.h>
 #include <fb303/QuantileStat.h>
+
+/**
+ * Allow services to switch back to the old implementation for RATE. Eventually
+ * we need to remove this flag and default to using sum for rate computation.
+ */
+DECLARE_bool(fb303_qstat_legacy_use_count_for_rate);
 
 namespace facebook {
 namespace fb303 {
