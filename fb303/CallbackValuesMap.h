@@ -22,25 +22,6 @@
 namespace facebook {
 namespace fb303 {
 
-// Track information to help debeug callback issues.
-struct CallbackValuesMapDebug {
-  static FOLLY_TLS folly::StringPiece
-      callbackName; // Name of callback being invoked.
-  class CapturedNameTLS {
-   private:
-    folly::StringPiece previous_;
-
-   public:
-    explicit CapturedNameTLS(folly::StringPiece name) {
-      previous_ = callbackName;
-      callbackName = name;
-    }
-    ~CapturedNameTLS() {
-      callbackName = previous_;
-    }
-  };
-};
-
 template <typename T>
 class CallbackValuesMap {
  public:

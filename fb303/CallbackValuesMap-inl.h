@@ -44,7 +44,6 @@ void CallbackValuesMap<T>::getValues(ValuesMap* output) const {
 
   for (auto& it : mapCopy) {
     T result;
-    CallbackValuesMapDebug::CapturedNameTLS captured(it.first);
     if (it.second->getValue(&result)) {
       // if the entry was unregistered underneath, getValue returns failure
       (*output)[std::move(it.first)] = std::move(result);
@@ -68,9 +67,12 @@ bool CallbackValuesMap<T>::getValue(folly::StringPiece name, T* output) const {
     // see t660896 for more details
   }
 
-  CallbackValuesMapDebug::CapturedNameTLS captured(name);
-  // if the entry was unregistered underneath, getValue returns failure
-  return entry->getValue(output);
+  if (!entry->getValue(output)) {
+    // if the entry was unregistered underneath, getValue returns failure
+    return false;
+  }
+
+  return true;
 }
 
 template <typename T>
