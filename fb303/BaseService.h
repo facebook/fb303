@@ -86,14 +86,14 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   }
 
   /*** Retrieves all counters, both regular-style and dynamic counters */
-  void getCounters(std::map<std::string, int64_t>& _return) override {
+  virtual void getCounters(std::map<std::string, int64_t>& _return) {
     ServiceData::get()->getCounters(_return);
   }
 
   /*** Retrieves all counters that match a regex */
-  void getRegexCounters(
+  virtual void getRegexCounters(
       std::map<std::string, int64_t>& _return,
-      std::unique_ptr<std::string> regex) override {
+      std::unique_ptr<std::string> regex) {
     ServiceData::get()->getRegexCounters(_return, *regex);
   }
 
@@ -239,6 +239,33 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
             callback_->exception(std::current_exception());
           }
         });
+  }
+
+  // These were never part of the call chain - overriding them is a no-op
+  // TODO (T69138193): codemod these away
+  virtual folly::SemiFuture<std::unique_ptr<::std::map<::std::string, int64_t>>>
+  semifuture_getRegexCounters(std::unique_ptr<std::string> regex) {
+    auto _return = std::make_unique<std::map<std::string, int64_t>>();
+    getRegexCounters(*_return, std::move(regex));
+    return folly::makeSemiFuture(std::move(_return));
+  }
+  virtual folly::Future<std::unique_ptr<::std::map<::std::string, int64_t>>>
+  future_getRegexCounters(std::unique_ptr<std::string> regex) {
+    auto _return = std::make_unique<std::map<std::string, int64_t>>();
+    getRegexCounters(*_return, std::move(regex));
+    return folly::makeFuture(std::move(_return));
+  }
+  virtual folly::SemiFuture<std::unique_ptr<::std::map<::std::string, int64_t>>>
+  semifuture_getCounters() {
+    auto _return = std::make_unique<std::map<std::string, int64_t>>();
+    getCounters(*_return);
+    return folly::makeSemiFuture(std::move(_return));
+  }
+  virtual folly::Future<std::unique_ptr<::std::map<::std::string, int64_t>>>
+  future_getCounters() {
+    auto _return = std::make_unique<std::map<std::string, int64_t>>();
+    getCounters(*_return);
+    return folly::makeFuture(std::move(_return));
   }
 
  private:
