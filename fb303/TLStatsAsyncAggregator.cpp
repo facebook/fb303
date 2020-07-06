@@ -28,20 +28,18 @@ const uint32_t TLStatsAsyncAggregator::kDefaultIntervalMS;
  *
  */
 TLStatsAsyncAggregator::TLStatsAsyncAggregator(ThreadLocalStats* stats)
-  : intervalMS_(kDefaultIntervalMS),
-    stats_(stats) {
-}
+    : intervalMS_(kDefaultIntervalMS), stats_(stats) {}
 
-void TLStatsAsyncAggregator::scheduleAggregation(EventBase *eventBase,
-                                                 uint32_t intervalMS) {
+void TLStatsAsyncAggregator::scheduleAggregation(
+    EventBase* eventBase,
+    uint32_t intervalMS) {
   // Note that we install the AsyncTimeout as an INTERNAL event.
   // This way our timeout won't prevent EventBase::loop() if there are no
   // other events to process besides our timeout.  Stats aggregation by itself
   // generally isn't the main purpose of an event loop, and we don't need to
   // keep going just to aggregate stats if there is nothing else left running
   // that can generate stats.
-  attachEventBase(
-    eventBase, folly::AsyncTimeout::InternalEnum::INTERNAL);
+  attachEventBase(eventBase, folly::AsyncTimeout::InternalEnum::INTERNAL);
   intervalMS_ = intervalMS;
   scheduleTimeout(intervalMS_);
 }

@@ -52,14 +52,15 @@ class TLStatsAsyncAggregator : private folly::AsyncTimeout {
    * ensuring that the TLStatsAsyncAggregator is destroyed before the
    * ThreadLocalStats object.
    */
-  explicit TLStatsAsyncAggregator(ThreadLocalStats *stats);
+  explicit TLStatsAsyncAggregator(ThreadLocalStats* stats);
 
   /**
    * Schedule aggregate to be called automatically every intervalMS
    * milliseconds.
    */
-  void scheduleAggregation(folly::EventBase *eventBase,
-                           uint32_t intervalMS = kDefaultIntervalMS);
+  void scheduleAggregation(
+      folly::EventBase* eventBase,
+      uint32_t intervalMS = kDefaultIntervalMS);
 
   void stopAggregation() {
     cancelTimeout();
