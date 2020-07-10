@@ -19,7 +19,7 @@ namespace java.swift com.facebook.swift.fb303.core
 namespace cpp facebook.fb303
 namespace py.asyncio fb303_asyncio.fb303_core
 namespace perl fb303
-namespace php fb303
+namespace hack fb303
 namespace node_module fb303
 namespace go fb303.thrift.fb303_core
 
