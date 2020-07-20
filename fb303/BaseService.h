@@ -241,33 +241,6 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
         });
   }
 
-  // These were never part of the call chain - overriding them is a no-op
-  // TODO (T69138193): codemod these away
-  virtual folly::SemiFuture<std::unique_ptr<::std::map<::std::string, int64_t>>>
-  semifuture_getRegexCounters(std::unique_ptr<std::string> regex) {
-    auto _return = std::make_unique<std::map<std::string, int64_t>>();
-    getRegexCounters(*_return, std::move(regex));
-    return folly::makeSemiFuture(std::move(_return));
-  }
-  virtual folly::Future<std::unique_ptr<::std::map<::std::string, int64_t>>>
-  future_getRegexCounters(std::unique_ptr<std::string> regex) {
-    auto _return = std::make_unique<std::map<std::string, int64_t>>();
-    getRegexCounters(*_return, std::move(regex));
-    return folly::makeFuture(std::move(_return));
-  }
-  virtual folly::SemiFuture<std::unique_ptr<::std::map<::std::string, int64_t>>>
-  semifuture_getCounters() {
-    auto _return = std::make_unique<std::map<std::string, int64_t>>();
-    getCounters(*_return);
-    return folly::makeSemiFuture(std::move(_return));
-  }
-  virtual folly::Future<std::unique_ptr<::std::map<::std::string, int64_t>>>
-  future_getCounters() {
-    auto _return = std::make_unique<std::map<std::string, int64_t>>();
-    getCounters(*_return);
-    return folly::makeFuture(std::move(_return));
-  }
-
  private:
   const std::string name_;
   std::vector<ThriftFuncHistParams> thriftFuncHistParams_;
