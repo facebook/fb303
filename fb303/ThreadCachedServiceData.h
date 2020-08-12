@@ -27,6 +27,7 @@
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
 #include <folly/ThreadLocal.h>
+#include <folly/container/F14Map.h>
 #include <folly/dynamic.h>
 #include <folly/experimental/FunctionScheduler.h>
 
@@ -472,7 +473,7 @@ class FormattedKeyHolder {
 
   // The global map maps subkeys to formatted keys and also remembers
   // which formatted keys have already been registered with ServiceData.
-  typedef std::unordered_map<SubkeyArray, std::string, SubkeyArrayHash>
+  typedef folly::F14NodeMap<SubkeyArray, std::string, SubkeyArrayHash>
       GlobalMap;
 
   // The local map is a thread-local cache of the global map.
@@ -482,7 +483,7 @@ class FormattedKeyHolder {
   // values in globalMap_.
   // (we use const string pointers instead of StringPieces because
   //  ThreadCachedServiceData::addStatValue() only accepts string references)
-  typedef std::unordered_map<SubkeyArray, const std::string*, SubkeyArrayHash>
+  typedef folly::F14NodeMap<SubkeyArray, const std::string*, SubkeyArrayHash>
       LocalMap;
 
   // Takes a key format which may have (e.g. "foo.{}") containing one or
