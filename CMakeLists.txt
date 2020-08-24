@@ -16,6 +16,11 @@ cmake_minimum_required(VERSION 3.8)
 
 project("fb303" LANGUAGES CXX C)
 
+if (NOT DEFINED CPACK_GENERATOR)
+  set(CPACK_GENERATOR "RPM")
+endif()
+include(CPack)
+
 set(CMAKE_CXX_STANDARD 14)
 
 set(INCLUDE_INSTALL_DIR include CACHE STRING
