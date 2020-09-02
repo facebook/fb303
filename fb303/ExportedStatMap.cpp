@@ -59,20 +59,34 @@ ExportedStatMap::StatPtr ExportedStatMap::getStatPtrNoExport(
   if (createdPtr) {
     *createdPtr = false;
   }
-  auto lockedStatMap = statMap_.lock();
-  auto iter = lockedStatMap->find(name);
-  if (iter != lockedStatMap->end()) {
+
+  {
+    auto rlock = statMap_.rlock();
+    auto iter = rlock->find(name);
+    if (iter != rlock->end()) {
+      return iter->second;
+    }
+  }
+
+  auto ulock = statMap_.ulock();
+  auto iter = ulock->find(name);
+  if (iter != ulock->end()) {
+    // Stat was populated before we acquired the ulock.
     return iter->second;
   }
+
   auto value = std::make_shared<SyncStat>(defaultStat_);
   if (copyMe) {
     *value = *copyMe;
   }
-  auto item = lockedStatMap->insert({name, std::move(value)});
 
   if (createdPtr) {
-    *createdPtr = item.second;
+    *createdPtr = true;
   }
+
+  auto wlock = ulock.moveFromUpgradeToWrite();
+  auto item = wlock->try_emplace(name, std::move(value));
+  DCHECK(item.second);
   return item.first->second;
 }
 
@@ -80,7 +94,7 @@ void ExportedStatMap::unExportStatAll(StringPiece name) {
   // Get unlocked item as we will not access the value of the item
   // And the function called on the value assume that they can access
   // the value without locking
-  auto lockedStatMap = statMap_.lock();
+  auto lockedStatMap = statMap_.wlock();
   auto stat = lockedStatMap->find(name);
   if (stat != lockedStatMap->end()) {
     for (auto type : ExportTypeMeta::kExportTypes) {
@@ -92,15 +106,15 @@ void ExportedStatMap::unExportStatAll(StringPiece name) {
 }
 
 void ExportedStatMap::forgetAllStats() {
-  statMap_.lock()->clear();
+  statMap_.wlock()->clear();
 }
 
 void ExportedStatMap::forgetStatsFor(StringPiece name) {
-  statMap_.lock()->erase(name);
+  statMap_.wlock()->erase(name);
 }
 
 void ExportedStatMap::clearAllStats() {
-  auto lockedStatMap = statMap_.lock();
+  auto lockedStatMap = statMap_.wlock();
   for (auto& statPtrKvp : *lockedStatMap) {
     statPtrKvp.second->lock()->clear();
   }

@@ -197,7 +197,7 @@ class ExportedStatMap {
    * at any time (immediately) after returning.
    */
   bool contains(folly::StringPiece name) const {
-    auto lockedStatMap = statMap_.lock();
+    auto lockedStatMap = statMap_.rlock();
     return lockedStatMap->find(name) != lockedStatMap->end();
   }
 
@@ -244,7 +244,7 @@ class ExportedStatMap {
   void clearAllStats();
 
  protected:
-  folly::Synchronized<StatMap, MutexWrapper> statMap_;
+  folly::Synchronized<StatMap> statMap_;
   DynamicCounters* dynamicCounters_;
 
   std::vector<ExportType> defaultTypes_;
