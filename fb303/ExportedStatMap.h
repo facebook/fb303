@@ -19,7 +19,7 @@
 #include <fb303/ExportType.h>
 #include <fb303/MutexWrapper.h>
 #include <fb303/Timeseries.h>
-#include <folly/experimental/StringKeyedUnorderedMap.h>
+#include <folly/container/F14Map.h>
 
 namespace facebook {
 namespace fb303 {
@@ -39,7 +39,7 @@ class ExportedStatMap {
   using SyncStat = folly::Synchronized<ExportedStat, MutexWrapper>;
   using StatPtr = std::shared_ptr<SyncStat>;
   using LockedStatPtr = SyncStat::LockedPtr;
-  using StatMap = folly::StringKeyedUnorderedMap<StatPtr>;
+  using StatMap = folly::F14FastMap<std::string, StatPtr>;
 
   /*
    * Creates an ExportedStatMap and hooks it up to the given DynamicCounters
