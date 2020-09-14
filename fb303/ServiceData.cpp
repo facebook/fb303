@@ -200,20 +200,22 @@ std::shared_ptr<QuantileStat> ServiceData::getQuantileStat(
     return stat;
   }
 
-  std::vector<std::pair<std::chrono::seconds, size_t>> slidingWindowDefs;
+  std::vector<QuantileStat::SlidingWindow> slidingWindowDefs;
+  slidingWindowDefs.reserve(slidingWindowPeriods.size());
   for (const auto& slidingWindowLength : slidingWindowPeriods) {
     if (slidingWindowLength >= 60) {
       auto duration = std::chrono::seconds{slidingWindowLength};
       CHECK_EQ(0, duration.count() % 60);
-      slidingWindowDefs.push_back(std::make_pair(duration / 60, 60));
+      slidingWindowDefs.emplace_back(duration / 60, 60);
     } else {
-      slidingWindowDefs.push_back(
-          std::make_pair(std::chrono::seconds(1), slidingWindowLength));
+      slidingWindowDefs.emplace_back(
+          std::chrono::seconds(1), slidingWindowLength);
     }
   }
-  stat = std::make_shared<QuantileStat>(slidingWindowDefs);
+  stat = std::make_shared<QuantileStat>(std::move(slidingWindowDefs));
 
   std::vector<detail::QuantileStatMap::StatDef> statDefs;
+  statDefs.reserve(stats.size() + quantiles.size());
   for (auto statType : stats) {
     detail::QuantileStatMap::StatDef statDef;
     statDef.type = statType;
@@ -226,7 +228,8 @@ std::shared_ptr<QuantileStat> ServiceData::getQuantileStat(
     statDefs.push_back(statDef);
   }
 
-  return quantileMap_.registerQuantileStat(name, stat, statDefs);
+  return quantileMap_.registerQuantileStat(
+      name, std::move(stat), std::move(statDefs));
 }
 
 void ServiceData::addHistogramValue(

@@ -21,6 +21,11 @@ namespace fb303 {
 
 template <typename ClockT>
 BasicQuantileStat<ClockT>::BasicQuantileStat(
+    std::vector<BasicQuantileStat<ClockT>::SlidingWindow> defs)
+    : slidingWindowVec_(std::move(defs)), creationTime_(ClockT::now()) {}
+
+template <typename ClockT>
+BasicQuantileStat<ClockT>::BasicQuantileStat(
     const std::vector<std::pair<std::chrono::seconds, size_t>>& defs)
     : creationTime_(ClockT::now()) {
   for (const auto& def : defs) {
@@ -32,7 +37,7 @@ template <typename ClockT>
 void BasicQuantileStat<ClockT>::addValue(double value, TimePoint now) {
   allTimeEstimator_.addValue(value, now);
   for (auto& slidingWindow : slidingWindowVec_) {
-    slidingWindow.estimator->addValue(value, now);
+    slidingWindow.estimator.addValue(value, now);
   }
 }
 
@@ -40,7 +45,7 @@ template <typename ClockT>
 void BasicQuantileStat<ClockT>::flush() {
   allTimeEstimator_.flush();
   for (auto& slidingWindow : slidingWindowVec_) {
-    slidingWindow.estimator->flush();
+    slidingWindow.estimator.flush();
   }
 }
 
@@ -59,7 +64,7 @@ BasicQuantileStat<ClockT>::getEstimates(
     SlidingWindowEstimate swe;
     swe.windowLength = slidingWindow.windowLength;
     swe.nWindows = slidingWindow.nWindows;
-    swe.estimate = slidingWindow.estimator->estimateQuantiles(quantiles, now);
+    swe.estimate = slidingWindow.estimator.estimateQuantiles(quantiles, now);
     estimates.slidingWindows.push_back(std::move(swe));
   }
   return estimates;

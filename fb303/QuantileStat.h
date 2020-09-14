@@ -28,8 +28,10 @@ namespace fb303 {
 template <typename ClockT>
 class BasicQuantileStat {
  public:
+  struct SlidingWindow;
   using TimePoint = typename ClockT::time_point;
 
+  explicit BasicQuantileStat(std::vector<SlidingWindow> defs);
   explicit BasicQuantileStat(
       const std::vector<std::pair<std::chrono::seconds, size_t>>& defs);
 
@@ -64,15 +66,17 @@ class BasicQuantileStat {
   // This method can be force buffer flush and digest rebuild.
   void flush();
 
- private:
   struct SlidingWindow {
    public:
     SlidingWindow(std::chrono::seconds wl, size_t n)
-        : estimator(new folly::SlidingWindowQuantileEstimator<ClockT>(wl, n)),
-          windowLength(wl),
-          nWindows(n) {}
+        : estimator(wl, n), windowLength(wl), nWindows(n) {}
+    SlidingWindow(const SlidingWindow&) = delete;
+    SlidingWindow(SlidingWindow&& o) noexcept
+        : estimator(o.windowLength, o.nWindows),
+          windowLength(o.windowLength),
+          nWindows(o.nWindows) {}
 
-    std::unique_ptr<folly::SlidingWindowQuantileEstimator<ClockT>> estimator;
+    folly::SlidingWindowQuantileEstimator<ClockT> estimator;
     std::chrono::seconds windowLength;
     size_t nWindows;
 
@@ -81,6 +85,7 @@ class BasicQuantileStat {
     }
   };
 
+ private:
   folly::SimpleQuantileEstimator<ClockT> allTimeEstimator_;
   std::vector<SlidingWindow> slidingWindowVec_;
   const TimePoint creationTime_;
