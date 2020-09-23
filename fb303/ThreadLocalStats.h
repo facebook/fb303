@@ -767,7 +767,7 @@ class TLStatLink {
     size_t after;
     {
       Guard guard{mutex_};
-      DCHECK_GT(refCount_, 0);
+      DCHECK_GT(refCount_, 0u);
       after = --refCount_;
     }
     if (after == 0) {
@@ -831,7 +831,7 @@ class TLStatLinkPtr {
    */
   explicit TLStatLinkPtr(TLStatLink<LockTraits>* ptr) : ptr_{ptr} {
     DCHECK(ptr_);
-    DCHECK_EQ(1, ptr_->refCount_);
+    DCHECK_EQ(1u, ptr_->refCount_);
     // Starts in unlinked state.
   }
 

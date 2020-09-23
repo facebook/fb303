@@ -360,7 +360,7 @@ TLHistogramT<LockTraits>& TLHistogramT<LockTraits>::operator=(
     }
     {
       auto g = this->guardStatLock();
-      DCHECK_EQ(0, simpleHistogram_.computeTotalCount());
+      DCHECK_EQ(0u, simpleHistogram_.computeTotalCount());
       simpleHistogram_ =
           folly::Histogram<fb303::CounterType>{bucketSize, min, max};
     }
