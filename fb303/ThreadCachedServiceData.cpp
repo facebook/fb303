@@ -30,6 +30,35 @@ static const std::string kFunctionId =
 namespace facebook {
 namespace fb303 {
 
+namespace {
+folly::LeakySingleton<ThreadCachedServiceData>
+    gThreadCachedServiceDataSingleton;
+
+struct PublisherManager {
+  struct Worker {
+    folly::FunctionScheduler fs_;
+    Worker() {
+      fs_.addFunction(
+          [] { gThreadCachedServiceDataSingleton.get().publishStats(); },
+          gThreadCachedServiceDataSingleton.get().getPublisherInterval(),
+          kFunctionId);
+      fs_.setThreadName("servicedata-pub");
+      fs_.start();
+    }
+  };
+  folly::Synchronized<folly::Optional<Worker>> worker_;
+  PublisherManager() {
+    if (gThreadCachedServiceDataSingleton.get().publishThreadRunning()) {
+      // Singleton was shutdown. Read parameters from LeakySingleton
+      // and recreate the publisher thread again.
+      worker_.wlock()->emplace();
+    }
+  }
+};
+
+folly::Singleton<PublisherManager> publisherManager;
+} // namespace
+
 // ExportedStatMap will utilize a default stat object,
 // MinuteTenMinuteHourTimeSeries, as a blueprint for creating new timeseries
 // if one is not explicitly specified.  So we define these here that are used
@@ -50,22 +79,18 @@ ThreadCachedServiceData::getStatsThreadLocal() {
   return *threadLocal;
 }
 
-static folly::Singleton<ThreadCachedServiceData>
-    gThreadCachedServiceDataSingleton([] {
-      return new ThreadCachedServiceData(false);
-    });
-
+ThreadCachedServiceData* ThreadCachedServiceData::get() {
+  publisherManager.vivify();
+  return &gThreadCachedServiceDataSingleton.get();
+}
 std::shared_ptr<ThreadCachedServiceData> ThreadCachedServiceData::getShared() {
-  return gThreadCachedServiceDataSingleton.try_get();
+  return std::shared_ptr<ThreadCachedServiceData>(
+      std::shared_ptr<void>{}, ThreadCachedServiceData::get());
 }
 
-ThreadCachedServiceData::ThreadCachedServiceData(bool autoStartPublishThread)
+ThreadCachedServiceData::ThreadCachedServiceData()
     : serviceData_{fbData.ptr()},
-      threadLocalStats_{&ThreadCachedServiceData::getStatsThreadLocal()} {
-  if (autoStartPublishThread) {
-    startPublishThread(std::chrono::milliseconds{-1});
-  }
-}
+      threadLocalStats_{&ThreadCachedServiceData::getStatsThreadLocal()} {}
 
 void ThreadCachedServiceData::publishStats() {
   for (ThreadLocalStatsMap& tlsm : threadLocalStats_->accessAllThreads()) {
@@ -82,23 +107,7 @@ void ThreadCachedServiceData::startPublishThread(milliseconds interval) {
   // If the interval isn't positive, perform a fast check to see if the thread
   // has already been started.
   if (interval <= milliseconds(0) &&
-      publishThreadRunning_.load(std::memory_order_acquire)) {
-    return;
-  }
-
-  auto state = state_.lock();
-
-  // (If another thread started the publish thread
-  // before we could acquire the lock, the functionScheduler_ check below will
-  // be true and thus will return, doing the right thing)
-
-  if (state->functionScheduler) {
-    if (interval > milliseconds(0)) {
-      // Reschedule the function
-      state->functionScheduler->cancelFunction(kFunctionId);
-      state->functionScheduler->addFunction(
-          [this] { this->publishStats(); }, interval, kFunctionId);
-    }
+      interval_.load(std::memory_order_relaxed) != milliseconds(0)) {
     return;
   }
 
@@ -107,22 +116,25 @@ void ThreadCachedServiceData::startPublishThread(milliseconds interval) {
     interval = milliseconds(1000);
   }
 
-  state->functionScheduler.reset(new FunctionScheduler);
-  state->functionScheduler->addFunction(
-      [this] { this->publishStats(); }, interval, kFunctionId);
-  state->functionScheduler->setThreadName("servicedata-pub");
-  state->functionScheduler->start();
-  publishThreadRunning_.store(true, std::memory_order_release);
+  if (auto mgr = publisherManager.try_get()) {
+    mgr->worker_.withWLock([&](auto& worker) {
+      interval_.store(interval, std::memory_order_relaxed);
+      worker.emplace();
+    });
+  }
 }
 
 void ThreadCachedServiceData::stopPublishThread() {
-  auto state = state_.lock();
-  state->functionScheduler.reset();
-  publishThreadRunning_.store(false, std::memory_order_release);
+  if (auto mgr = publisherManager.try_get()) {
+    mgr->worker_.withWLock([&](auto& worker) {
+      interval_.store(milliseconds(0), std::memory_order_relaxed);
+      worker.reset();
+    });
+  }
 }
 
 bool ThreadCachedServiceData::publishThreadRunning() const {
-  return publishThreadRunning_.load(std::memory_order_acquire);
+  return getPublisherInterval() > milliseconds(0);
 }
 
 int64_t ThreadCachedServiceData::setCounter(

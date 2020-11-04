@@ -15,6 +15,8 @@
  */
 
 #include <fb303/ThreadLocalStats.h>
+#include <fb303/ThreadCachedServiceData.h>
+#include <folly/Singleton.h>
 #include <folly/synchronization/test/Barrier.h>
 #include <folly/test/TestUtils.h>
 
@@ -429,4 +431,66 @@ TEST(ThreadLocalStats, moveStatFromOneContainerToAnother) {
     SCOPED_TRACE("TLStatsNoLocking");
     moveHistogramAcrossContainers<TLStatsNoLocking>();
   }
+}
+
+class ThreadCachedServiceDataTest : public testing::Test {
+ protected:
+  void SetUp() override {
+    folly::LeakySingleton<ThreadCachedServiceData>::make_mock();
+    ThreadCachedServiceData::get()->startPublishThread(
+        std::chrono::milliseconds(10));
+    ThreadCachedServiceData::get()->addStatExportType("dummy", SUM);
+  }
+
+  static bool waitCounterToUpdate(
+      folly::StringPiece counter,
+      int64_t expectedValue,
+      std::chrono::milliseconds time) {
+    auto now = std::chrono::steady_clock::now();
+    while (expectedValue != fbData->getCounter(counter)) {
+      sched_yield();
+      if (std::chrono::steady_clock::now() - now > time) {
+        return false;
+      }
+    }
+    return true;
+  };
+  static auto ms(int64_t value) {
+    return std::chrono::milliseconds(value);
+  }
+};
+
+TEST_F(ThreadCachedServiceDataTest, PublishThreadRestartsWithGet) {
+  folly::SingletonVault::singleton()->destroyInstances();
+  folly::SingletonVault::singleton()->reenableInstances();
+
+  ThreadCachedServiceData::get()->addStatValue("dummy");
+  EXPECT_TRUE(waitCounterToUpdate("dummy.sum", 1, ms(200)));
+}
+
+TEST_F(ThreadCachedServiceDataTest, PublishThreadRestartsWithGetShared) {
+  folly::SingletonVault::singleton()->destroyInstances();
+  folly::SingletonVault::singleton()->reenableInstances();
+
+  ThreadCachedServiceData::getShared()->addStatValue("dummy");
+  EXPECT_TRUE(waitCounterToUpdate("dummy.sum", 1, ms(200)));
+}
+
+TEST_F(ThreadCachedServiceDataTest, AlwaysAvailable) {
+  folly::SingletonVault::singleton()->destroyInstances();
+  ThreadCachedServiceData::get()->addStatValue("dummy");
+  folly::SingletonVault::singleton()->reenableInstances();
+}
+
+TEST_F(ThreadCachedServiceDataTest, StoppedPublisherDoesNotRestart) {
+  ThreadCachedServiceData::get()->stopPublishThread();
+  EXPECT_EQ(false, ThreadCachedServiceData::get()->publishThreadRunning());
+
+  folly::SingletonVault::singleton()->destroyInstances();
+  ThreadCachedServiceData::get()->addStatValue("dummy");
+  folly::SingletonVault::singleton()->reenableInstances();
+
+  EXPECT_EQ(false, ThreadCachedServiceData::get()->publishThreadRunning());
+  ThreadCachedServiceData::get()->addStatValue("dummy");
+  EXPECT_FALSE(waitCounterToUpdate("dummy.sum", 1, ms(200)));
 }

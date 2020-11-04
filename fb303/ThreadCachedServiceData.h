@@ -64,13 +64,11 @@ class ThreadCachedServiceData {
 
   /**
    * Create a new ThreadCachedServiceData instance.
-   * Auto-builds a publisher thread if requested.
-   *
-   * Note: You normally should never need to create a new
-   * ThreadCachedServiceData object.  Most callers will simply want to use the
+   * Note: You should never need to create a new
+   * ThreadCachedServiceData object, but simply use
    * global singleton instance accessible via ThreadCachedServiceData::get().
    */
-  explicit ThreadCachedServiceData(bool autoStartPublishThread = false);
+  ThreadCachedServiceData();
 
   ThreadCachedServiceData(const ThreadCachedServiceData&) = delete;
   ThreadCachedServiceData& operator=(const ThreadCachedServiceData&) = delete;
@@ -84,21 +82,14 @@ class ThreadCachedServiceData {
 
   /**
    * Get a shared pointer to the singleton ThreadCachedServiceData object.
-   * It's recommended the caller not hold this shared_ptr, and instead
-   * getShared() each time it's needed.
-   *
-   * Note that since this instance lives in a folly::Singleton and therefore
-   * the shared_ptr might be empty if this is called during program shutdown
-   * (if the Singleton has already been destroyed).
+   * Deprecated; use `get()` instead
    */
   static std::shared_ptr<ThreadCachedServiceData> getShared();
 
   /**
-   * Deprecated; use `getShared()` instead
+   * Get a pointer to the singleton ThreadCachedServiceData object.
    */
-  static ThreadCachedServiceData* get() {
-    return getShared().get();
-  }
+  static ThreadCachedServiceData* get();
 
   /*
    * Flush all of the statistics cached in each thread into the main
@@ -355,15 +346,16 @@ class ThreadCachedServiceData {
     return threadLocalStats_->get();
   }
 
+  std::chrono::milliseconds getPublisherInterval() const {
+    return interval_.load(std::memory_order_relaxed);
+  }
+
  private:
   ServiceData* serviceData_;
   StatsThreadLocal* threadLocalStats_;
 
-  std::atomic<bool> publishThreadRunning_{false};
-  struct State {
-    std::unique_ptr<folly::FunctionScheduler> functionScheduler;
-  };
-  folly::Synchronized<State, std::mutex> state_;
+  std::atomic<std::chrono::milliseconds> interval_{
+      std::chrono::milliseconds(0)};
 };
 
 struct TLMinuteOnlyTimeseries : public ThreadCachedServiceData::TLTimeseries {
