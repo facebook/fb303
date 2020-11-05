@@ -25,6 +25,8 @@
 #include <fb303/ServiceData.h>
 
 #include <chrono>
+#include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <unordered_set>
 
@@ -302,6 +304,13 @@ class TLStatT {
     return std::unique_lock<typename LockTraits::StatLock>{statLock_};
   }
 
+  std::shared_lock<typename LockTraits::StatLock> guardStatSharedLock() const {
+    // Assert the stat is being used by the thread currently responsible
+    // for the container in debug mode.
+    LockTraits::willAcquireStatLock(link_->mutex_);
+    return std::shared_lock<typename LockTraits::StatLock>{statLock_};
+  }
+
   /**
    * Helper constructor for move-construction of subclasses
    *
@@ -429,6 +438,8 @@ class TLStatT {
 /**
  * A thread-local data structure to update a global MultiLevelTimeSeries
  * statistic.
+ * This class is intended to be updated by only a single thread. The user is
+ * expected to manage thread locality.
  */
 template <class LockTraits>
 class TLTimeseriesT : public TLStatT<LockTraits> {
@@ -490,17 +501,17 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
    * Add a new data point
    */
   void addValue(int64_t value) {
-    auto g = this->guardStatLock();
+    auto g = this->guardStatSharedLock();
 
-    sum_ += value;
-    count_ += 1;
+    sum_.fetch_add(value, std::memory_order_relaxed);
+    count_.fetch_add(1, std::memory_order_relaxed);
   }
 
   void addValueAggregated(int64_t value, int64_t nsamples) {
-    auto g = this->guardStatLock();
+    auto g = this->guardStatSharedLock();
 
-    sum_ += value;
-    count_ += nsamples;
+    sum_.fetch_add(value, std::memory_order_relaxed);
+    count_.fetch_add(nsamples, std::memory_order_relaxed);
   }
 
   void exportStat(ExportType exportType);
@@ -515,13 +526,11 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
   void aggregate(std::chrono::seconds now) override;
 
   int64_t count() const {
-    auto g = this->guardStatLock();
-    return count_;
+    return count_.load(std::memory_order_relaxed);
   }
 
   int64_t sum() const {
-    auto g = this->guardStatLock();
-    return sum_;
+    return sum_.load(std::memory_order_relaxed);
   }
 
   /**
@@ -543,8 +552,8 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
       ThreadLocalStatsT<LockTraits>* stats);
 
   ExportedStatMapImpl::LockableStat globalStat_;
-  int64_t sum_{0};
-  int64_t count_{0};
+  std::atomic<int64_t> sum_{0};
+  std::atomic<int64_t> count_{0};
 };
 
 /**

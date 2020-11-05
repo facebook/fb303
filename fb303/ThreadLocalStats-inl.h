@@ -244,11 +244,10 @@ void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
   int64_t currentSum;
   int64_t currentCount;
   {
+    // exclusive lock needed to avoid losing samples
     auto g = this->guardStatLock();
-    currentSum = sum_;
-    currentCount = count_;
-    sum_ = 0;
-    count_ = 0;
+    currentSum = sum_.exchange(0, std::memory_order_relaxed);
+    currentCount = count_.exchange(0, std::memory_order_relaxed);
   }
 
   if (currentCount == 0) {

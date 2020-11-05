@@ -19,7 +19,6 @@
 #include <atomic>
 #include <thread>
 
-#include <folly/MicroLock.h>
 #include <folly/SharedMutex.h>
 
 namespace facebook {
@@ -30,9 +29,15 @@ namespace detail {
 /**
  * NoLock is a fake lock that provides no locking.
  */
-struct NoLock {
+struct UniqueNoLock {
   void lock() {}
   void unlock() {}
+};
+struct SharedNoLock {
+  void lock() {}
+  void unlock() {}
+  void lock_shared() {}
+  void unlock_shared() {}
 };
 
 /**
@@ -67,15 +72,6 @@ struct DebugCheckedLock {
   std::thread::id threadID_;
 };
 
-/**
- * folly::MicroLock does not have a default constructor, so it must be
- * explicitly zeroed ourselves.
- */
-class InitedMicroLock : public folly::MicroLock {
- public:
-  InitedMicroLock() : folly::MicroLock{} {}
-};
-
 } // namespace detail
 
 /**
@@ -93,9 +89,9 @@ class TLStatsNoLocking {
 #ifndef NDEBUG
   using RegistryLock = detail::DebugCheckedLock;
 #else
-  using RegistryLock = detail::NoLock;
+  using RegistryLock = detail::UniqueNoLock;
 #endif
-  using StatLock = detail::NoLock;
+  using StatLock = detail::SharedNoLock;
 
   /**
    * The type to use for integer counter values.
@@ -163,7 +159,7 @@ class TLStatsNoLocking {
 class TLStatsThreadSafe {
  public:
   using RegistryLock = folly::SharedMutex;
-  using StatLock = detail::InitedMicroLock;
+  using StatLock = folly::SharedMutex;
 
   /**
    * The type to use for integer counter values.
