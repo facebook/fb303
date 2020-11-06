@@ -140,5 +140,13 @@ typename ThreadLocalStatsMapT<LockTraits>::TLCounter* ThreadLocalStatsMapT<
   return entry.get();
 }
 
+template <class LockTraits>
+void ThreadLocalStatsMapT<LockTraits>::resetAllData() {
+  auto state = state_.lock();
+  state->namedCounters_.clear();
+  state->namedHistograms_.clear();
+  state->namedTimeseries_.clear();
+}
+
 } // namespace fb303
 } // namespace facebook

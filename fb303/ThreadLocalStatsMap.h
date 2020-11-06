@@ -98,6 +98,8 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
    */
   std::shared_ptr<TLCounter> getCounterSafe(folly::StringPiece name);
 
+  void resetAllData();
+
  private:
   /*
    * This "lock" protects the named maps.  Since the maps should only ever be

@@ -63,17 +63,6 @@ class ThreadCachedServiceData {
   static StatsThreadLocal& getStatsThreadLocal();
 
   /**
-   * Create a new ThreadCachedServiceData instance.
-   * Note: You should never need to create a new
-   * ThreadCachedServiceData object, but simply use
-   * global singleton instance accessible via ThreadCachedServiceData::get().
-   */
-  ThreadCachedServiceData();
-
-  ThreadCachedServiceData(const ThreadCachedServiceData&) = delete;
-  ThreadCachedServiceData& operator=(const ThreadCachedServiceData&) = delete;
-
-  /**
    * Get the ServiceData object that this ThreadCachedServiceData object wraps.
    */
   ServiceData* getServiceData() const {
@@ -351,6 +340,13 @@ class ThreadCachedServiceData {
   }
 
  private:
+  ThreadCachedServiceData();
+  ThreadCachedServiceData(const ThreadCachedServiceData&) = delete;
+  ThreadCachedServiceData& operator=(const ThreadCachedServiceData&) = delete;
+  static ThreadCachedServiceData& getInternal();
+
+  friend class PublisherManager;
+
   ServiceData* serviceData_;
   StatsThreadLocal* threadLocalStats_;
 

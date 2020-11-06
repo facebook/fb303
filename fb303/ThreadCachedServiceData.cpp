@@ -30,17 +30,14 @@ static const std::string kFunctionId =
 namespace facebook {
 namespace fb303 {
 
-namespace {
-folly::LeakySingleton<ThreadCachedServiceData>
-    gThreadCachedServiceDataSingleton;
-
-struct PublisherManager {
+class PublisherManager {
+ public:
   struct Worker {
     folly::FunctionScheduler fs_;
     Worker() {
       fs_.addFunction(
-          [] { gThreadCachedServiceDataSingleton.get().publishStats(); },
-          gThreadCachedServiceDataSingleton.get().getPublisherInterval(),
+          [] { ThreadCachedServiceData::getInternal().publishStats(); },
+          ThreadCachedServiceData::getInternal().getPublisherInterval(),
           kFunctionId);
       fs_.setThreadName("servicedata-pub");
       fs_.start();
@@ -48,7 +45,7 @@ struct PublisherManager {
   };
   folly::Synchronized<folly::Optional<Worker>> worker_;
   PublisherManager() {
-    if (gThreadCachedServiceDataSingleton.get().publishThreadRunning()) {
+    if (ThreadCachedServiceData::getInternal().publishThreadRunning()) {
       // Singleton was shutdown. Read parameters from LeakySingleton
       // and recreate the publisher thread again.
       worker_.wlock()->emplace();
@@ -56,8 +53,9 @@ struct PublisherManager {
   }
 };
 
+namespace {
 folly::Singleton<PublisherManager> publisherManager;
-} // namespace
+}
 
 // ExportedStatMap will utilize a default stat object,
 // MinuteTenMinuteHourTimeSeries, as a blueprint for creating new timeseries
@@ -79,9 +77,14 @@ ThreadCachedServiceData::getStatsThreadLocal() {
   return *threadLocal;
 }
 
+ThreadCachedServiceData& ThreadCachedServiceData::getInternal() {
+  static ThreadCachedServiceData* instance = new ThreadCachedServiceData();
+  return *instance;
+}
+
 ThreadCachedServiceData* ThreadCachedServiceData::get() {
   publisherManager.vivify();
-  return &gThreadCachedServiceDataSingleton.get();
+  return &getInternal();
 }
 std::shared_ptr<ThreadCachedServiceData> ThreadCachedServiceData::getShared() {
   return std::shared_ptr<ThreadCachedServiceData>(

@@ -436,10 +436,15 @@ TEST(ThreadLocalStats, moveStatFromOneContainerToAnother) {
 class ThreadCachedServiceDataTest : public testing::Test {
  protected:
   void SetUp() override {
-    folly::LeakySingleton<ThreadCachedServiceData>::make_mock();
     ThreadCachedServiceData::get()->startPublishThread(
         std::chrono::milliseconds(10));
     ThreadCachedServiceData::get()->addStatExportType("dummy", SUM);
+  }
+
+  void TearDown() override {
+    ThreadCachedServiceData::get()->getServiceData()->resetAllData();
+    ThreadCachedServiceData::get()->getThreadStats()->resetAllData();
+    ThreadCachedServiceData::get()->stopPublishThread();
   }
 
   static bool waitCounterToUpdate(
@@ -464,6 +469,7 @@ TEST_F(ThreadCachedServiceDataTest, PublishThreadRestartsWithGet) {
   folly::SingletonVault::singleton()->destroyInstances();
   folly::SingletonVault::singleton()->reenableInstances();
 
+  EXPECT_EQ(0, fbData->getCounter("dummy.sum"));
   ThreadCachedServiceData::get()->addStatValue("dummy");
   EXPECT_TRUE(waitCounterToUpdate("dummy.sum", 1, ms(200)));
 }
@@ -472,6 +478,7 @@ TEST_F(ThreadCachedServiceDataTest, PublishThreadRestartsWithGetShared) {
   folly::SingletonVault::singleton()->destroyInstances();
   folly::SingletonVault::singleton()->reenableInstances();
 
+  EXPECT_EQ(0, fbData->getCounter("dummy.sum"));
   ThreadCachedServiceData::getShared()->addStatValue("dummy");
   EXPECT_TRUE(waitCounterToUpdate("dummy.sum", 1, ms(200)));
 }
@@ -490,6 +497,7 @@ TEST_F(ThreadCachedServiceDataTest, StoppedPublisherDoesNotRestart) {
   ThreadCachedServiceData::get()->addStatValue("dummy");
   folly::SingletonVault::singleton()->reenableInstances();
 
+  EXPECT_EQ(0, fbData->getCounter("dummy.sum"));
   EXPECT_EQ(false, ThreadCachedServiceData::get()->publishThreadRunning());
   ThreadCachedServiceData::get()->addStatValue("dummy");
   EXPECT_FALSE(waitCounterToUpdate("dummy.sum", 1, ms(200)));
