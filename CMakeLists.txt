@@ -15,6 +15,9 @@
 cmake_minimum_required(VERSION 3.8)
 
 project("fb303" LANGUAGES CXX C)
+if (NOT DEFINED PACKAGE_VERSION)
+  set(PACKAGE_VERSION "1.0.0")
+endif()
 
 if (NOT DEFINED CPACK_GENERATOR)
   set(CPACK_GENERATOR "RPM")
@@ -70,6 +73,9 @@ install(
 )
 
 add_library(fb303 ${fb303_SOURCES} ${fb303_HEADERS})
+if (BUILD_SHARED_LIBS)
+  set_property(TARGET fb303 PROPERTY VERSION ${PACKAGE_VERSION})
+endif ()
 
 target_include_directories(fb303 PUBLIC
   ${GFLAGS_INCLUDE_DIR}
