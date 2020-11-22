@@ -12,10 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (PYTHON_EXTENSIONS)
+  set(FB303_LANG cpp py)
+else ()
+  set(FB303_LANG cpp)
+endif ()
+
 add_fbthrift_library(
   fb303_thrift
   fb303_core.thrift
-  LANGUAGES cpp py
+  LANGUAGES ${FB303_LANG}
   THRIFT_INCLUDE_DIR "${INCLUDE_INSTALL_DIR}/thrift-files"
   SERVICES
     BaseService
@@ -38,8 +44,10 @@ install(
   DESTINATION "$<TARGET_PROPERTY:fb303_thrift_cpp,THRIFT_INSTALL_DIR>"
 )
 
-install_fb_python_library(fb303_thrift_py EXPORT fb303-exports)
-install(
-  TARGETS fb303_thrift_py.thrift_includes
-  EXPORT fb303-exports
-)
+if (PYTHON_EXTENSIONS)
+  install_fb_python_library(fb303_thrift_py EXPORT fb303-exports)
+  install(
+    TARGETS fb303_thrift_py.thrift_includes
+    EXPORT fb303-exports
+  )
+endif ()

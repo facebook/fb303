@@ -21,6 +21,11 @@ if (NOT DEFINED CPACK_GENERATOR)
 endif()
 include(CPack)
 
+option(PYTHON_EXTENSIONS
+  "Build Python bindings for fb303"
+  ON
+)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
