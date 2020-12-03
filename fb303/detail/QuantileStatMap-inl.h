@@ -183,6 +183,23 @@ size_t BasicQuantileStatMap<ClockT>::getNumKeys() const {
 }
 
 template <typename ClockT>
+folly::Optional<typename BasicQuantileStatMap<ClockT>::SnapshotEntry>
+BasicQuantileStatMap<ClockT>::getSnapshotEntry(
+    folly::StringPiece name,
+    TimePoint now) const {
+  folly::SharedMutex::ReadHolder g(mutex_);
+  auto it = statMap_.find(name);
+  if (it == statMap_.end()) {
+    return {};
+  }
+  SnapshotEntry entry;
+  entry.name = name;
+  entry.snapshot = it->second.stat->getSnapshot(now);
+  entry.statDefs = it->second.statDefs;
+  return entry;
+}
+
+template <typename ClockT>
 std::shared_ptr<BasicQuantileStat<ClockT>>
 BasicQuantileStatMap<ClockT>::registerQuantileStat(
     folly::StringPiece name,

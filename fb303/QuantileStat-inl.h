@@ -87,5 +87,24 @@ BasicQuantileStat<ClockT>::creationTime() const {
   return creationTime_;
 }
 
+template <typename ClockT>
+typename BasicQuantileStat<ClockT>::Snapshot
+BasicQuantileStat<ClockT>::getSnapshot(TimePoint now) {
+  Snapshot snapshot;
+  snapshot.now = now;
+  snapshot.creationTime = creationTime_;
+  snapshot.allTimeDigest = allTimeEstimator_.getDigest(now);
+
+  snapshot.slidingWindowSnapshot.reserve(slidingWindowVec_.size());
+  for (auto& slidingWindow : slidingWindowVec_) {
+    SlidingWindowSnapshot snap;
+    snap.windowLength = slidingWindow.windowLength;
+    snap.nWindows = slidingWindow.nWindows;
+    snap.digest = slidingWindow.estimator.getDigest(now);
+    snapshot.slidingWindowSnapshot.push_back(std::move(snap));
+  }
+  return snapshot;
+}
+
 } // namespace fb303
 } // namespace facebook

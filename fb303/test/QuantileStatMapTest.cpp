@@ -243,3 +243,19 @@ TEST_F(QuantileStatMapTest, Overflow) {
       std::numeric_limits<int64_t>::max(),
       values.find("StatName.p95.60")->second);
 }
+
+TEST_F(QuantileStatMapTest, getSnapshotEntry) {
+  // Start at time=1 so that we can test the buffering timing properly.
+  MockClock::Now += std::chrono::seconds{1};
+
+  stat->addValue(42);
+  stat->addValue(42);
+
+  auto entry = statMap.getSnapshotEntry("StatName", MockClock::Now).value();
+  auto snapshot = entry.snapshot;
+  EXPECT_EQ(entry.name, "StatName");
+  EXPECT_EQ(entry.statDefs.size(), 6);
+  EXPECT_EQ(snapshot.now, MockClock::Now);
+  EXPECT_EQ(snapshot.creationTime, MockClock::Now - std::chrono::seconds{1});
+  EXPECT_EQ(snapshot.slidingWindowSnapshot.size(), 3);
+}

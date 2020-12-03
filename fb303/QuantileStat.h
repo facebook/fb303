@@ -21,6 +21,7 @@
 #include <cstddef>
 
 #include <folly/stats/QuantileEstimator.h>
+#include <folly/stats/TDigest.h>
 
 namespace facebook {
 namespace fb303 {
@@ -84,6 +85,25 @@ class BasicQuantileStat {
       return windowLength * nWindows;
     }
   };
+
+  struct SlidingWindowSnapshot {
+    folly::TDigest digest;
+    std::chrono::seconds windowLength;
+    size_t nWindows;
+
+    std::chrono::seconds slidingWindowLength() const {
+      return windowLength * nWindows;
+    }
+  };
+
+  struct Snapshot {
+    folly::TDigest allTimeDigest;
+    std::vector<SlidingWindowSnapshot> slidingWindowSnapshot;
+    typename ClockT::time_point now;
+    typename ClockT::time_point creationTime;
+  };
+
+  Snapshot getSnapshot(TimePoint now = ClockT::now());
 
  private:
   folly::SimpleQuantileEstimator<ClockT> allTimeEstimator_;

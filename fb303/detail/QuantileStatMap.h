@@ -47,10 +47,17 @@ template <typename ClockT>
 class BasicQuantileStatMap {
  public:
   using stat_type = BasicQuantileStat<ClockT>;
+  using TimePoint = typename ClockT::time_point;
 
   struct StatDef {
     ExportType type;
     double quantile;
+  };
+
+  struct SnapshotEntry {
+    folly::StringPiece name;
+    typename stat_type::Snapshot snapshot;
+    std::vector<StatDef> statDefs;
   };
 
   folly::Optional<int64_t> getValue(folly::StringPiece key) const;
@@ -63,6 +70,10 @@ class BasicQuantileStatMap {
   bool contains(folly::StringPiece name) const;
   void getKeys(std::vector<std::string>& keys) const;
   size_t getNumKeys() const;
+
+  folly::Optional<SnapshotEntry> getSnapshotEntry(
+      folly::StringPiece name,
+      TimePoint now = ClockT::now()) const;
 
   std::shared_ptr<stat_type> registerQuantileStat(
       folly::StringPiece name,
