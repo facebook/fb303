@@ -19,6 +19,7 @@
 #include <fb303/ExportedHistogramMapImpl.h>
 #include <fb303/ExportedStatMapImpl.h>
 #include <folly/Benchmark.h>
+#include <folly/Random.h>
 #include <folly/init/Init.h>
 #include <functional>
 
@@ -138,6 +139,30 @@ void MultiThreadedHistogramOperation(int iters, size_t kThreads) {
   });
 }
 
+void MultiThreadedStatOperationDispersedCached(int iters, size_t kThreads) {
+  DynamicCounters dc_;
+  ExportedStatMapImpl statMap_(&dc_);
+
+  // use many keys to avoid instrumenting the unique lock acquire spin loop
+  //
+  // addValue is uncached if the key is not previously seen or, for the same
+  // seen key, if the time passed is different from the previous call - so
+  // cache all the keys and, for subsequent calls, use the cached time
+  int64_t now = ::time(nullptr);
+  std::vector<std::string> keys;
+  for (size_t i = 0; i < kThreads * 2; ++i) {
+    keys.push_back(fmt::format("key_{}", i));
+    statMap_.addValue(keys.back(), now, 0);
+  }
+
+  runInThreads(kThreads, [&] {
+    for (auto i = 0; i < iters; ++i) {
+      auto const& key = keys.at(folly::Random::rand32(keys.size()));
+      statMap_.addValue(key, now, 1);
+    }
+  });
+}
+
 BENCHMARK_PARAM(MultiThreadedStatOperation, 1)
 BENCHMARK_PARAM(MultiThreadedStatOperation, 4)
 BENCHMARK_PARAM(MultiThreadedStatOperation, 16)
@@ -146,6 +171,11 @@ BENCHMARK_PARAM(MultiThreadedHistogramOperation, 1)
 BENCHMARK_PARAM(MultiThreadedHistogramOperation, 4)
 BENCHMARK_PARAM(MultiThreadedHistogramOperation, 16)
 BENCHMARK_PARAM(MultiThreadedHistogramOperation, 64)
+
+BENCHMARK_PARAM(MultiThreadedStatOperationDispersedCached, 1)
+BENCHMARK_PARAM(MultiThreadedStatOperationDispersedCached, 4)
+BENCHMARK_PARAM(MultiThreadedStatOperationDispersedCached, 16)
+BENCHMARK_PARAM(MultiThreadedStatOperationDispersedCached, 64)
 
 int main(int argc, char** argv) {
   folly::Init init{&argc, &argv, true};
