@@ -21,6 +21,7 @@
 #include <vector>
 
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 
 #include <folly/Optional.h>
 #include <folly/SharedMutex.h>
