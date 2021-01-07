@@ -26,11 +26,7 @@
 #include <glog/logging.h>
 #include <functional>
 
-using folly::format;
-using folly::Optional;
 using folly::StringPiece;
-using std::shared_ptr;
-using std::string;
 using std::chrono::duration_cast;
 
 namespace facebook {

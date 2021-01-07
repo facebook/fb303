@@ -22,7 +22,6 @@
 using namespace std;
 using namespace facebook;
 using namespace facebook::fb303;
-using std::chrono::seconds;
 
 using StatsClock = folly::LegacyStatsClock<std::chrono::seconds>;
 using TimePoint = StatsClock::time_point;

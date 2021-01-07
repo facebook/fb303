@@ -22,14 +22,10 @@
 #include <glog/logging.h>
 
 using folly::StringPiece;
-using std::shared_ptr;
-using std::string;
 using std::chrono::duration_cast;
 
 namespace facebook {
 namespace fb303 {
-
-using StatMap = SynchMap<string, ExportedStat>;
 
 std::array<const char* const, 5> kTypeString = {{
     "sum",

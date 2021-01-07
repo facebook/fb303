@@ -16,9 +16,9 @@
 
 #include <fb303/LegacyClock.h>
 
-#include <stdexcept>
+#include <folly/lang/Exception.h> // @donotremove
 
-#include <folly/lang/Exception.h>
+#include <stdexcept>
 
 namespace facebook {
 namespace fb303 {

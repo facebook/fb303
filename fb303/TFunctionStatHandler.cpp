@@ -17,8 +17,6 @@
 #include <fb303/TFunctionStatHandler.h>
 #include <fb303/LegacyClock.h>
 
-using std::chrono::steady_clock;
-
 namespace {
 int64_t count_usec(std::chrono::steady_clock::duration d) {
   return std::chrono::duration_cast<std::chrono::microseconds>(d).count();

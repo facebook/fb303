@@ -20,7 +20,6 @@
 #include <time.h>
 
 using namespace std;
-using namespace facebook;
 using namespace facebook::fb303;
 
 #define EXPECT_COUNTER(expected, counters, name)                       \

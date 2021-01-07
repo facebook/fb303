@@ -33,7 +33,6 @@ using namespace std;
 using namespace folly;
 using namespace facebook;
 using namespace facebook::datastruct;
-using namespace facebook::stl;
 
 // HELPER FUNCTIONS
 

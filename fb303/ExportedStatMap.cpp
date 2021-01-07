@@ -18,8 +18,6 @@
 #include <fb303/TimeseriesExporter.h>
 
 using folly::StringPiece;
-using std::shared_ptr;
-using std::string;
 
 namespace facebook {
 namespace fb303 {

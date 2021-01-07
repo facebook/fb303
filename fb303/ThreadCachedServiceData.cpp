@@ -19,7 +19,6 @@
 #include <folly/Indestructible.h>
 #include <folly/Singleton.h>
 
-using folly::FunctionScheduler;
 using std::chrono::milliseconds;
 
 namespace {

@@ -24,7 +24,6 @@
 
 using namespace std;
 using namespace facebook;
-using namespace facebook::stats;
 
 namespace {
 
