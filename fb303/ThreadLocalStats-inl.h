@@ -32,8 +32,7 @@ namespace fb303 {
 
 template <class LockTraits>
 TLStatT<LockTraits>::TLStatT(const Container* stats, folly::StringPiece name)
-    : link_{typename detail::TLStatLinkPtr<LockTraits>::FromOther{},
-            stats->link_},
+    : link_{typename detail::TLStatLinkPtr<LockTraits>::FromOther{}, stats->link_},
       name_(name.str()) {}
 
 template <class LockTraits>
@@ -121,8 +120,9 @@ TLStatT<LockTraits>::TLStatT(SubclassMove, TLStatT<LockTraits>& other) noexcept(
     false)
     // Copy a reference to the TLStatLink, but don't link us into the container
     // until finishMove().
-    : link_{typename detail::TLStatLinkPtr<LockTraits>::FromOther{},
-            other.link_} {
+    : link_{
+          typename detail::TLStatLinkPtr<LockTraits>::FromOther{},
+          other.link_} {
   other.unlink();
 
   // Move other.name_ to our name_.  Note that it is important that this
@@ -323,9 +323,10 @@ template <class LockTraits>
 TLHistogramT<LockTraits>::TLHistogramT(TLHistogramT&& other) noexcept(false)
     : TLStatT<LockTraits>{TLStatT<LockTraits>::SUBCLASS_MOVE, other},
       globalStat_{std::move(other.globalStat_)},
-      simpleHistogram_{other.simpleHistogram_.getBucketSize(),
-                       other.simpleHistogram_.getMin(),
-                       other.simpleHistogram_.getMax()} {
+      simpleHistogram_{
+          other.simpleHistogram_.getBucketSize(),
+          other.simpleHistogram_.getMin(),
+          other.simpleHistogram_.getMax()} {
   // We don't need to copy the simpleHistogram_ data:
   // The SUBCLASS_MOVE constructor just called other.aggregate(), so
   // other.simpleHistogram_ should be empty now.

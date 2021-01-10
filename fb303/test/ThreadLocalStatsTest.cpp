@@ -15,6 +15,7 @@
  */
 
 #include <fb303/ThreadLocalStats.h>
+
 #include <fb303/ThreadCachedServiceData.h>
 #include <folly/Singleton.h>
 #include <folly/synchronization/test/Barrier.h>

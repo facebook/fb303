@@ -15,6 +15,7 @@
  */
 
 #include <fb303/TFunctionStatHandler.h>
+
 #include <fb303/LegacyClock.h>
 
 namespace {

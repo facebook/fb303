@@ -199,10 +199,11 @@ TEST_F(QuantileStatMapTest, getKeys) {
 }
 
 TEST_F(QuantileStatMapTest, getSelectedValues) {
-  std::vector<std::string> selectedKeys = {"StatName.sum",
-                                           "StatName.sum.60",
-                                           "StatName.avg.600",
-                                           "StatName.rate.60"};
+  std::vector<std::string> selectedKeys = {
+      "StatName.sum",
+      "StatName.sum.60",
+      "StatName.avg.600",
+      "StatName.rate.60"};
   MockClock::Now += std::chrono::seconds{1};
 
   stat->addValue(120);
