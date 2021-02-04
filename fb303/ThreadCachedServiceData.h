@@ -973,6 +973,34 @@ class DynamicTimeseriesWrapper {
             [this](const std::string& key) { prepareKey(key); }),
         exportTypes_(std::move(exportTypes)) {}
 
+  // This overload is called from the DEFINE_dynamic_timeseries macro when the
+  // first argument is a string and the remaining arguments are all ExportTypes
+  // such as SUM or COUNT.
+  template <
+      typename... Args,
+      typename std::enable_if_t<
+          folly::Conjunction<
+              typename std::is_convertible<Args, ExportType>::type...>::value,
+          bool> = true>
+  DynamicTimeseriesWrapper(std::string keyFormat, Args... exportTypes)
+      : DynamicTimeseriesWrapper(keyFormat, {exportTypes...}) {}
+
+  // This overload is called from the DEFINE_dynamic_timeseries macro when the
+  // second argument is an ExportedStat prototype. This allows passing, e.g.
+  // fb303::MinuteOnlyTimeseries<int64_t>() into the macro to only export a
+  // single timeseries that's collected every minute.
+  template <typename... Args>
+  DynamicTimeseriesWrapper(
+      std::string keyFormat,
+      ExportedStat prototype,
+      Args... exportTypes)
+      : key_(
+            std::move(keyFormat),
+            [this, prototype = std::move(prototype)](const std::string& key) {
+              prepareKey(key, &prototype);
+            }),
+        exportTypes_({exportTypes...}) {}
+
   DynamicTimeseriesWrapper(DynamicTimeseriesWrapper&&) = delete;
   DynamicTimeseriesWrapper(const DynamicTimeseriesWrapper&) = delete;
 
@@ -1020,9 +1048,11 @@ class DynamicTimeseriesWrapper {
     return *ThreadCachedServiceData::getStatsThreadLocal();
   }
 
-  void prepareKey(const std::string& key) {
+  void prepareKey(
+      const std::string& key,
+      const ExportedStat* prototype = nullptr) {
     for (const auto exportType : exportTypes_) {
-      ServiceData::get()->addStatExportType(key, exportType);
+      ServiceData::get()->addStatExportType(key, exportType, prototype);
     }
   }
 
@@ -1134,7 +1164,7 @@ constexpr int countPlaceholders(folly::StringPiece keyformat) {
       countPlaceholders(keyformat) > 0,                                     \
       "Must have at least one placeholder.");                               \
   ::facebook::fb303::DynamicTimeseriesWrapper<countPlaceholders(keyformat)> \
-      STATS_##varname(keyformat, {__VA_ARGS__})
+      STATS_##varname(keyformat, ##__VA_ARGS__)
 
 #define DEFINE_dynamic_histogram(                                          \
     varname, keyformat, bucketWidth, min, max, ...)                        \
