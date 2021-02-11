@@ -124,7 +124,8 @@ class ThreadCachedServiceData {
   }
 
   /** Small LRU lookup set class, for exported keys. */
-  struct ExportKeyCache : public SimpleLRUMap<std::string, bool> {
+  struct ExportKeyCache
+      : public SimpleLRUMap<std::string, bool, folly::F14FastMap> {
     /**
      * It would be best if this can be overridden by gflag; but it's often the
      * case that the stats classes are used pre-startup / post-shutdown and thus
@@ -135,17 +136,17 @@ class ThreadCachedServiceData {
 
     ExportKeyCache() : SimpleLRUMap(kLRUMaxSize) {}
 
-    void add(const std::string& key) {
+    void add(folly::StringPiece key) {
       set(key, true);
     }
 
-    bool has(const std::string& key) {
+    bool has(folly::StringPiece key) {
       return find(key, /*moveToFront*/ true) != end();
     }
   };
 
   void
-  addStatValue(const std::string& key, int64_t value, ExportType exportType);
+  addStatValue(folly::StringPiece key, int64_t value, ExportType exportType);
 
   void addStatValueAggregated(
       folly::StringPiece key,

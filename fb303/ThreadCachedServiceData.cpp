@@ -188,7 +188,7 @@ void ThreadCachedServiceData::addHistAndStatValues(
 }
 
 void ThreadCachedServiceData::addStatValue(
-    const std::string& key,
+    folly::StringPiece key,
     int64_t value,
     ExportType exportType) {
   using KeyCacheTable =

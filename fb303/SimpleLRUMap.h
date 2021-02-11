@@ -93,9 +93,9 @@ struct SimpleLRUMap {
     return list_.begin();
   }
 
-  template <typename callback_type>
+  template <typename callback_type, typename lookup_type = key_type>
   iterator try_add(
-      const key_type& key,
+      const lookup_type& key,
       mapped_type&& value,
       callback_type evictCallback) {
     if (!ensure_room(evictCallback)) {
@@ -119,7 +119,8 @@ struct SimpleLRUMap {
 
   // does not move to front
   // throws std::out_of_range when not found
-  const mapped_type& peek(const key_type& key) const {
+  template <typename lookup_type = key_type>
+  const mapped_type& peek(const lookup_type& key) const {
     auto i = find(key);
 
     if (i == end()) {
@@ -131,7 +132,8 @@ struct SimpleLRUMap {
 
   // does move to front
   // throws std::out_of_range when not found
-  mapped_type& touch(const key_type& key) {
+  template <typename lookup_type = key_type>
+  mapped_type& touch(const lookup_type& key) {
     auto i = find(key, true);
 
     if (i == end()) {
@@ -149,9 +151,12 @@ struct SimpleLRUMap {
   // note: there may be more than one eviction depending on
   //  the underlying implementation
   // returns nullptr if there is no capacity
-  template <typename value_factory, typename callback_type = NoOpCallback>
+  template <
+      typename value_factory,
+      typename callback_type = NoOpCallback,
+      typename lookup_type = key_type>
   mapped_type* try_get_or_create(
-      const key_type& key,
+      const lookup_type& key,
       value_factory factory,
       bool moveToFront = true,
       callback_type evictCallback = callback_type()) {
@@ -177,14 +182,16 @@ struct SimpleLRUMap {
   // if the element doesn't exist, the default constructor
   //  will be used to create it
   // returns nullptr if there is no capacity
-  template <typename callback_type = NoOpCallback>
+  template <
+      typename callback_type = NoOpCallback,
+      typename lookup_type = key_type>
   mapped_type* try_get_or_create(
-      const key_type& key,
+      const lookup_type& key,
       bool moveToFront = true,
       callback_type evictCallback = callback_type()) {
     return try_get_or_create(
         key,
-        [](const key_type&) { return mapped_type(); },
+        [](const lookup_type&) { return mapped_type(); },
         moveToFront,
         evictCallback);
   }
@@ -197,9 +204,12 @@ struct SimpleLRUMap {
   // note: there may be more than one eviction depending on
   //  the underlying implementation
   // throws std::length_error if there is no capacity
-  template <typename value_factory, typename callback_type = NoOpCallback>
+  template <
+      typename value_factory,
+      typename callback_type = NoOpCallback,
+      typename lookup_type = key_type>
   mapped_type& get_or_create(
-      const key_type& key,
+      const lookup_type& key,
       value_factory factory,
       bool moveToFront = true,
       callback_type evictCallback = callback_type()) {
@@ -217,14 +227,16 @@ struct SimpleLRUMap {
   // if the element doesn't exist, the default constructor
   //  will be used to create it
   // throws std::length_error if there is no capacity
-  template <typename callback_type = NoOpCallback>
+  template <
+      typename callback_type = NoOpCallback,
+      typename lookup_type = key_type>
   mapped_type& get_or_create(
-      const key_type& key,
+      const lookup_type& key,
       bool moveToFront = true,
       callback_type evictCallback = callback_type()) {
     return get_or_create(
         key,
-        [](const key_type&) { return mapped_type(); },
+        [](const lookup_type&) { return mapped_type(); },
         moveToFront,
         evictCallback);
   }
@@ -237,9 +249,11 @@ struct SimpleLRUMap {
   // returns non-zero on success or zero if there was not enough capacity
   // when successful, returns 1 if a new element was created
   //  or -1 if the size remained unchanged
-  template <typename callback_type = NoOpCallback>
+  template <
+      typename callback_type = NoOpCallback,
+      typename lookup_type = key_type>
   int try_set(
-      const key_type& key,
+      const lookup_type& key,
       mapped_type value,
       bool moveToFront = true,
       callback_type evictCallback = callback_type()) {
@@ -268,9 +282,11 @@ struct SimpleLRUMap {
   // `moveToFront` applies only to existing keys
   // returns a bool telling whether a new element was created
   // throws std::length_error if there is no capacity
-  template <typename callback_type = NoOpCallback>
+  template <
+      typename callback_type = NoOpCallback,
+      typename lookup_type = key_type>
   bool set(
-      const key_type& key,
+      const lookup_type& key,
       mapped_type value,
       bool moveToFront = true,
       callback_type evictCallback = callback_type()) {
@@ -287,7 +303,8 @@ struct SimpleLRUMap {
   }
 
   // does not move to front
-  const_iterator find(const key_type& key) const {
+  template <typename lookup_type = key_type>
+  const_iterator find(const lookup_type& key) const {
     auto i = map_.find(key);
 
     if (i == map_.end()) {
@@ -299,7 +316,8 @@ struct SimpleLRUMap {
     return i->second;
   }
 
-  iterator find(const key_type& key, bool moveToFront) {
+  template <typename lookup_type = key_type>
+  iterator find(const lookup_type& key, bool moveToFront) {
     auto i = map_.find(key);
 
     if (i == map_.end()) {
@@ -315,7 +333,11 @@ struct SimpleLRUMap {
     return i->second;
   }
 
-  bool erase(const key_type& key) {
+  template <
+      typename lookup_type = key_type,
+      typename =
+          std::enable_if_t<!std::is_convertible_v<lookup_type, const_iterator>>>
+  bool erase(const lookup_type& key) {
     auto i = map_.find(key);
 
     if (i == map_.end()) {
@@ -348,13 +370,15 @@ struct SimpleLRUMap {
 
   // does not move to front
   // throws std::out_of_range when not found
-  const mapped_type& operator[](const key_type& key) const {
+  template <typename lookup_type = key_type>
+  const mapped_type& operator[](const lookup_type& key) const {
     return peek(key);
   }
 
   // does not move to front
   // throws std::out_of_range when not found
-  mapped_type& operator[](const key_type& key) {
+  template <typename lookup_type = key_type>
+  mapped_type& operator[](const lookup_type& key) {
     auto i = find(key, false);
 
     if (i == end()) {

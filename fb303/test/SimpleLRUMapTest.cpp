@@ -21,6 +21,7 @@
 #include "common/time/Clock.h"
 
 #include <folly/Conv.h>
+#include <folly/Range.h>
 #include <folly/Utility.h>
 
 #include <glog/logging.h>
@@ -747,6 +748,21 @@ TEST(SimpleLRUMap, MapGetRefDefault) {
 
   EXPECT_EQ("x", stl::mapGetRefDefault(lru, 9, x));
   checkContents(lru, {{1, "1"}, {0, "0"}});
+}
+
+TEST(SimpleLRUMap, HeterogenousLookup) {
+  SimpleLRUMap<
+      string,
+      int,
+      std::map,
+      uint32_t,
+      double,
+      folly::transparent<std::less<folly::StringPiece>>>
+      lru(2);
+
+  lru.set(string("0"), 0);
+  folly::StringPiece s = "0";
+  EXPECT_EQ(lru.find(s)->second, 0);
 }
 
 // DRIVER
