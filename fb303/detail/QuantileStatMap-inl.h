@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <folly/Format.h>
+#include <fmt/core.h>
 
 namespace facebook {
 namespace fb303 {
@@ -238,20 +238,19 @@ std::string BasicQuantileStatMap<ClockT>::makeKey(
     const BasicQuantileStatMap<ClockT>::StatDef& statDef,
     const folly::Optional<std::chrono::seconds>& slidingWindowLength) {
   std::string tail = slidingWindowLength
-      ? folly::format(".{}", slidingWindowLength->count()).str()
+      ? fmt::format(".{}", slidingWindowLength->count())
       : "";
   switch (statDef.type) {
     case ExportType::PERCENT:
-      return folly::format("{}.p{}{}", base, statDef.quantile * 100.0, tail)
-          .str();
+      return fmt::format("{}.p{:g}{}", base, statDef.quantile * 100.0, tail);
     case ExportType::SUM:
-      return folly::format("{}.sum{}", base, tail).str();
+      return fmt::format("{}.sum{}", base, tail);
     case ExportType::COUNT:
-      return folly::format("{}.count{}", base, tail).str();
+      return fmt::format("{}.count{}", base, tail);
     case ExportType::AVG:
-      return folly::format("{}.avg{}", base, tail).str();
+      return fmt::format("{}.avg{}", base, tail);
     case ExportType::RATE:
-      return folly::format("{}.rate{}", base, tail).str();
+      return fmt::format("{}.rate{}", base, tail);
     default:
       LOG(FATAL) << "Unknown export type: " << statDef.type;
       return "";
