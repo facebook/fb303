@@ -298,9 +298,7 @@ class ThreadCachedServiceData {
   void setOption(folly::StringPiece key, folly::StringPiece value) {
     getServiceData()->setOption(key, value);
   }
-  static void setVModuleOption(
-      folly::StringPiece key,
-      folly::StringPiece value) {
+  static void setVModuleOption(std::string_view key, std::string_view value) {
     ServiceData::setVModuleOption(key, value);
   }
   std::string getOption(folly::StringPiece key) const {

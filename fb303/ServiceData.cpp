@@ -30,6 +30,7 @@
 using folly::StringPiece;
 using std::map;
 using std::string;
+using std::string_view;
 using std::vector;
 
 namespace facebook {
@@ -617,21 +618,14 @@ void ServiceData::setOptionThrowIfAbsent(StringPiece key, StringPiece value) {
     throw std::runtime_error("Runtime flag changes were not enabled");
   }
 
-  setOptionAsFlagsThrowIfAbsent(key.str(), value.str());
-}
-
-void ServiceData::setOptionAsFlags(const string& key, const string& value) {
-  try {
-    setOptionAsFlagsThrowIfAbsent(key, value);
-  } catch (const std::exception& ex) {
-    LOG(ERROR) << folly::exceptionStr(ex);
-  }
+  setOptionAsFlagsThrowIfAbsent(key, value);
 }
 
 void ServiceData::setOptionAsFlagsThrowIfAbsent(
-    const string& key,
-    const string& value) {
-  string res = gflags::SetCommandLineOption(key.c_str(), value.c_str());
+    string_view key,
+    string_view value) {
+  string res =
+      gflags::SetCommandLineOption(string{key}.c_str(), string{value}.c_str());
   if (res.empty()) {
     LOG(ERROR) << "Couldn't set flag 'FLAGS_" << key << "' to val '" << value
                << "'";
@@ -649,7 +643,7 @@ void ServiceData::setOptionAsFlagsThrowIfAbsent(
                << value << "', res '" << res << "'";
 }
 
-void ServiceData::setVModuleOption(StringPiece /*key*/, StringPiece value) {
+void ServiceData::setVModuleOption(string_view /*key*/, string_view value) {
   vector<string> values;
   folly::split(",", value, values);
   for (size_t i = 0; i < values.size(); ++i) {

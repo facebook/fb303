@@ -31,6 +31,7 @@
 #include <cinttypes>
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace facebook {
@@ -457,15 +458,7 @@ class ServiceData {
   bool getUseOptionsAsFlags() const;
   void setOption(folly::StringPiece key, folly::StringPiece value);
   void setOptionThrowIfAbsent(folly::StringPiece key, folly::StringPiece value);
-  static void setOptionAsFlags(
-      const std::string& key,
-      const std::string& value);
-  static void setOptionAsFlagsThrowIfAbsent(
-      const std::string& key,
-      const std::string& value);
-  static void setVModuleOption(
-      folly::StringPiece key,
-      folly::StringPiece value);
+  static void setVModuleOption(std::string_view key, std::string_view value);
   /**
    * Get an option value.
    *
@@ -503,6 +496,12 @@ class ServiceData {
   template <typename Mapped>
   using StringKeyedMap = folly::F14FastMap<std::string, Mapped>;
 
+  static void setOptionAsFlagsThrowIfAbsent(
+      std::string_view key,
+      std::string_view value);
+  void mergeOptionsWithGflags(
+      std::map<std::string, std::string>& _return) const;
+
   const std::chrono::seconds aliveSince_;
 
   std::atomic<bool> useOptionsAsFlags_;
@@ -517,8 +516,6 @@ class ServiceData {
   ExportedStatMapImpl statsMap_;
   fb303::detail::QuantileStatMap quantileMap_;
   ExportedHistogramMapImpl histMap_;
-  void mergeOptionsWithGflags(
-      std::map<std::string, std::string>& _return) const;
 
   class DynamicOption {
    public:
