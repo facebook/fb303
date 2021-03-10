@@ -457,8 +457,42 @@ class ServiceData {
   void setUseOptionsAsFlags(bool useOptionsAsFlags);
   bool getUseOptionsAsFlags() const;
   void setOption(folly::StringPiece key, folly::StringPiece value);
-  void setOptionThrowIfAbsent(folly::StringPiece key, folly::StringPiece value);
+
+  enum SetOptionResult {
+    // This was a dynamic option.
+    // Dynamic options are never treated as command line flags.
+    Dynamic,
+    // This was treated as a static option only and no command line flags were
+    // changed.  This value is returned when the specified key is a blacklisted
+    // option name that we refuse to update even when useOptionsAsFlags is
+    // enabled.
+    CmdlineBlacklisted,
+    // This was treated as a static option only and no command line flags were
+    // changed.  We did not process command line flag updates because
+    // useOptionsAsFlags was disabled and this was not one of the explicitly
+    // whitelisted options ("v" and "vmodule").
+    CmdlineDisabled,
+    // Command line flag updating is enabled, but no command line flags were
+    // changed.  This can happen either because no flag exists with this name,
+    // or because this was not a valid value for this flag.
+    CmdlineNoUpdate,
+    // The command line flag with this name was updated.
+    CmdlineUpdated,
+  };
+
+  /**
+   * Like setOption(), but return a SetOptionResult indicating the action that
+   * was taken.
+   *
+   * This function may throw an exception on error (for instance, if this was a
+   * dynamic option but the option handler threw an exception).
+   */
+  SetOptionResult setOptionWithResult(
+      std::string_view key,
+      std::string_view value);
+
   static void setVModuleOption(std::string_view key, std::string_view value);
+
   /**
    * Get an option value.
    *
@@ -496,9 +530,6 @@ class ServiceData {
   template <typename Mapped>
   using StringKeyedMap = folly::F14FastMap<std::string, Mapped>;
 
-  static void setOptionAsFlagsThrowIfAbsent(
-      std::string_view key,
-      std::string_view value);
   void mergeOptionsWithGflags(
       std::map<std::string, std::string>& _return) const;
 

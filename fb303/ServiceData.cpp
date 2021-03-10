@@ -583,25 +583,29 @@ bool ServiceData::getUseOptionsAsFlags() const {
 }
 
 void ServiceData::setOption(StringPiece key, StringPiece value) {
-  try {
-    setOptionThrowIfAbsent(key, value);
-  } catch (const std::exception& ex) {
-    LOG(ERROR) << folly::exceptionStr(ex);
-  }
+  setOptionWithResult(key, value);
 }
 
-void ServiceData::setOptionThrowIfAbsent(StringPiece key, StringPiece value) {
+ServiceData::SetOptionResult ServiceData::setOptionWithResult(
+    string_view key,
+    string_view value) {
+  // Check to see if a dynamic option is registered for this key
   {
     auto dynamicOptionsRLock = dynamicOptions_.rlock();
     if (auto ptr = folly::get_ptr(*dynamicOptionsRLock, key)) {
       if (ptr->setter) {
-        as_mutable(ptr->setter)(value.str());
+        as_mutable(ptr->setter)(string{value});
       }
-      return;
+      return SetOptionResult::Dynamic;
     }
   }
 
-  (*options_.wlock())[key] = value.str();
+  // This is not a dynamic option.
+  // Set it in the static option map.
+  (*options_.wlock())[key] = string{value};
+
+  // Next check to see if we should update command line flags based
+  // on this static option name.
 
   // By default allow modifying glog verbosity (options 'v' or 'vmodule')
   auto useOptionsAsFlags = useOptionsAsFlags_.load(std::memory_order_relaxed);
@@ -610,27 +614,19 @@ void ServiceData::setOptionThrowIfAbsent(StringPiece key, StringPiece value) {
   if (std::count(
           std::begin(blacklistedOptions), std::end(blacklistedOptions), key) >
       0) {
-    throw std::runtime_error(
-        folly::to<string>("Cannot change blacklisted flag: ", key));
+    return SetOptionResult::CmdlineBlacklisted;
   }
 
   if (!(useOptionsAsFlags || key == "v" || key == "vmodule")) {
-    throw std::runtime_error("Runtime flag changes were not enabled");
+    return SetOptionResult::CmdlineDisabled;
   }
 
-  setOptionAsFlagsThrowIfAbsent(key, value);
-}
-
-void ServiceData::setOptionAsFlagsThrowIfAbsent(
-    string_view key,
-    string_view value) {
   string res =
       gflags::SetCommandLineOption(string{key}.c_str(), string{value}.c_str());
   if (res.empty()) {
     LOG(ERROR) << "Couldn't set flag 'FLAGS_" << key << "' to val '" << value
                << "'";
-    throw std::runtime_error(folly::to<string>(
-        "Failed SetCommandLineOption for flag: ", key, " value: ", value));
+    return SetOptionResult::CmdlineNoUpdate;
   }
   // special handling for vmodule changes as SetCommandLineOption()
   // is not sufficient. Need to call SetVLOGLevel() as well.
@@ -641,6 +637,7 @@ void ServiceData::setOptionAsFlagsThrowIfAbsent(
   }
   LOG(WARNING) << "FLAG CHANGE: overrode 'FLAGS_" << key << "' to val '"
                << value << "', res '" << res << "'";
+  return SetOptionResult::CmdlineUpdated;
 }
 
 void ServiceData::setVModuleOption(string_view /*key*/, string_view value) {
