@@ -19,6 +19,7 @@
 #include <atomic>
 #include <thread>
 
+#include <folly/Portability.h>
 #include <folly/SharedMutex.h>
 
 namespace facebook {
@@ -86,11 +87,10 @@ struct DebugCheckedLock {
  */
 class TLStatsNoLocking {
  public:
-#ifndef NDEBUG
-  using RegistryLock = detail::DebugCheckedLock;
-#else
-  using RegistryLock = detail::UniqueNoLock;
-#endif
+  using RegistryLock = std::conditional_t<
+      folly::kIsDebug,
+      detail::DebugCheckedLock,
+      detail::UniqueNoLock>;
   using StatLock = detail::SharedNoLock;
 
   /**
@@ -116,21 +116,15 @@ class TLStatsNoLocking {
     T value_{0};
   };
 
-  static void willAcquireStatLock(RegistryLock& registryLock) {
-#ifndef NDEBUG
+  static void willAcquireStatLock(detail::DebugCheckedLock& registryLock) {
     registryLock.assertOnCorrectThread();
-#else
-    (void)registryLock;
-#endif
   }
+  static void willAcquireStatLock(detail::UniqueNoLock&) {}
 
-  static void swapThreads(RegistryLock& lock) {
-#ifndef NDEBUG
+  static void swapThreads(detail::DebugCheckedLock& lock) {
     lock.swapThreads();
-#else
-    (void)lock;
-#endif
   }
+  static void swapThreads(detail::UniqueNoLock&) {}
 };
 
 /**
