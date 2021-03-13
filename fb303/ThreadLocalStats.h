@@ -304,13 +304,6 @@ class TLStatT {
     return std::unique_lock<typename LockTraits::StatLock>{statLock_};
   }
 
-  std::shared_lock<typename LockTraits::StatLock> guardStatSharedLock() const {
-    // Assert the stat is being used by the thread currently responsible
-    // for the container in debug mode.
-    LockTraits::willAcquireStatLock(link_->mutex_);
-    return std::shared_lock<typename LockTraits::StatLock>{statLock_};
-  }
-
   /**
    * Helper constructor for move-construction of subclasses
    *
@@ -501,14 +494,14 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
    * Add a new data point
    */
   void addValue(int64_t value) {
-    auto g = this->guardStatSharedLock();
+    auto g = this->guardStatLock();
 
     sum_.fetch_add(value, std::memory_order_relaxed);
     count_.fetch_add(1, std::memory_order_relaxed);
   }
 
   void addValueAggregated(int64_t value, int64_t nsamples) {
-    auto g = this->guardStatSharedLock();
+    auto g = this->guardStatLock();
 
     sum_.fetch_add(value, std::memory_order_relaxed);
     count_.fetch_add(nsamples, std::memory_order_relaxed);

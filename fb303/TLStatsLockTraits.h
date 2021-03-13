@@ -21,6 +21,7 @@
 
 #include <folly/Portability.h>
 #include <folly/SharedMutex.h>
+#include <folly/synchronization/DistributedMutex.h>
 
 namespace facebook {
 namespace fb303 {
@@ -33,12 +34,6 @@ namespace detail {
 struct UniqueNoLock {
   void lock() {}
   void unlock() {}
-};
-struct SharedNoLock {
-  void lock() {}
-  void unlock() {}
-  void lock_shared() {}
-  void unlock_shared() {}
 };
 
 /**
@@ -91,7 +86,7 @@ class TLStatsNoLocking {
       folly::kIsDebug,
       detail::DebugCheckedLock,
       detail::UniqueNoLock>;
-  using StatLock = detail::SharedNoLock;
+  using StatLock = detail::UniqueNoLock;
 
   /**
    * The type to use for integer counter values.
@@ -153,7 +148,7 @@ class TLStatsNoLocking {
 class TLStatsThreadSafe {
  public:
   using RegistryLock = folly::SharedMutex;
-  using StatLock = folly::SharedMutex;
+  using StatLock = folly::DistributedMutex;
 
   /**
    * The type to use for integer counter values.
