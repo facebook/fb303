@@ -51,8 +51,8 @@ class BasicQuantileStatMap {
   using TimePoint = typename ClockT::time_point;
 
   struct StatDef {
-    ExportType type;
-    double quantile;
+    ExportType type{};
+    double quantile{};
   };
 
   struct SnapshotEntry {
