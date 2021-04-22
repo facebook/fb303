@@ -17,6 +17,7 @@
 #pragma once
 
 #include <fb303/BaseService.h>
+#include <folly/container/F14Map.h>
 #include <folly/experimental/FunctionScheduler.h>
 #include <thrift/lib/cpp/TProcessor.h>
 
@@ -223,14 +224,14 @@ class TFunctionStatHandler
   DynamicStrings dynamicStrings_; // holds the counters information
   ExportedHistogram dummyHist_;
 
-  std::unordered_map<std::string, ThriftFuncHistParams> histParamsMap_;
+  folly::F14FastMap<std::string, ThriftFuncHistParams> histParamsMap_;
 
   /**
    * Mapping from thrift functions to their respective
    * TStatsPerThread objects for a single thread
    */
   using TStatsAggregator =
-      std::unordered_map<std::string, std::shared_ptr<TStatsPerThread>>;
+      folly::F14FastMap<std::string, std::shared_ptr<TStatsPerThread>>;
 
   class Tag;
   folly::ThreadLocalPtr<TStatsAggregator, Tag> tlFunctionMap_;
