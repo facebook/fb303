@@ -224,7 +224,7 @@ class TFunctionStatHandler
   DynamicStrings dynamicStrings_; // holds the counters information
   ExportedHistogram dummyHist_;
 
-  folly::F14FastMap<std::string, ThriftFuncHistParams> histParamsMap_;
+  folly::F14NodeMap<std::string, ThriftFuncHistParams> histParamsMap_;
 
   /**
    * Mapping from thrift functions to their respective
