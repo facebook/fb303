@@ -47,7 +47,6 @@ TStatsRequestContext* TStatsPerThread::getContext() {
 void TStatsPerThread::clear() {
   calls_ = 0;
   processed_ = 0;
-  asyncs_ = 0;
   exceptions_ = 0;
   userExceptions_ = 0;
   readData_.clear();
@@ -124,7 +123,6 @@ void TStatsPerThread::logContextData(const TStatsRequestContext& context) {
   samples_ += context.measureTime_;
   exceptions_ += context.exception;
   userExceptions_ += context.userException;
-  asyncs_ += context.async;
   if (context.readEndCalled_) {
     CHECK(context.readBeginCalled_);
     readData_.addValue(context.rBytes_);
@@ -213,12 +211,6 @@ void TFunctionStatHandler::postWrite(void* ctx, const char*, uint32_t bytes) {
   }
 }
 
-void TFunctionStatHandler::asyncComplete(void* ctx, const char*) {
-  if (ctx != nullptr) {
-    static_cast<TStatsRequestContext*>(ctx)->asyncComplete();
-  }
-}
-
 void TFunctionStatHandler::handlerError(void* ctx, const char*) {
   if (ctx != nullptr) {
     static_cast<TStatsRequestContext*>(ctx)->exceptionThrown();
@@ -297,7 +289,6 @@ int32_t TFunctionStatHandler::consolidateStats(
     statMapSum_.addValue(prefix + ".num_reads", now, spt.readData_.count);
     statMapSum_.addValue(prefix + ".num_writes", now, spt.writeData_.count);
     statMapSum_.addValue(prefix + ".num_processed", now, spt.processed_);
-    statMapSum_.addValue(prefix + ".num_asyncs", now, spt.asyncs_);
     // userExceptions is Thrift name for all exceptions escaped from the handler
     // counter is named differently to better represent what it actually means
     statMapSum_.addValue(

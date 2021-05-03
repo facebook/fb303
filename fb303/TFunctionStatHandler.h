@@ -35,7 +35,6 @@ struct TStatsRequestContext {
   bool writeEndCalled_ = false;
   bool exception = false;
   bool userException = false;
-  bool async = false;
   uint32_t rBytes_ = 0;
   uint32_t wBytes_ = 0;
   // if measureTime, those will store timestamps of respective events
@@ -72,10 +71,6 @@ struct TStatsRequestContext {
     if (measureTime_) {
       writeEndTime_ = clock::now();
     }
-  }
-
-  void asyncComplete() {
-    async = true;
   }
 
   void exceptionThrown() {
@@ -182,7 +177,6 @@ class TStatsPerThread {
   std::mutex mutex_; // Mutex guarding threads stats collection
   uint32_t calls_; // total calls counted since last aggregation
   uint32_t processed_; // calls that finished processing
-  uint32_t asyncs_; // total async calls counted
   uint32_t exceptions_; // total thrift undeclared exceptions counted
   uint32_t userExceptions_; // total thrift declared or undeclared exceptions
   TimeSeries readData_;
@@ -397,11 +391,6 @@ class TFunctionStatHandler
    * Called after writing the response.
    */
   void postWrite(void* ctx, const char*, uint32_t bytes) override;
-
-  /**
-   * Called when an async function call completes successfully.
-   */
-  void asyncComplete(void* ctx, const char*) override;
 
   /**
    * Called if the handler throws an undeclared exception.
