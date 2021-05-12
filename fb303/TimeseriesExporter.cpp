@@ -115,9 +115,12 @@ void TimeseriesExporter::exportStat(
   const size_t kNameSize = statName.size() + 50; // some extra space
   folly::small_vector<char, 200> counterName(kNameSize);
 
-  auto statObj = stat->lock().operator->();
-  for (size_t lev = 0; lev < stat->lock()->numLevels(); ++lev) {
-    getCounterName(counterName.data(), kNameSize, statObj, statName, type, lev);
+  // statObj is used below just to get levels info. As level info is set just
+  // in the construction, it's safe to use it without a lock
+  auto& statObj = stat->unsafeGetUnlocked();
+  for (size_t lev = 0; lev < statObj.numLevels(); ++lev) {
+    getCounterName(
+        counterName.data(), kNameSize, &statObj, statName, type, lev);
 
     // register the actual counter callback with the DynamicCounters obj
     counters->registerCallback(counterName.data(), [=] {
