@@ -214,8 +214,8 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
                               start = clock::now(),
                               keepAlive = folly::getKeepAliveToken(
                                   getCountersExecutor_)]() {
-      if (getCountersExpiration_.count() > 0 &&
-          clock::now() - start > getCountersExpiration_) {
+      if (auto expiration = getCountersExpiration();
+          expiration.count() > 0 && clock::now() - start > expiration) {
         using Exn = apache::thrift::TApplicationException;
         callback_->exception(folly::make_exception_wrapper<Exn>(Exn::TIMEOUT));
         return;
@@ -241,8 +241,8 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
                               start = clock::now(),
                               keepAlive = folly::getKeepAliveToken(
                                   getCountersExecutor_)]() mutable {
-      if (getCountersExpiration_.count() > 0 &&
-          clock::now() - start > getCountersExpiration_) {
+      if (auto expiration = getCountersExpiration();
+          expiration.count() > 0 && clock::now() - start > expiration) {
         using Exn = apache::thrift::TApplicationException;
         callback_->exception(folly::make_exception_wrapper<Exn>(Exn::TIMEOUT));
         return;
@@ -261,13 +261,15 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
     getCountersExpiration_ = expiration;
   }
 
+  std::chrono::milliseconds getCountersExpiration() const;
+
  private:
   const std::string name_;
   std::vector<ThriftFuncHistParams> thriftFuncHistParams_;
   folly::CPUThreadPoolExecutor getCountersExecutor_{
       2,
       std::make_shared<folly::NamedThreadFactory>("GetCountersCPU")};
-  std::chrono::milliseconds getCountersExpiration_{0};
+  std::optional<std::chrono::milliseconds> getCountersExpiration_;
 };
 
 } // namespace fb303
