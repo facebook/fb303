@@ -208,37 +208,57 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   void async_eb_getCounters(
       std::unique_ptr<apache::thrift::HandlerCallback<
           std::unique_ptr<std::map<std::string, int64_t>>>> callback) override {
-    getCountersExecutor_.add(
-        [this,
-         callback_ = std::move(callback),
-         keepAlive = folly::getKeepAliveToken(getCountersExecutor_)]() {
-          try {
-            std::map<std::string, int64_t> res;
-            getCounters(res);
-            callback_->result(res);
-          } catch (...) {
-            callback_->exception(std::current_exception());
-          }
-        });
+    using clock = std::chrono::steady_clock;
+    getCountersExecutor_.add([this,
+                              callback_ = std::move(callback),
+                              start = clock::now(),
+                              keepAlive = folly::getKeepAliveToken(
+                                  getCountersExecutor_)]() {
+      if (getCountersExpiration_.count() > 0 &&
+          clock::now() - start > getCountersExpiration_) {
+        using Exn = apache::thrift::TApplicationException;
+        callback_->exception(folly::make_exception_wrapper<Exn>(Exn::TIMEOUT));
+        return;
+      }
+      try {
+        std::map<std::string, int64_t> res;
+        getCounters(res);
+        callback_->result(res);
+      } catch (...) {
+        callback_->exception(std::current_exception());
+      }
+    });
   }
 
   void async_eb_getRegexCounters(
       std::unique_ptr<apache::thrift::HandlerCallback<
           std::unique_ptr<std::map<std::string, int64_t>>>> callback,
       std::unique_ptr<std::string> regex) override {
-    getCountersExecutor_.add(
-        [this,
-         callback_ = std::move(callback),
-         regex_ = std::move(regex),
-         keepAlive = folly::getKeepAliveToken(getCountersExecutor_)]() mutable {
-          try {
-            std::map<std::string, int64_t> res;
-            getRegexCounters(res, std::move(regex_));
-            callback_->result(res);
-          } catch (...) {
-            callback_->exception(std::current_exception());
-          }
-        });
+    using clock = std::chrono::steady_clock;
+    getCountersExecutor_.add([this,
+                              callback_ = std::move(callback),
+                              regex_ = std::move(regex),
+                              start = clock::now(),
+                              keepAlive = folly::getKeepAliveToken(
+                                  getCountersExecutor_)]() mutable {
+      if (getCountersExpiration_.count() > 0 &&
+          clock::now() - start > getCountersExpiration_) {
+        using Exn = apache::thrift::TApplicationException;
+        callback_->exception(folly::make_exception_wrapper<Exn>(Exn::TIMEOUT));
+        return;
+      }
+      try {
+        std::map<std::string, int64_t> res;
+        getRegexCounters(res, std::move(regex_));
+        callback_->result(res);
+      } catch (...) {
+        callback_->exception(std::current_exception());
+      }
+    });
+  }
+
+  void setGetCountersExpiration(std::chrono::milliseconds expiration) {
+    getCountersExpiration_ = expiration;
   }
 
  private:
@@ -247,6 +267,7 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   folly::CPUThreadPoolExecutor getCountersExecutor_{
       2,
       std::make_shared<folly::NamedThreadFactory>("GetCountersCPU")};
+  std::chrono::milliseconds getCountersExpiration_{0};
 };
 
 } // namespace fb303
