@@ -57,7 +57,7 @@ void DynamicQuantileStatWrapper<N>::addValue(
     Args&&... subkeys) {
   const SubkeyArray subkeyArray{{std::forward<Args>(subkeys)...}};
 
-  folly::hazptr_holder<> h;
+  folly::hazptr_holder<> h = folly::make_hazard_pointer<>();
   auto mapPtr = h.protect(stats_);
 
   auto it = mapPtr->map.find(subkeyArray);
