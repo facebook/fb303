@@ -30,6 +30,7 @@
 #include <folly/container/F14Map.h>
 #include <folly/dynamic.h>
 #include <folly/experimental/FunctionScheduler.h>
+#include <folly/synchronization/CallOnce.h>
 
 namespace facebook {
 namespace fb303 {
@@ -912,7 +913,7 @@ class HistogramWrapper {
       int64_t min,
       int64_t max,
       const Args&... args)
-      : key_(key), spec_(bucketWidth, min, max, args...), ready_(false) {}
+      : key_(key), spec_(bucketWidth, min, max, args...) {}
 
   void add(int64_t value = 1) {
     ensureApplySpec();
@@ -921,20 +922,17 @@ class HistogramWrapper {
   }
 
  protected:
-  void ensureApplySpec() {
-    if (UNLIKELY(!ready_.load())) {
-      std::lock_guard<std::mutex> g(mutex_);
-      if (!ready_.load()) {
-        spec_.apply(key_, ThreadCachedServiceData::get());
-        ready_ = true;
-      }
-    }
+  void doApplySpecLocked() {
+    spec_.apply(key_, ThreadCachedServiceData::get());
+  }
+  FOLLY_ALWAYS_INLINE void ensureApplySpec() {
+    // minimize inline slow path size by passing the callback this way
+    folly::call_once(once_, &HistogramWrapper::doApplySpecLocked, this);
   }
 
+  folly::once_flag once_;
   std::string key_;
   internal::HistogramSpec spec_;
-  std::atomic<bool> ready_;
-  std::mutex mutex_;
 };
 
 /**
