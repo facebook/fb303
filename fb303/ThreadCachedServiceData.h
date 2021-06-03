@@ -432,20 +432,10 @@ class FormattedKeyHolder {
   // Sanity check that our set of arguments contains only integers or strings.
   // This provides better type-safety because otherwise we could implicitly
   // round down floating-point keys or get a runtime-error with nullptrs.
-  template <typename...>
-  struct IsValidSubkey;
   template <typename T>
-  struct IsValidSubkey<T>
-      : std::integral_constant<
-            bool,
-            (std::is_convertible<T, folly::StringPiece>::value ||
-             std::is_integral<T>::value) &&
-                !std::is_same<T, std::nullptr_t>::value> {};
-  template <typename T, typename... Args>
-  struct IsValidSubkey<T, Args...>
-      : std::integral_constant<
-            bool,
-            IsValidSubkey<T>() && IsValidSubkey<Args...>()> {};
+  static constexpr bool IsValidSubkey =
+      (std::is_convertible_v<T, folly::StringPiece> ||
+       std::is_integral_v<T>)&&!std::is_same_v<T, std::nullptr_t>;
 
   // Hash function
   class SubkeyArrayHash {
@@ -499,7 +489,7 @@ class FormattedKeyHolder {
   const std::string& getFormattedKey(Args&&... subkeys) {
     static_assert(sizeof...(Args) == N, "Incorrect number of subkeys.");
     static_assert(
-        IsValidSubkey<typename std::remove_reference<Args>::type...>(),
+        (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
         "Arguments must be strings or integers");
 
     const SubkeyArray subkeyArray{{std::forward<Args>(subkeys)...}};
