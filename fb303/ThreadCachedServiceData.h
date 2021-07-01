@@ -608,7 +608,12 @@ class StatWrapperBase {
 class CounterWrapper
     : public StatWrapperBase<ThreadCachedServiceData::TLCounter> {
  public:
+  // Two constructors are provided for use in the DEFINE_counter macro below.
+  // If no name is provided, then first constructor is used with the variable
+  // name being the key. If a name is provided, the second constructor is used.
   explicit CounterWrapper(const std::string& key) : StatWrapperBase(key) {}
+  CounterWrapper(const std::string& /*var*/, const std::string& key)
+      : StatWrapperBase(key) {}
 
   void incrementValue(CounterType amount = 1) {
     tcStat()->incrementValue(amount);
@@ -1123,8 +1128,8 @@ inline fb303::ThreadCachedServiceData& tcData() {
 #define DECLARE_dynamic_histogram(varname, keyNumArgs) \
   extern ::facebook::fb303::DynamicHistogramWrapper<keyNumArgs> STATS_##varname
 
-#define DEFINE_counter(varname) \
-  ::facebook::fb303::CounterWrapper STATS_##varname(#varname)
+#define DEFINE_counter(varname, ...) \
+  ::facebook::fb303::CounterWrapper STATS_##varname(#varname, ##__VA_ARGS__)
 
 #define DEFINE_timeseries(varname, ...) \
   ::facebook::fb303::TimeseriesWrapper STATS_##varname(#varname, ##__VA_ARGS__)
