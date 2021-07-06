@@ -18,7 +18,6 @@
 
 #include <fb303/ExportType.h>
 #include <fb303/MutexWrapper.h>
-#include <fb303/SynchMap.h>
 #include <fb303/Timeseries.h>
 
 namespace facebook {
