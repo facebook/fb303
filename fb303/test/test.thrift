@@ -19,5 +19,5 @@ include "fb303/thrift/fb303_core.thrift"
 namespace cpp2 facebook.fb303
 
 service TestService extends fb303_core.BaseService {
-  void burnTime(1: i32 seconds)
+  void burnTime(1: i32 seconds);
 }

@@ -43,94 +43,94 @@ enum fb303_status {
  * across many services.
  */
 service BaseService {
-
   /**
    * Gets the status of this service
    */
-  fb303_status getStatus() (priority='IMPORTANT')
+  fb303_status getStatus() (priority = 'IMPORTANT');
 
   /**
    * Returns a descriptive name of the service
    */
-  string getName()
+  string getName();
 
   /**
    * Returns the version of the service
    */
-  string getVersion()
+  string getVersion();
 
   /**
    * User friendly description of status, such as why the service is in
    * the dead or warning state, or what is being started or stopped.
    */
-  string getStatusDetails() (priority = 'IMPORTANT')
+  string getStatusDetails() (priority = 'IMPORTANT');
 
   /**
    * Gets the counters for this service
    */
-  map<string, i64> getCounters() (thread = 'eb')
+  map<string, i64> getCounters() (thread = 'eb');
 
   /**
    * Gets a subset of counters which match a
    * Perl Compatible Regular Expression for this service
    */
-  map<string, i64> getRegexCounters(1: string regex) (thread = 'eb')
+  map<string, i64> getRegexCounters(1: string regex) (thread = 'eb');
 
   /**
    * Get counter values for a specific list of keys.  Returns a map from
    * key to counter value; if a requested counter doesn't exist, it won't
    * be in the returned map.
    */
-  map<string, i64> getSelectedCounters(1: list<string> keys)
-    (priority = 'IMPORTANT')
+  map<string, i64> getSelectedCounters(1: list<string> keys) (
+    priority = 'IMPORTANT',
+  );
 
   /**
    * Gets the value of a single counter
    */
-  i64 getCounter(1: string key) (priority = 'IMPORTANT')
+  i64 getCounter(1: string key) (priority = 'IMPORTANT');
 
   /**
    * Gets the exported string values for this service
    */
-  map<string, string> getExportedValues() (priority = 'IMPORTANT')
+  map<string, string> getExportedValues() (priority = 'IMPORTANT');
 
   /**
    * Get exported strings for a specific list of keys.  Returns a map from
    * key to string value; if a requested key doesn't exist, it won't
    * be in the returned map.
    */
-  map<string, string> getSelectedExportedValues(1: list<string> keys)
-    (priority = 'IMPORTANT')
+  map<string, string> getSelectedExportedValues(1: list<string> keys) (
+    priority = 'IMPORTANT',
+  );
 
   /**
    * Gets a subset of exported values which match a
    * Perl Compatible Regular Expression for this service
    */
-  map<string, string> getRegexExportedValues(1: string regex)
+  map<string, string> getRegexExportedValues(1: string regex);
 
   /**
    * Gets the value of a single exported string
    */
-  string getExportedValue(1: string key) (priority = 'IMPORTANT')
+  string getExportedValue(1: string key) (priority = 'IMPORTANT');
 
   /**
    * Sets an option
    */
-  void setOption(1: string key 2: string value)
+  void setOption(1: string key, 2: string value);
 
   /**
    * Gets an option
    */
-  string getOption(1: string key)
+  string getOption(1: string key);
 
   /**
    * Gets all options
    */
-  map<string, string> getOptions()
+  map<string, string> getOptions();
 
   /**
    * Returns the unix time that the server has been running since
    */
-  i64 aliveSince() (priority = 'IMPORTANT')
-
+  i64 aliveSince() (priority = 'IMPORTANT');
 }
