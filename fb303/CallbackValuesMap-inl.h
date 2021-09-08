@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <folly/MapUtil.h>
 #include <glog/logging.h>
 
 namespace facebook {
@@ -124,6 +125,13 @@ void CallbackValuesMap<T>::clear() {
     entry.second->clear();
   }
   callbackMap_.clear();
+}
+
+template <typename T>
+std::shared_ptr<typename CallbackValuesMap<T>::CallbackEntry>
+CallbackValuesMap<T>::getCallback(folly::StringPiece name) {
+  folly::SharedMutex::ReadHolder g(mutex_);
+  return folly::get_default(callbackMap_, name);
 }
 
 template <typename T>

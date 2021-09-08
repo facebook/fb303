@@ -98,3 +98,24 @@ TEST(CallbackValuesMapTest, PossibleDeadlock) {
   bg.join();
   SUCCEED();
 }
+
+TEST(CallbackValuesMapTest, GetCallback) {
+  TestCallbackValuesMap map;
+  const string key1 = "key1";
+  const string key2 = "key2";
+  // Test empty map
+  EXPECT_FALSE(map.getCallback(key1));
+  EXPECT_FALSE(map.getCallback(key2));
+  // Add some keys
+  map.registerCallback(key1, bind(echo, 123));
+  map.registerCallback(key2, bind(echo, 321));
+  auto key1Cb = map.getCallback(key1);
+  int val1;
+  key1Cb->getValue(&val1);
+  EXPECT_EQ(val1, 123);
+
+  auto key2Cb = map.getCallback(key2);
+  int val2;
+  key2Cb->getValue(&val2);
+  EXPECT_EQ(val2, 321);
+}

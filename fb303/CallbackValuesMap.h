@@ -72,7 +72,6 @@ class CallbackValuesMap {
    */
   void clear();
 
- private:
   class CallbackEntry {
    public:
     explicit CallbackEntry(const Callback& callback);
@@ -84,6 +83,16 @@ class CallbackValuesMap {
     mutable folly::SharedMutex rwlock_;
   };
 
+  /**
+   * Gets the callback for a given name.
+   *
+   * @param name the name of the callback
+   * @return the callback associated with the given name, which can then be used
+   * directly to retrieve callback values
+   */
+  std::shared_ptr<CallbackEntry> getCallback(folly::StringPiece name);
+
+ private:
   folly::SharedMutex mutex_;
   typedef folly::StringKeyedMap<std::shared_ptr<CallbackEntry>> CallbackMap;
   CallbackMap callbackMap_;
