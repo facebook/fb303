@@ -497,22 +497,6 @@ class StandardStatHandler : public TFunctionStatHandler {
   }
 };
 
-template <class TStatHandler_>
-class TThriftStatsHandlerFactory
-    : public apache::thrift::TProcessorEventHandlerFactory {
- public:
-  explicit TThriftStatsHandlerFactory(std::shared_ptr<TStatHandler_> handler)
-      : handler_{std::move(handler)} {}
-
-  std::shared_ptr<apache::thrift::TProcessorEventHandler> getEventHandler()
-      override {
-    return handler_;
-  }
-
- private:
-  std::shared_ptr<TStatHandler_> handler_;
-};
-
 } // namespace
 
 void withThriftFunctionStats(
@@ -524,13 +508,9 @@ void withThriftFunctionStats(
     handler->addThriftFuncHistParams(thriftFuncHistParams);
   }
 
-  auto factory =
-      std::make_shared<TThriftStatsHandlerFactory<StandardStatHandler>>(
-          handler);
-
-  apache::thrift::TProcessorBase::addProcessorEventHandlerFactory(factory);
+  apache::thrift::TProcessorBase::addProcessorEventHandler(handler);
   SCOPE_EXIT {
-    apache::thrift::TProcessorBase::removeProcessorEventHandlerFactory(factory);
+    apache::thrift::TProcessorBase::removeProcessorEventHandler(handler);
   };
 
   fn();
