@@ -26,7 +26,7 @@ template <size_t N>
 class DynamicQuantileStatWrapper<N>::MapHolder
     : public folly::hazptr_obj_base<DynamicQuantileStatWrapper<N>::MapHolder> {
  public:
-  std::unordered_map<
+  folly::F14NodeMap<
       DynamicQuantileStatWrapper<N>::SubkeyArray,
       std::shared_ptr<QuantileStat>,
       DynamicQuantileStatWrapper<N>::SubkeyArrayHash>
