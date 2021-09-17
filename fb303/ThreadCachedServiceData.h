@@ -16,20 +16,27 @@
 
 #pragma once
 
+#include <array>
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <string>
+#include <string_view>
+#include <variant>
 
 #include <fb303/ExportType.h>
 #include <fb303/SimpleLRUMap.h>
 #include <fb303/ThreadLocalStatsMap.h>
 #include <folly/Format.h>
 #include <folly/MapUtil.h>
+#include <folly/Overload.h>
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
 #include <folly/ThreadLocal.h>
 #include <folly/container/F14Map.h>
-#include <folly/dynamic.h>
 #include <folly/experimental/FunctionScheduler.h>
+#include <folly/hash/Hash.h>
 #include <folly/synchronization/CallOnce.h>
 
 namespace facebook {
@@ -425,9 +432,8 @@ struct HistogramSpec {
 template <size_t N>
 class FormattedKeyHolder {
  public:
-  // A subkey can be either a string or an integer.
-  typedef folly::dynamic Subkey;
-  typedef std::array<Subkey, N> SubkeyArray;
+  using Subkey = std::variant<int64_t, std::string>;
+  using SubkeyArray = std::array<Subkey, N>;
 
   // Sanity check that our set of arguments contains only integers or strings.
   // This provides better type-safety because otherwise we could implicitly
@@ -438,21 +444,97 @@ class FormattedKeyHolder {
        std::is_integral_v<T>)&&!std::is_same_v<T, std::nullptr_t>;
 
   // Hash function
-  class SubkeyArrayHash {
+  struct SubkeyHash //
+      : private folly::hasher<int64_t>,
+        private folly::hasher<std::string>,
+        private folly::hasher<std::string_view> {
+    using is_transparent = void;
+    using folly_is_avalanching = folly::Conjunction<
+        folly::hasher<int64_t>::folly_is_avalanching,
+        folly::hasher<std::string>::folly_is_avalanching,
+        folly::hasher<std::string_view>::folly_is_avalanching>;
+
+    using folly::hasher<int64_t>::operator();
+    using folly::hasher<std::string>::operator();
+    using folly::hasher<std::string_view>::operator();
+
+    size_t operator()(const Subkey& v) const {
+      return std::visit(*this, v);
+    }
+  };
+
+  class SubkeyArrayHash : private SubkeyHash {
    public:
+    using is_transparent = void;
+    using folly_is_avalanching = typename SubkeyHash::folly_is_avalanching;
+
     size_t operator()(const SubkeyArray& v) const {
-      size_t res = 0;
-      for (const auto& s : v) {
-        res ^= s.hash();
-      }
-      return res;
+      return hash(v, std::make_index_sequence<N>{});
+    }
+    template <typename... A, std::enable_if_t<sizeof...(A) == N, int> = 0>
+    size_t operator()(const std::tuple<A...>& v) const {
+      return hash(v, std::make_index_sequence<N>{});
+    }
+
+   private:
+    template <typename O, size_t... I>
+    size_t hash(const O& v, std::index_sequence<I...>) const {
+      using std::get;
+      auto& base = static_cast<SubkeyHash const&>(*this);
+      return folly_is_avalanching::value
+          ? (0 ^ ... ^ base(get<I>(v)))
+          : folly::hash::hash_combine_generic(base, get<I>(v)...);
+    }
+  };
+
+  class SubkeyArrayEqualTo {
+   public:
+    using is_transparent = void;
+
+    bool operator()(const SubkeyArray& a, const SubkeyArray& b) const {
+      return a == b;
+    }
+    template <typename... A, std::enable_if_t<sizeof...(A) == N, int> = 0>
+    bool operator()(const std::tuple<A...>& a, const std::tuple<A...>& b)
+        const {
+      return a == b;
+    }
+    template <typename... A, std::enable_if_t<sizeof...(A) == N, int> = 0>
+    bool operator()(const std::tuple<A...>& a, const SubkeyArray& b) const {
+      return eq(a, b, std::make_index_sequence<N>{});
+    }
+    template <typename... A, std::enable_if_t<sizeof...(A) == N, int> = 0>
+    bool operator()(const SubkeyArray& a, const std::tuple<A...>& b) const {
+      return eq(b, a, std::make_index_sequence<N>{});
+    }
+
+   private:
+    template <typename... A, size_t... I>
+    static bool eq(
+        const std::tuple<A...>& a,
+        const SubkeyArray& b,
+        std::index_sequence<I...>) {
+      return (true && ... && eq(std::get<I>(a), b[I]));
+    }
+    template <typename T, typename A>
+    static bool eq(A a, const Subkey& b) {
+      return std::holds_alternative<T>(b) && a == std::get<T>(b);
+    }
+    static bool eq(int64_t a, const Subkey& b) {
+      return eq<int64_t>(a, b);
+    }
+    static bool eq(std::string_view a, const Subkey& b) {
+      return eq<std::string>(a, b);
     }
   };
 
   // The global map maps subkeys to formatted keys and also remembers
   // which formatted keys have already been registered with ServiceData.
-  typedef folly::F14NodeMap<SubkeyArray, std::string, SubkeyArrayHash>
-      GlobalMap;
+  using GlobalMap = folly::F14NodeMap< //
+      SubkeyArray,
+      std::string,
+      SubkeyArrayHash,
+      SubkeyArrayEqualTo>;
 
   // The local map is a thread-local cache of the global map.
   // This helps avoid contention as we do not have to acquire a global read
@@ -461,8 +543,11 @@ class FormattedKeyHolder {
   // values in globalMap_.
   // (we use const string pointers instead of StringPieces because
   //  ThreadCachedServiceData::addStatValue() only accepts string references)
-  typedef folly::F14NodeMap<SubkeyArray, const std::string*, SubkeyArrayHash>
-      LocalMap;
+  using LocalMap = folly::F14FastMap<
+      std::reference_wrapper<const SubkeyArray>,
+      const std::string*,
+      SubkeyArrayHash,
+      SubkeyArrayEqualTo>;
 
   // Takes a key format which may have (e.g. "foo.{}") containing one or
   // more special placeholders "{}" that can be replaced with a subkey.
@@ -492,19 +577,44 @@ class FormattedKeyHolder {
         (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
         "Arguments must be strings or integers");
 
-    const SubkeyArray subkeyArray{{std::forward<Args>(subkeys)...}};
-    auto formattedKey = folly::get_default(*localMap_, subkeyArray);
-    if (!formattedKey) {
-      auto keyAndValue = getFormattedKeyGlobal(subkeyArray);
-      formattedKey = localMap_->emplace(keyAndValue.first, &keyAndValue.second)
-                         .first->second;
-    }
-    return *formattedKey;
+    auto decay = folly::overload(decay_<int64_t>{}, decay_<std::string_view>{});
+    // calling outline folly::get_default would be a small perf hit
+    auto const& map = *localMap_; // so call map-find inline to avoid
+    auto it = map.find(std::tuple{decay(subkeys)...});
+    return FOLLY_LIKELY(it != map.end())
+        ? *it->second
+        : getFormattedKeySlow(std::forward<Args>(subkeys)...);
   }
 
  private:
+  template <typename T>
+  struct decay_ {
+    FOLLY_ERASE constexpr T operator()(T const& t) const {
+      return t;
+    }
+  };
+  template <typename T, typename S = T>
+  struct mkvar_ {
+    FOLLY_ERASE Subkey operator()(T const& t) const {
+      return Subkey(std::in_place_type<S>, t);
+    }
+  };
+
   /**
-   * Returns a pair of (subkeyArray, formatted-key)
+   * Assumes a subkey-array is not in the local map. Gets it from the global
+   * map, inserting if necessary, inserts it into the local map, and returns the
+   * corresponding formatted-key.
+   */
+  template <typename... Args>
+  const std::string& getFormattedKeySlow(Args&&... subkeys) {
+    auto mkvar = folly::overload(
+        mkvar_<int64_t>{}, mkvar_<std::string_view, std::string>{});
+    auto const& [k, v] = getFormattedKeyGlobal({mkvar(subkeys)...});
+    return *localMap_->emplace(std::cref(k), &v).first->second;
+  }
+
+  /**
+   * Returns a pair of (subkey-array, formatted-key) by-ref
    * e.g. (("foo", 42), "my_counter.foo.42")
    * and registers the stats export types if not registered already.
    * We return both the subkey and the stats key so that getStats() can build
@@ -540,7 +650,14 @@ class FormattedKeyHolder {
     // We still did not find it.
     // Create a formatted key and switch to a writer-lock and update the
     // global stats map.
-    auto formattedKey = folly::svformat(keyFormat_, SubkeyArray(subkeyArray));
+    std::array<std::string, N> subkeyStrings;
+    for (size_t i = 0; i < N; ++i) {
+      subkeyStrings[i] = folly::variant_match(
+          subkeyArray[i],
+          [](int64_t v) { return std::to_string(v); },
+          [](std::string const& v) { return v; });
+    }
+    auto formattedKey = folly::svformat(keyFormat_, subkeyStrings);
     prepareKey_(formattedKey);
 
     auto writePtr = upgradePtr.moveFromUpgradeToWrite();
