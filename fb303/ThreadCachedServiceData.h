@@ -374,6 +374,14 @@ struct TLMinuteOnlyTimeseries : public ThreadCachedServiceData::TLTimeseries {
             types...) {}
 };
 
+/**
+ * Prevents implicit conversions.
+ */
+template <typename Bool, std::enable_if_t<std::is_same_v<Bool, bool>, int> = 0>
+constexpr std::string_view dynamic_key(Bool value) {
+  return !value ? "false" : "true";
+}
+
 namespace internal {
 
 struct HistogramSpec {
@@ -441,7 +449,8 @@ class FormattedKeyHolder {
   template <typename T>
   static constexpr bool IsValidSubkey =
       (std::is_convertible_v<T, folly::StringPiece> ||
-       std::is_integral_v<T>)&&!std::is_same_v<T, std::nullptr_t>;
+       std::is_integral_v<T>)&&!std::is_same_v<T, std::nullptr_t> &&
+      !std::is_same_v<T, bool>;
 
   // Hash function
   struct SubkeyHash //
