@@ -59,22 +59,15 @@ struct ThriftFuncHistParams {
 
 class BaseService : virtual public cpp2::BaseServiceSvIf {
  protected:
-  explicit BaseService(std::string name) : name_{std::move(name)} {}
+  explicit BaseService(std::string name) {
+    setNameOverride(std::move(name));
+  }
   ~BaseService() override;
 
  public:
+  using cpp2::BaseServiceSvIf::ServerInterface::getName;
   void getName(std::string& _return) override {
-    _return = name_;
-  }
-
-  /**
-   * Local call to get the service name (since we need it to instantiate a
-   * call stats handler and setting up a cob to get it would be silly).
-   *
-   * @return the service name.
-   */
-  std::string_view getName() const {
-    return name_;
+    _return = getName();
   }
 
   void getVersion(std::string& _return) override {
@@ -264,7 +257,6 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   std::chrono::milliseconds getCountersExpiration() const;
 
  private:
-  const std::string name_;
   std::vector<ThriftFuncHistParams> thriftFuncHistParams_;
   folly::CPUThreadPoolExecutor getCountersExecutor_{
       2,
