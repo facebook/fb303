@@ -73,7 +73,7 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
    *
    * @return the service name.
    */
-  const std::string& getName() const {
+  std::string_view getName() const {
     return name_;
   }
 
