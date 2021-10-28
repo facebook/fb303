@@ -394,13 +394,13 @@ struct HistogramSpec {
 
   template <typename... Args>
   HistogramSpec(
-      int64_t bucketWidth,
-      int64_t min,
-      int64_t max,
+      int64_t bucketWidth_,
+      int64_t min_,
+      int64_t max_,
       const Args&... args)
-      : bucketWidth(bucketWidth),
-        min(min),
-        max(max),
+      : bucketWidth(bucketWidth_),
+        min(min_),
+        max(max_),
         levels(MinuteTenMinuteHourTimeSeries<CounterType>()) {
     ctorHandleArgs(args...);
   }
@@ -426,8 +426,8 @@ struct HistogramSpec {
     this->percentiles.push_back(pctile);
   }
 
-  void ctorHandleArg(const MultiLevelTimeSeries<CounterType>& _levels) {
-    this->levels = _levels;
+  void ctorHandleArg(const MultiLevelTimeSeries<CounterType>& levels_) {
+    this->levels = levels_;
   }
 
   template <typename... Args>
