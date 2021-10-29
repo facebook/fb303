@@ -210,7 +210,8 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
       if (auto expiration = getCountersExpiration();
           expiration.count() > 0 && clock::now() - start > expiration) {
         using Exn = apache::thrift::TApplicationException;
-        callback_->exception(folly::make_exception_wrapper<Exn>(Exn::TIMEOUT));
+        callback_->exception(folly::make_exception_wrapper<Exn>(
+            Exn::TIMEOUT, "counters executor is saturated, request rejected."));
         return;
       }
       try {
@@ -237,7 +238,8 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
       if (auto expiration = getCountersExpiration();
           expiration.count() > 0 && clock::now() - start > expiration) {
         using Exn = apache::thrift::TApplicationException;
-        callback_->exception(folly::make_exception_wrapper<Exn>(Exn::TIMEOUT));
+        callback_->exception(folly::make_exception_wrapper<Exn>(
+            Exn::TIMEOUT, "counters executor is saturated, request rejected."));
         return;
       }
       try {
