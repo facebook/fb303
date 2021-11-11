@@ -407,6 +407,12 @@ class TFunctionStatHandler
       const std::string& ex_what) override;
 };
 
+/**
+ * Enable Thrift handler call counters
+ */
+std::shared_ptr<TFunctionStatHandler> addThriftFunctionStatHandler(
+    const char* serviceName);
+
 void withThriftFunctionStats(
     const char* serviceName,
     BaseService* service,

@@ -499,6 +499,13 @@ class StandardStatHandler : public TFunctionStatHandler {
 
 } // namespace
 
+std::shared_ptr<TFunctionStatHandler> addThriftFunctionStatHandler(
+    const char* serviceName) {
+  auto handler = std::make_shared<StandardStatHandler>(serviceName);
+  apache::thrift::TProcessorBase::addProcessorEventHandler(handler);
+  return handler;
+}
+
 void withThriftFunctionStats(
     const char* serviceName,
     BaseService* service,
