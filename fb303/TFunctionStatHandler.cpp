@@ -16,6 +16,8 @@
 
 #include <fb303/TFunctionStatHandler.h>
 
+#include <mutex>
+
 #include <fb303/LegacyClock.h>
 
 namespace {
@@ -34,7 +36,7 @@ TStatsPerThread::~TStatsPerThread() = default;
 
 TStatsRequestContext* TStatsPerThread::getContext() {
   auto context = new TStatsRequestContext();
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
   // evaluate sampling
   sampleTimer_ += sampleRate_;
   if (sampleTimer_ >= 1.0) {
@@ -118,7 +120,7 @@ void TStatsPerThread::StatsPerThreadHist::set(
 }
 
 void TStatsPerThread::logContextData(const TStatsRequestContext& context) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  std::unique_lock lock(mutex_);
   calls_++;
   samples_ += context.measureTime_;
   exceptions_ += context.exception;
@@ -247,7 +249,7 @@ void TFunctionStatHandler::preDestroy() {
 }
 
 void TFunctionStatHandler::consolidate() {
-  std::lock_guard<std::recursive_mutex> lock(statMutex_);
+  std::unique_lock lock(statMutex_);
   auto now = get_legacy_stats_time();
 
   // call consolidateStats for all threads and all functions
@@ -280,7 +282,7 @@ int32_t TFunctionStatHandler::consolidateStats(
     time_t now,
     const std::string& fnName,
     TStatsPerThread& spt) {
-  std::lock_guard<std::mutex> lock(spt.mutex_);
+  std::unique_lock lock(spt.mutex_);
 
   auto calls = spt.calls_;
   auto addAllValues = [&](const auto& prefix) {
@@ -438,13 +440,13 @@ TStatsPerThread* TFunctionStatHandler::getStats(const std::string& fn_name) {
       if (mode == folly::TLPDestructionMode::THIS_THREAD) {
         auto sp = wp.lock();
         if (sp) {
-          std::lock_guard<std::recursive_mutex> lock(sp->statMutex_);
+          std::unique_lock lock(sp->statMutex_);
           sp->consolidateThread(get_legacy_stats_time(), *a);
         }
       }
       delete a;
     };
-    std::lock_guard<std::recursive_mutex> lock(statMutex_);
+    std::unique_lock lock(statMutex_);
     tlFunctionMap_.reset(mapPtr, deleter);
   }
   // Find TStatsPerThread in TStatsAggregator's map - the map is only updated
@@ -455,7 +457,7 @@ TStatsPerThread* TFunctionStatHandler::getStats(const std::string& fn_name) {
   auto it = map.find(fn_name);
   if (it == map.end()) {
     // we're going to be writing the map, so lock out stat aggregation ftm
-    std::lock_guard<std::recursive_mutex> lock(statMutex_);
+    std::unique_lock lock(statMutex_);
     auto stats = createStatsPerThread();
     setThriftHistParams(stats.get(), fn_name.c_str());
     map[fn_name] = stats;

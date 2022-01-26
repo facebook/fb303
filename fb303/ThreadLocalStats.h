@@ -297,11 +297,11 @@ class TLStatT {
  protected:
   enum SubclassMove { SUBCLASS_MOVE };
 
-  std::unique_lock<typename LockTraits::StatLock> guardStatLock() const {
+  auto guardStatLock() const {
     // Assert the stat is being used by the thread currently responsible
     // for the container in debug mode.
     LockTraits::willAcquireStatLock(link_->mutex_);
-    return std::unique_lock<typename LockTraits::StatLock>{statLock_};
+    return std::unique_lock{statLock_};
   }
 
   /**
@@ -749,7 +749,6 @@ class TLStatLink {
  public:
   using Container = ThreadLocalStatsT<LockTraits>;
   using Lock = typename LockTraits::RegistryLock;
-  using Guard = std::unique_lock<Lock>;
 
   explicit TLStatLink(Container* container)
       : container_{container}, refCount_{1} {}
@@ -761,14 +760,14 @@ class TLStatLink {
   TLStatLink& operator=(TLStatLink&&) = delete;
 
   void incRef() {
-    Guard guard{mutex_};
+    std::unique_lock guard{mutex_};
     ++refCount_;
   }
 
   void decRef() {
     size_t after;
     {
-      Guard guard{mutex_};
+      std::unique_lock guard{mutex_};
       DCHECK_GT(refCount_, 0u);
       after = --refCount_;
     }
@@ -781,8 +780,8 @@ class TLStatLink {
     LockTraits::swapThreads(mutex_);
   }
 
-  Guard lock() {
-    return Guard{mutex_};
+  std::unique_lock<Lock> lock() {
+    return std::unique_lock{mutex_};
   }
 
  private:

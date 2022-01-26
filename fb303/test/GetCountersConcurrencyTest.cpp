@@ -41,7 +41,7 @@ class TestHandler : public TestServiceSvIf, public BaseService {
 
   void burnTime(int32_t seconds) override {
     {
-      std::lock_guard g(burnMutex);
+      std::unique_lock g(burnMutex);
       burnStarted++;
       burnCondition.notify_all();
     }
