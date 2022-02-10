@@ -83,18 +83,18 @@ void BasicQuantileStatMap<ClockT>::getValues(
   // Note: Assume that stats get added rarely, so hold the read lock for the
   // entire time rather than copy the map.
   folly::SharedMutex::ReadHolder g(mutex_);
-  for (const auto& kv : statMap_) {
+  for (const auto& [key, sme] : statMap_) {
     std::vector<double> quantiles;
-    for (const auto& statDef : kv.second.statDefs) {
+    for (const auto& statDef : sme.statDefs) {
       if (statDef.type == ExportType::PERCENT) {
         quantiles.push_back(statDef.quantile);
       }
     }
-    auto estimates = kv.second.stat->getEstimates(quantiles, now);
+    auto estimates = sme.stat->getEstimates(quantiles, now);
     auto timeSinceCreation = std::chrono::duration_cast<std::chrono::seconds>(
-        now - kv.second.stat->creationTime());
-    for (const auto& statDef : kv.second.statDefs) {
-      addValues(kv.first, statDef, estimates, timeSinceCreation, out);
+        now - sme.stat->creationTime());
+    for (const auto& statDef : sme.statDefs) {
+      addValues(key, statDef, estimates, timeSinceCreation, out);
     }
   }
 }
@@ -105,45 +105,42 @@ void BasicQuantileStatMap<ClockT>::getSelectedValues(
     const std::vector<std::string>& keys) const {
   std::map<
       stat_type*,
-      std::vector<std::pair<std::string, const CounterMapEntry*>>>
+      std::vector<std::pair<const std::string*, CounterMapEntry>>>
       stats;
   {
     folly::SharedMutex::ReadHolder g(mutex_);
     for (const auto& key : keys) {
       auto it = counterMap_.find(key);
       if (it != counterMap_.end()) {
-        stats[it->second.stat.get()].push_back(
-            std::make_pair(key, &it->second));
+        stats[it->second.stat.get()].emplace_back(&key, it->second);
       }
     }
   }
   auto now = ClockT::now();
-  for (const auto& stat_vec : stats) {
+  for (const auto& [stat, vec] : stats) {
     std::vector<double> quantiles;
-    for (const auto& key_cme : stat_vec.second) {
-      if (key_cme.second->statDef.type == ExportType::PERCENT) {
-        quantiles.push_back(key_cme.second->statDef.quantile);
+    for (const auto& [_, cme] : vec) {
+      if (cme.statDef.type == ExportType::PERCENT) {
+        quantiles.push_back(cme.statDef.quantile);
       }
     }
-    auto estimates = stat_vec.first->getEstimates(quantiles, now);
+    auto estimates = stat->getEstimates(quantiles, now);
     auto timeSinceCreation = std::chrono::duration_cast<std::chrono::seconds>(
-        now - stat_vec.first->creationTime());
-    for (const auto& key_cme : stat_vec.second) {
-      if (key_cme.second->slidingWindowLength) {
+        now - stat->creationTime());
+    for (const auto& [pkey, cme] : vec) {
+      if (cme.slidingWindowLength) {
         for (const auto& slidingWindow : estimates.slidingWindows) {
           auto slidingWindowLength = slidingWindow.slidingWindowLength();
-          if (slidingWindowLength == *key_cme.second->slidingWindowLength) {
+          if (slidingWindowLength == *cme.slidingWindowLength) {
             auto duration = std::min(slidingWindowLength, timeSinceCreation);
-            out[key_cme.first] = extractValue(
-                key_cme.second->statDef, slidingWindow.estimate, duration);
+            out[*pkey] =
+                extractValue(cme.statDef, slidingWindow.estimate, duration);
             break;
           }
         }
       } else {
-        out[key_cme.first] = extractValue(
-            key_cme.second->statDef,
-            estimates.allTimeEstimate,
-            timeSinceCreation);
+        out[*pkey] = extractValue(
+            cme.statDef, estimates.allTimeEstimate, timeSinceCreation);
       }
     }
   }
@@ -171,8 +168,8 @@ template <typename ClockT>
 void BasicQuantileStatMap<ClockT>::getKeys(
     std::vector<std::string>& keys) const {
   folly::SharedMutex::ReadHolder g(mutex_);
-  for (const auto& kv : counterMap_) {
-    keys.push_back(kv.first);
+  for (const auto& [key, _] : counterMap_) {
+    keys.push_back(key);
   }
 }
 
@@ -214,21 +211,19 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
     CounterMapEntry entry;
     entry.stat = stat;
     entry.statDef = statDef;
-    counterMap_.insert(
-        std::make_pair(makeKey(name, statDef, folly::none), entry));
+    counterMap_.emplace(makeKey(name, statDef, folly::none), entry);
 
     auto slidingWindowLengths = stat->getSlidingWindowLengths();
 
     for (auto slidingWindowLength : slidingWindowLengths) {
       entry.slidingWindowLength = slidingWindowLength;
-      counterMap_.insert(
-          std::make_pair(makeKey(name, statDef, slidingWindowLength), entry));
+      counterMap_.emplace(makeKey(name, statDef, slidingWindowLength), entry);
     }
   }
   StatMapEntry statMapEntry;
   statMapEntry.stat = stat;
   statMapEntry.statDefs = std::move(statDefs);
-  statMap_.insert(std::make_pair(std::move(name), std::move(statMapEntry)));
+  statMap_.emplace(std::move(name), std::move(statMapEntry));
   return stat;
 }
 
@@ -251,10 +246,9 @@ std::string BasicQuantileStatMap<ClockT>::makeKey(
       return fmt::format("{}.avg{}", base, tail);
     case ExportType::RATE:
       return fmt::format("{}.rate{}", base, tail);
-    default:
-      LOG(FATAL) << "Unknown export type: " << statDef.type;
-      return "";
   }
+  LOG(FATAL) << "Unknown export type: " << statDef.type;
+  return "";
 }
 
 template <typename StatDef>
@@ -287,10 +281,9 @@ double extractValueImpl(
         return numerator / duration.count();
       }
       return estimate.count;
-    default:
-      LOG(FATAL) << "Unknown export type: " << statDef.type;
-      return 0;
   }
+  LOG(FATAL) << "Unknown export type: " << statDef.type;
+  return 0;
 }
 
 template <typename ClockT>
@@ -309,15 +302,15 @@ void BasicQuantileStatMap<ClockT>::addValues(
     const typename BasicQuantileStat<ClockT>::Estimates& estimates,
     std::chrono::seconds timeSinceCreation,
     std::map<std::string, int64_t>& out) {
-  out.insert(std::make_pair(
+  out.emplace(
       makeKey(statName, statDef, folly::none),
-      extractValue(statDef, estimates.allTimeEstimate, timeSinceCreation)));
+      extractValue(statDef, estimates.allTimeEstimate, timeSinceCreation));
   for (const auto& slidingWindow : estimates.slidingWindows) {
     auto slidingWindowLength = slidingWindow.slidingWindowLength();
     auto duration = std::min(slidingWindowLength, timeSinceCreation);
-    out.insert(std::make_pair(
+    out.emplace(
         makeKey(statName, statDef, slidingWindowLength),
-        extractValue(statDef, slidingWindow.estimate, duration)));
+        extractValue(statDef, slidingWindow.estimate, duration));
   }
 }
 

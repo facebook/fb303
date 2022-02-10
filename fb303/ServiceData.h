@@ -113,6 +113,11 @@ class ServiceData {
   }
 
   /**
+   * Force flush all counters, histograms, etc.
+   */
+  void flushAllData();
+
+  /**
    * Clear all counters, histograms, exported values, options, etc.
    *
    * Counters and histograms are completely forgotten about, not simply reset
@@ -324,9 +329,6 @@ class ServiceData {
    * Please see the documentation for exportHistogramPercentile() and
    * addHistogram() to see how to configure histograms and their export
    * options.
-   *
-   * see the documenttion in common/stats/ExportedHistogramMapImpl.h for more
-   * info.
    */
   void addHistogramValue(
       folly::StringPiece key,
@@ -339,9 +341,6 @@ class ServiceData {
    * Please see the documentation for exportHistogramPercentile() and
    * addHistogram() to see how to configure histograms and their export
    * options.
-   *
-   * see the documenttion in common/stats/ExportedHistogramMapImpl.h for more
-   * info.
    */
   void addHistogramValueMult(
       folly::StringPiece key,
@@ -350,7 +349,7 @@ class ServiceData {
       bool checkContains = false);
 
   /**
-   * Convenience function for adding the same value to stats and histgrams.
+   * Convenience function for adding the same value to stats and histograms.
    * Creates AVG stat if no stat exists, but fatals if no histogram has been
    * created yet.
    *
@@ -366,7 +365,7 @@ class ServiceData {
       bool checkContains = false);
 
   /**
-   * Convenience function for adding the same value to stats and histgrams.
+   * Convenience function for adding the same value to stats and histograms.
    * Creates AVG stat if no stat exists, but fatals if no histogram has been
    * created yet.
    *
@@ -423,7 +422,7 @@ class ServiceData {
       const std::vector<std::string>& keys) const;
   std::map<std::string, int64_t> getSelectedCounters(
       const std::vector<std::string>& keys) const;
-  /*** Retrives counters whoose names match given reges */
+  /*** Retrives counters whose names match given regexs */
   void getRegexCounters(
       std::map<std::string, int64_t>& _return,
       const std::string& regex) const;

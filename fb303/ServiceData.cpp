@@ -70,6 +70,12 @@ ServiceData* ServiceData::get() {
   return serviceData;
 }
 
+void ServiceData::flushAllData() {
+  statsMap_.flushAllStats();
+  quantileMap_.flushAll();
+  // NOTE: histMap_ is not buffered.
+}
+
 void ServiceData::resetAllData() {
   options_.wlock()->clear();
 
@@ -78,6 +84,7 @@ void ServiceData::resetAllData() {
   exportedValues_.wlock()->clear();
 
   statsMap_.forgetAllStats();
+  quantileMap_.forgetAll();
   histMap_.forgetAllHistograms();
 
   dynamicStrings_.clear();

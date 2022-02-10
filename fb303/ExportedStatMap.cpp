@@ -111,11 +111,19 @@ void ExportedStatMap::forgetStatsFor(StringPiece name) {
   statMap_.wlock()->erase(name);
 }
 
-void ExportedStatMap::clearAllStats() {
+void ExportedStatMap::flushAllStats() {
   auto lockedStatMap = statMap_.wlock();
-  for (auto& statPtrKvp : *lockedStatMap) {
-    statPtrKvp.second->lock()->clear();
+  for (auto& [_, ptr] : *lockedStatMap) {
+    ptr->lock()->flush();
   }
 }
+
+void ExportedStatMap::clearAllStats() {
+  auto lockedStatMap = statMap_.wlock();
+  for (auto& [_, ptr] : *lockedStatMap) {
+    ptr->lock()->clear();
+  }
+}
+
 } // namespace fb303
 } // namespace facebook

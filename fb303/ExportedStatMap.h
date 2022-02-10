@@ -97,7 +97,7 @@ class ExportedStatMap {
    *
    * When the returned pointer is destroyed, the object's mutex is released. In
    * other words, a thread will maintain exclusive control over the given key
-   * until it destroyes the returned pointer.
+   * until it destroys the returned pointer.
    *
    * The data may be stale so flush() is called on the ExportedStat object
    * before reading data off of it.
@@ -239,6 +239,12 @@ class ExportedStatMap {
   void forgetStatsFor(folly::StringPiece name);
 
   /*
+   * Flush all of the exported stats (which are buffered, with otherwise
+   * expiration-based regular flush on updates).
+   */
+  void flushAllStats();
+
+  /*
    * Reset all of the exported timeseries so they contain no data points.
    */
   void clearAllStats();
@@ -254,5 +260,6 @@ class ExportedStatMap {
   // more (they have no data members of their own).
   ExportedStat defaultStat_;
 };
+
 } // namespace fb303
 } // namespace facebook

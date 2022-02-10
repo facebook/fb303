@@ -93,6 +93,12 @@ class BasicQuantileStatMap {
     }
   }
 
+  void forgetAll() {
+    folly::SharedMutex::WriteHolder g(mutex_);
+    counterMap_.clear();
+    statMap_.clear();
+  }
+
  private:
   struct CounterMapEntry {
     std::shared_ptr<stat_type> stat;
