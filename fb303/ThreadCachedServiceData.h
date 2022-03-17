@@ -898,9 +898,12 @@ class TimeseriesPolymorphicWrapper : public TimeseriesWrapperBase {
       : TimeseriesWrapperBase(varname) {
     exportStats(arg1, args...);
   }
-  explicit TimeseriesPolymorphicWrapper(const std::string& key)
+  template <typename... Args>
+  explicit TimeseriesPolymorphicWrapper(
+      const std::string& key,
+      const Args&... args)
       : TimeseriesWrapperBase(key) {
-    exportStats();
+    exportStats(args...);
   }
 
  protected:
