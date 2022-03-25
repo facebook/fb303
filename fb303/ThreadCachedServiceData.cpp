@@ -60,12 +60,21 @@ folly::Singleton<PublisherManager> publisherManager;
 // MinuteTenMinuteHourTimeSeries, as a blueprint for creating new timeseries
 // if one is not explicitly specified.  So we define these here that are used
 // by their respective wrapper abstractions.
-const ExportedStat MinuteTimeseriesWrapper::templateExportedStat_ =
-    MinuteTimeSeries<CounterType>();
-const ExportedStat QuarterMinuteOnlyTimeseriesWrapper::templateExportedStat_ =
-    QuarterMinuteOnlyTimeSeries<CounterType>();
-const ExportedStat MinuteOnlyTimeseriesWrapper::templateExportedStat_ =
-    MinuteOnlyTimeSeries<CounterType>();
+const ExportedStat& MinuteTimeseriesWrapper::templateExportedStat() {
+  static const folly::Indestructible<MinuteTimeSeries<CounterType>> obj;
+  return *obj.get();
+}
+
+const ExportedStat& QuarterMinuteOnlyTimeseriesWrapper::templateExportedStat() {
+  static const folly::Indestructible<QuarterMinuteOnlyTimeSeries<CounterType>>
+      obj;
+  return *obj.get();
+}
+
+const ExportedStat& MinuteOnlyTimeseriesWrapper::templateExportedStat() {
+  static const folly::Indestructible<MinuteOnlyTimeSeries<CounterType>> obj;
+  return *obj.get();
+}
 
 ThreadCachedServiceData::StatsThreadLocal&
 ThreadCachedServiceData::getStatsThreadLocal() {

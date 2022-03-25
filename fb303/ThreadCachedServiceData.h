@@ -945,12 +945,12 @@ struct MinuteTimeseriesWrapper : public TimeseriesWrapperBase {
     // levels.
     int _[] = {
         (ServiceData::get()->addStatExportType(
-             key_, args, &templateExportedStat_),
+             key_, args, &templateExportedStat()),
          0)...};
     (void)_;
   }
 
-  static const ExportedStat templateExportedStat_;
+  static const ExportedStat& templateExportedStat();
 };
 
 class QuarterMinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
@@ -977,12 +977,12 @@ class QuarterMinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
     // levels.
     int _[] = {
         (ServiceData::get()->addStatExportType(
-             key_, args, &templateExportedStat_),
+             key_, args, &templateExportedStat()),
          0)...};
     (void)_;
   }
 
-  static const ExportedStat templateExportedStat_;
+  static const ExportedStat& templateExportedStat();
 };
 
 struct MinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
@@ -1007,12 +1007,12 @@ struct MinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
     // levels.
     int _[] = {
         (ServiceData::get()->addStatExportType(
-             key_, args, &templateExportedStat_),
+             key_, args, &templateExportedStat()),
          0)...};
     (void)_;
   }
 
-  static const ExportedStat templateExportedStat_;
+  static const ExportedStat& templateExportedStat();
 };
 
 class HistogramWrapper {
