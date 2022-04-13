@@ -219,11 +219,11 @@ void TFunctionStatHandler::handlerError(void* ctx, const char*) {
   }
 }
 
-void TFunctionStatHandler::userException(
+void TFunctionStatHandler::userExceptionWrapped(
     void* ctx,
-    const char* /* fn_name */,
-    const std::string& /* ex */,
-    const std::string& /* ex_what */) {
+    const char* /*fn_name*/,
+    bool /*declared*/,
+    const folly::exception_wrapper& /*ew_*/) {
   if (ctx != nullptr) {
     static_cast<TStatsRequestContext*>(ctx)->userExceptionThrown();
   }

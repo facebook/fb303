@@ -400,11 +400,11 @@ class TFunctionStatHandler
   /**
    * Called if the handler throws any exception.
    */
-  void userException(
+  void userExceptionWrapped(
       void* ctx,
       const char* fn_name,
-      const std::string& ex,
-      const std::string& ex_what) override;
+      bool declared,
+      const folly::exception_wrapper& ew_) final;
 };
 
 /**
