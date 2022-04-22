@@ -16,6 +16,7 @@
 
 namespace java com.facebook.fb303.core
 namespace java.swift com.facebook.swift.fb303.core
+namespace java2 com.facebook.thrift.fb303.core
 namespace cpp facebook.fb303
 namespace py.asyncio fb303_asyncio.fb303_core
 namespace perl fb303
