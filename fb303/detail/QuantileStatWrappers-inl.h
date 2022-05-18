@@ -17,7 +17,6 @@
 #pragma once
 
 #include <fb303/ServiceData.h>
-#include <fb303/detail/QuantileStatWrappers.h>
 #include <folly/synchronization/Hazptr.h>
 
 namespace facebook::fb303::detail {
