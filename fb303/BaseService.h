@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <fb303/LimitUtils.h>
 #include <fb303/ServiceData.h>
 #include <fb303/thrift/gen-cpp2/BaseService.h>
 #include <folly/executors/CPUThreadPoolExecutor.h>
@@ -215,8 +216,18 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
         return;
       }
       try {
+        auto* reqCtx = callback_->getRequestContext();
+        std::optional<size_t> limit = getCounterLimitFromRequest(reqCtx);
         std::map<std::string, int64_t> res;
         getCounters(res);
+        if (limit) {
+          size_t numAvailable = res.size();
+          /*** Get first limit counters from map ***/
+          if (numAvailable > *limit) {
+            res.erase(std::next(res.begin(), *limit), res.end());
+          }
+          addCountersAvailableToResponse(reqCtx, numAvailable);
+        }
         callback_->result(res);
       } catch (...) {
         callback_->exception(std::current_exception());
