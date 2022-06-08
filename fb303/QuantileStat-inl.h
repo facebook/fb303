@@ -61,10 +61,10 @@ BasicQuantileStat<ClockT>::getEstimates(
 
   estimates.slidingWindows.reserve(slidingWindowVec_.size());
   for (auto& slidingWindow : slidingWindowVec_) {
-    auto& swe = estimates.slidingWindows.emplace_back();
-    swe.windowLength = slidingWindow.windowLength;
-    swe.nWindows = slidingWindow.nWindows;
-    swe.estimate = slidingWindow.estimator.estimateQuantiles(quantiles, now);
+    estimates.slidingWindows.emplace_back(
+        slidingWindow.estimator.estimateQuantiles(quantiles, now),
+        slidingWindow.windowLength,
+        slidingWindow.nWindows);
   }
   return estimates;
 }
