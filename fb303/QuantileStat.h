@@ -40,6 +40,13 @@ class BasicQuantileStat {
 
   struct SlidingWindowEstimate {
    public:
+    SlidingWindowEstimate() = delete;
+    SlidingWindowEstimate(
+        folly::QuantileEstimates&& e,
+        std::chrono::seconds wl,
+        size_t n)
+        : estimate(std::move(e)), windowLength(wl), nWindows(n) {}
+
     folly::QuantileEstimates estimate;
     std::chrono::seconds windowLength;
     size_t nWindows;
