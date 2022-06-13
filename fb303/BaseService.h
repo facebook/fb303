@@ -254,8 +254,19 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
         return;
       }
       try {
+        // Check the header to see if limit is set
+        auto* reqCtx = callback_->getRequestContext();
+        std::optional<size_t> limit = getCounterLimitFromRequest(reqCtx);
         std::map<std::string, int64_t> res;
         getRegexCounters(res, std::move(regex_));
+        if (limit) {
+          size_t numAvailable = res.size();
+          /*** Get first limit counters from map ***/
+          if (numAvailable > *limit) {
+            res.erase(std::next(res.begin(), *limit), res.end());
+          }
+          addCountersAvailableToResponse(reqCtx, numAvailable);
+        }
         callback_->result(res);
       } catch (...) {
         callback_->exception(std::current_exception());

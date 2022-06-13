@@ -164,3 +164,52 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimitHundred) {
   EXPECT_TRUE(it != opt.getReadHeaders().end());
   EXPECT_EQ(it->second, "3");
 }
+
+TYPED_TEST(GetCountersWithLimitTest, getCountersWithRegexLimit1) {
+  this->HandlerSetup();
+  auto opt = apache::thrift::RpcOptions();
+  opt.setTimeout(std::chrono::seconds(5));
+
+  std::map<std::string, int64_t> counters;
+  /////////////////////////////////////////////////////////
+  // Now set the header limit to 1 and read
+  opt.setWriteHeader(this->fb303CountersLimit, std::to_string(1));
+  this->fb303Client->sync_getRegexCounters(opt, counters, "counter.*");
+  EXPECT_EQ(counters.size(), 1);
+  EXPECT_EQ("counterA", counters.begin()->first);
+  auto it = opt.getReadHeaders().find(this->fb303CountersAvailable);
+  EXPECT_TRUE(it != opt.getReadHeaders().end());
+  EXPECT_EQ(it->second, "3");
+}
+
+TYPED_TEST(GetCountersWithLimitTest, getCountersWithRegexLimit0) {
+  this->HandlerSetup();
+  auto opt = apache::thrift::RpcOptions();
+  opt.setTimeout(std::chrono::seconds(5));
+
+  std::map<std::string, int64_t> counters;
+  /////////////////////////////////////////////////////////
+  // Now set the header limit to 0 and read
+  opt.setWriteHeader(this->fb303CountersLimit, std::to_string(0));
+  this->fb303Client->sync_getRegexCounters(opt, counters, "counterA.*");
+  EXPECT_EQ(counters.size(), 0);
+  auto it = opt.getReadHeaders().find(this->fb303CountersAvailable);
+  EXPECT_TRUE(it != opt.getReadHeaders().end());
+  EXPECT_EQ(it->second, "1"); // expect 1 counter to be matched on server side
+}
+
+TYPED_TEST(GetCountersWithLimitTest, getCountersWithRegexLimit) {
+  this->HandlerSetup();
+  auto opt = apache::thrift::RpcOptions();
+  opt.setTimeout(std::chrono::seconds(5));
+
+  std::map<std::string, int64_t> counters;
+  /////////////////////////////////////////////////////////
+  // Now set the header limit to 3 and read
+  opt.setWriteHeader(this->fb303CountersLimit, std::to_string(3));
+  this->fb303Client->sync_getRegexCounters(opt, counters, "counterA.*");
+  EXPECT_EQ(counters.size(), 1);
+  auto it = opt.getReadHeaders().find(this->fb303CountersAvailable);
+  EXPECT_TRUE(it != opt.getReadHeaders().end());
+  EXPECT_EQ(it->second, "1"); // expect 1 counter to be matched on server side
+}
