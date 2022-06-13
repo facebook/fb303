@@ -92,7 +92,7 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimit1) {
 
   std::map<std::string, int64_t> counters;
   /////////////////////////////////////////////////////////
-  // Now set the header to limit to 1 and read
+  // Now set the header limit to 1 and read
   opt.setWriteHeader(this->fb303CountersLimit, std::to_string(1));
   this->fb303Client->sync_getCounters(opt, counters);
   EXPECT_EQ(counters.size(), 1);
@@ -102,7 +102,7 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimit1) {
   EXPECT_EQ(it->second, "3");
 }
 /////////////////////////////////////////////////////////
-// Now set the header to limit to 3 and read
+// Now set the header limit to 3 and read
 TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimit3) {
   this->HandlerSetup();
   auto opt = apache::thrift::RpcOptions();
@@ -118,7 +118,7 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimit3) {
 }
 
 /////////////////////////////////////////////////////////
-// Now set the header to limit to -20 and read. Negative
+// Now set the header limit to -20 and read. Negative
 // number imply unlimited.
 TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimitNeg) {
   this->HandlerSetup();
