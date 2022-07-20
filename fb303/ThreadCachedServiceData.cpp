@@ -107,7 +107,6 @@ void ThreadCachedServiceData::publishStats() {
   for (ThreadLocalStatsMap& tlsm : threadLocalStats_->accessAllThreads()) {
     tlsm.aggregate();
   }
-  getServiceData()->flushAllData();
 }
 
 void ThreadCachedServiceData::startPublishThread(milliseconds interval) {

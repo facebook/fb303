@@ -90,7 +90,7 @@ class ThreadCachedServiceData {
 
   /*
    * Flush all of the statistics cached in each thread into the main
-   * ServiceData object and flush main ServiceData counters.
+   * ServiceData object.
    */
   void publishStats();
 
