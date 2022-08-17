@@ -18,6 +18,7 @@
 
 #include <folly/Range.h>
 #include <folly/stats/Histogram.h>
+#include <folly/synchronization/AtomicUtil.h>
 
 #include <fb303/ExportType.h>
 #include <fb303/ExportedHistogramMapImpl.h>
@@ -494,17 +495,14 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
    * Add a new data point
    */
   void addValue(int64_t value) {
-    auto g = this->guardStatLock();
-
-    sum_.fetch_add(value, std::memory_order_relaxed);
-    count_.fetch_add(1, std::memory_order_relaxed);
+    addValueAggregated(value, 1);
   }
 
   void addValueAggregated(int64_t value, int64_t nsamples) {
     auto g = this->guardStatLock();
 
-    sum_.fetch_add(value, std::memory_order_relaxed);
-    count_.fetch_add(nsamples, std::memory_order_relaxed);
+    add(sum_, value);
+    add(count_, nsamples);
   }
 
   void exportStat(ExportType exportType);
@@ -543,6 +541,14 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
       size_t numLevels,
       const int levelDurations[],
       ThreadLocalStatsT<LockTraits>* stats);
+
+  template <typename T>
+  void add(std::atomic<T>& cell, T value) {
+    auto const op = [=](auto _) {
+      return folly::constexpr_add_overflow_clamped(_, value);
+    };
+    folly::atomic_fetch_modify(cell, op, std::memory_order_relaxed);
+  }
 
   ExportedStatMapImpl::LockableStat globalStat_;
   std::atomic<int64_t> sum_{0};

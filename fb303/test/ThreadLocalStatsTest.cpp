@@ -16,6 +16,7 @@
 
 #include <fb303/ThreadLocalStats.h>
 
+#include <fb303/ServiceData.h>
 #include <fb303/ThreadCachedServiceData.h>
 #include <folly/Singleton.h>
 #include <folly/synchronization/test/Barrier.h>
@@ -24,6 +25,8 @@
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
 #include <future>
+#include <limits>
+#include <string>
 #include <thread>
 
 using namespace facebook::fb303;
@@ -47,6 +50,42 @@ enum : uint64_t {
 };
 
 const int kTimeseriesIntervalsC[] = {5, 15};
+
+template <typename LockTraits>
+void testSaturateTimeseries() {
+  using lim = std::numeric_limits<int64_t>;
+  std::string const key = "dummy";
+  ServiceData data;
+  ThreadLocalStatsT<LockTraits> tlstats(&data);
+  TLTimeseriesT<LockTraits> stat{&tlstats, key, SUM, AVG, COUNT};
+  EXPECT_EQ(0, stat.count());
+  EXPECT_EQ(0, stat.sum());
+
+  stat.addValue(lim::max());
+  EXPECT_EQ(1, stat.count());
+  EXPECT_EQ(lim::max(), stat.sum());
+  stat.addValue(1);
+  EXPECT_EQ(2, stat.count());
+  EXPECT_EQ(lim::max(), stat.sum());
+
+  stat.addValueAggregated(0, lim::max() - 2);
+  EXPECT_EQ(lim::max(), stat.count());
+  EXPECT_EQ(lim::max(), stat.sum());
+  stat.addValue(0);
+  EXPECT_EQ(lim::max(), stat.count());
+  EXPECT_EQ(lim::max(), stat.sum());
+}
+
+TEST(ThreadLocalStats, SaturateTimeseries) {
+  {
+    SCOPED_TRACE("TLStatsThreadSafe");
+    testSaturateTimeseries<TLStatsThreadSafe>();
+  }
+  {
+    SCOPED_TRACE("TLStatsNoLocking");
+    testSaturateTimeseries<TLStatsNoLocking>();
+  }
+}
 
 class WorkerThread {
  public:
@@ -502,4 +541,14 @@ TEST_F(ThreadCachedServiceDataTest, StoppedPublisherDoesNotRestart) {
   EXPECT_EQ(false, ThreadCachedServiceData::get()->publishThreadRunning());
   ThreadCachedServiceData::get()->addStatValue("dummy");
   EXPECT_FALSE(waitCounterToUpdate("dummy.sum", 1, ms(200)));
+}
+
+TEST_F(ThreadCachedServiceDataTest, SaturateTimeseries) {
+  using lim = std::numeric_limits<int64_t>;
+  auto& tcsd = *ThreadCachedServiceData::get();
+  std::string const key = "dummy";
+  tcsd.addStatValue(key, lim::max());
+  tcsd.addStatValue(key, 1);
+  tcsd.publishStats();
+  EXPECT_EQ(lim::max(), tcsd.getCounter(key + ".sum"));
 }
