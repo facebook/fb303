@@ -285,11 +285,23 @@ int32_t TFunctionStatHandler::consolidateStats(
   std::unique_lock lock(spt.mutex_);
 
   auto calls = spt.calls_;
+
+  // Note that in this section all the counters are
+  // per method - not aggregated across all the methods of the service
   auto addAllValues = [&](const auto& prefix) {
     // update counts
+
+    // number of calls that are made
     statMapSum_.addValue(prefix + ".num_calls", now, spt.calls_);
+    // called hook is here - https://fburl.com/code/5ztnw92a (postRead(2))
+    // number of calls to read
+    // read means reads from request channle (deserialization)
     statMapSum_.addValue(prefix + ".num_reads", now, spt.readData_.count);
+    // called hook is here - https://fburl.com/code/f19kbzg5 (postWrite(1))
+    // number of calls to write
+    // write means writes to response channel (seralization)
     statMapSum_.addValue(prefix + ".num_writes", now, spt.writeData_.count);
+    // number of calls that are actually got processed
     statMapSum_.addValue(prefix + ".num_processed", now, spt.processed_);
     // userExceptions is Thrift name for all exceptions escaped from the handler
     // counter is named differently to better represent what it actually means
@@ -297,8 +309,11 @@ int32_t TFunctionStatHandler::consolidateStats(
         prefix + ".num_all_exceptions", now, spt.userExceptions_);
     // this counter only includes exceptions not declared in the Thrift schema
     statMapSum_.addValue(prefix + ".num_exceptions", now, spt.exceptions_);
+    // num of samples collected
     statMapSum_.addValue(prefix + ".num_samples", now, spt.samples_);
+    // number of bytes read from request channel (deserialization)
     statMapSum_.addValue(prefix + ".bytes_read", now, spt.readData_.sum);
+    // number of bytes written to response channel (serialization)
     statMapSum_.addValue(prefix + ".bytes_written", now, spt.writeData_.sum);
 
     if (spt.requestStatsMeasureRate_ > 1e-9) {
@@ -315,6 +330,7 @@ int32_t TFunctionStatHandler::consolidateStats(
     }
 
     // update averages
+
     statMapAvg_.addValueAggregated(
         prefix + ".bytes_read", now, spt.readData_.sum, spt.readData_.count);
     statMapAvg_.addValueAggregated(
@@ -322,23 +338,40 @@ int32_t TFunctionStatHandler::consolidateStats(
         now,
         spt.writeData_.sum,
         spt.writeData_.count);
+    // same hook as .num_reads
+    // while recording time spent
     statMapAvg_.addValueAggregated(
         prefix + ".time_read_us", now, spt.readTime_.sum, spt.readTime_.count);
+    // same hook as .num_writes
+    // while recording time spent
     statMapAvg_.addValueAggregated(
         prefix + ".time_write_us",
         now,
         spt.writeTime_.sum,
         spt.writeTime_.count);
+
+    // Recording the time from when the request is read from the socket
+    // (https://fburl.com/code/xjb7fgyn)
+    // to when its response is ready to be written back
+    // (https://fburl.com/code/saisy2wd)
+    // This is solely dependent on request lifecycle, and it the request
+    // is never completed, this counter wouldn't be updated
     statMapAvg_.addValueAggregated(
         prefix + ".time_process_us",
         now,
         spt.processTime_.sum,
         spt.processTime_.count);
+
+    // Recording the time for the request to be totally on cpu
+    // (https://fburl.com/code/jhpal24s)
     statMapAvg_.addValueAggregated(
         prefix + ".total_cpu_us",
         now,
         spt.totalCpuTime_.sum,
         spt.totalCpuTime_.count);
+
+    // Recording the time for the request to be running on CPU
+    // thread (https://fburl.com/code/d1m14dvg)
     statMapAvg_.addValueAggregated(
         prefix + ".total_worked_us",
         now,
@@ -346,6 +379,7 @@ int32_t TFunctionStatHandler::consolidateStats(
         spt.totalWorkedTime_.count);
 
     // update histogram
+
     if (spt.readTime_.hist.isEnabled()) {
       histogramMap_.addValues(
           prefix + ".time_read_us",
