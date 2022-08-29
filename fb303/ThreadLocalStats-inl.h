@@ -501,6 +501,10 @@ template <class LockTraits>
 void ThreadLocalStatsT<LockTraits>::aggregate() {
   auto guard = link_->lock();
 
+  if (tlStats_.empty()) {
+    return;
+  }
+
   // TODO: In the future it would be nice if the stats code used a
   // std::chrono::time_point instead of just a std::chrono::duration
   std::chrono::seconds now(get_legacy_stats_time());
