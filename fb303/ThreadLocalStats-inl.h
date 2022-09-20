@@ -241,15 +241,7 @@ void TLTimeseriesT<LockTraits>::exportStat(fb303::ExportType exportType) {
 
 template <class LockTraits>
 void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
-  int64_t currentSum;
-  int64_t currentCount;
-  {
-    // exclusive lock needed to avoid losing samples
-    auto g = this->guardStatLock();
-    currentSum = sum_.exchange(0, std::memory_order_relaxed);
-    currentCount = count_.exchange(0, std::memory_order_relaxed);
-  }
-
+  auto [currentCount, currentSum] = value_.reset();
   if (currentCount == 0) {
     return;
   }

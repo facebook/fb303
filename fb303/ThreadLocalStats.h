@@ -68,7 +68,7 @@ class TLStatLinkPtr;
  *   (For callers who wish to be able to call aggregate() from other threads,
  *   ThreadLocalStatsT must be used in TLStatsThreadSafe mode.  This does add
  *   some internal synchronization, but is still much lower overhead than
- *   ServiceData.  TLStatsThreadSafe synchronizes on fine grained-spinlocks,
+ *   ServiceData. TLStatsThreadSafe synchronizes on fine grained-spinlocks,
  *   and avoid's ServiceData's highly contended global string lookup locks.)
  *
  * - No string lookups.
@@ -76,7 +76,7 @@ class TLStatLinkPtr;
  *   accept the statistic name as a string.  This makes the operation slower,
  *   as a string lookup has to be performed each time you add a new data point.
  *   Making matters worse, a global lock needs to be held on the name map while
- *   the lookup is being performed.  This lock is typically highly contended as
+ *   the lookup is being performed. This lock is typically highly contended as
  *   it needs to be acquired on every stat update from every thread.
  *
  * Usage
@@ -146,19 +146,19 @@ class TLStatLinkPtr;
  * -------------
  *
  * ThreadLocalStatsT accepts a LockTraits template parameter to control its
- * operation.  TLStatsNoLocking can be specified to make ThreadLocalStatsT
+ * operation. TLStatsNoLocking can be specified to make ThreadLocalStatsT
  * perform no locking at all, for the highest possible performance.  However,
  * in this mode all operations must be performed from a single thread,
  * including any aggregate() calls.
  *
  * TLStatsThreadSafe can be specified as the LockTraits parameter to make
- * ThreadLocalStatsT synchronize its data access.  This will add a small amount
+ * ThreadLocalStatsT synchronize its data access. This will add a small amount
  * of overhead compared to TLStatsNoLocking, but allows aggregate() to be
  * called from other threads.  This option is easier to use in programs that
  * cannot easily be made to call aggregate() regularly in each thread.
  *
  * Note that it is possible to mix and match these two different modes of
- * operation in a single program.  This can be used when you have different
+ * operation in a single program. This can be used when you have different
  * classes of threads: threads that can call aggregate() may use
  * ThreadLocalStatsT<TLStatsNoLocking> instances, and threads that require an
  * external thread to call aggregate can use TLTimeseriesT<TLStatsThreadSafe>.
@@ -418,10 +418,9 @@ class TLStatT {
   /**
    * Synchronizes access to this TLStat's value. This class used to
    * use the bottom bit of the container_ pointer as a spin lock which
-   * saves some space, but MicroLock is slightly cheaper in the common
-   * uncontended case and doesn't degrade as poorly under contention,
-   * such as when one thread is updating the stats and another is
-   * aggregating.
+   * saves some space, but more recently we switched to DistributedMutex
+   * which is cheap in the common uncontended case and doesn't impact
+   * the pointer lookup (due to stashing the lock bit)
    *
    * If the space matters, we can buy a word by storing name_ in a
    * folly::fbstring.
@@ -447,7 +446,7 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
       ThreadLocalStatsT<LockTraits>* stats,
       folly::StringPiece name,
       ExportTypes... types)
-      : TLStatT<LockTraits>(stats, name), sum_(0), count_(0) {
+      : TLStatT<LockTraits>(stats, name) {
     init(stats);
     exportStat(types...);
   }
@@ -458,7 +457,7 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
       size_t numBuckets,
       size_t numLevels,
       const int levelDurations[])
-      : TLStatT<LockTraits>(stats, name), sum_(0), count_(0) {
+      : TLStatT<LockTraits>(stats, name) {
     init(numBuckets, numLevels, levelDurations, stats);
   }
 
@@ -470,7 +469,7 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
       size_t numLevels,
       const int levelDurations[],
       ExportTypes... types)
-      : TLStatT<LockTraits>(stats, name), sum_(0), count_(0) {
+      : TLStatT<LockTraits>(stats, name) {
     init(numBuckets, numLevels, levelDurations, stats);
     exportStat(types...);
   }
@@ -495,14 +494,11 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
    * Add a new data point
    */
   void addValue(int64_t value) {
-    addValueAggregated(value, 1);
+    value_.addValue(value);
   }
 
   void addValueAggregated(int64_t value, int64_t nsamples) {
-    auto g = this->guardStatLock();
-
-    add(sum_, value);
-    add(count_, nsamples);
+    value_.addValue(value, nsamples);
   }
 
   void exportStat(ExportType exportType);
@@ -516,12 +512,18 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
 
   void aggregate(std::chrono::seconds now) override;
 
+  /**
+   * Unsafe to call concurrently with reset() or addValue(), only for testing
+   */
   int64_t count() const {
-    return count_.load(std::memory_order_relaxed);
+    return value_.count();
   }
 
+  /**
+   * Unsafe to call concurrently with reset() or addValue(), only for testing
+   */
   int64_t sum() const {
-    return sum_.load(std::memory_order_relaxed);
+    return value_.sum();
   }
 
   /**
@@ -534,6 +536,9 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
   }
 
  private:
+  using ValueType =
+      typename LockTraits::template TimeSeriesType<fb303::CounterType>;
+
   void init(ThreadLocalStatsT<LockTraits>* stats);
 
   void init(
@@ -551,8 +556,7 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
   }
 
   ExportedStatMapImpl::LockableStat globalStat_;
-  std::atomic<int64_t> sum_{0};
-  std::atomic<int64_t> count_{0};
+  ValueType value_;
 };
 
 /**
@@ -717,6 +721,10 @@ class TLCounterT : public TLStatT<LockTraits> {
 
   void aggregate(std::chrono::seconds now) override;
   void aggregate();
+
+  fb303::CounterType value() {
+    return value_.value();
+  }
 
  private:
   using ValueType =
