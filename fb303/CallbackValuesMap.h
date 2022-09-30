@@ -33,6 +33,14 @@ class CallbackValuesMap {
   typedef std::map<std::string, T> ValuesMap;
   typedef std::function<T()> Callback; // callback type
 
+  // Combining dirty bit with counters map
+  // This guarantees that when dirty bit is read and reset, there is no change
+  // to counters map
+  template <typename Mapped>
+  struct MapWithDirtyflag {
+    folly::StringKeyedMap<Mapped> map;
+    // will add a dirty keys boolean flag
+  };
   /** Returns all the values in the map by invoking all the callbacks */
   void getValues(ValuesMap* output) const;
 
@@ -93,8 +101,9 @@ class CallbackValuesMap {
   std::shared_ptr<CallbackEntry> getCallback(folly::StringPiece name);
 
  private:
-  folly::SharedMutex mutex_;
-  typedef folly::StringKeyedMap<std::shared_ptr<CallbackEntry>> CallbackMap;
+  mutable folly::SharedMutex mutex_;
+  using CallbackMap = MapWithDirtyflag<std::shared_ptr<CallbackEntry>>;
+
   CallbackMap callbackMap_;
 };
 

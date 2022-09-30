@@ -17,6 +17,7 @@
 #pragma once
 
 #include <fmt/core.h>
+#include <folly/MapUtil.h>
 
 namespace facebook {
 namespace fb303 {
@@ -40,8 +41,8 @@ folly::Optional<int64_t> BasicQuantileStatMap<ClockT>::getValue(
   CounterMapEntry cme;
   {
     folly::SharedMutex::ReadHolder g(mutex_);
-    auto it = counterMap_.find(key);
-    if (it == counterMap_.end()) {
+    auto it = counterMap_.map.find(key);
+    if (it == counterMap_.map.end()) {
       return folly::none;
     }
     cme = it->second;
@@ -110,8 +111,8 @@ void BasicQuantileStatMap<ClockT>::getSelectedValues(
   {
     folly::SharedMutex::ReadHolder g(mutex_);
     for (const auto& key : keys) {
-      auto it = counterMap_.find(key);
-      if (it != counterMap_.end()) {
+      auto it = counterMap_.map.find(key);
+      if (it != counterMap_.map.end()) {
         stats[it->second.stat.get()].emplace_back(&key, it->second);
       }
     }
@@ -160,15 +161,15 @@ std::shared_ptr<BasicQuantileStat<ClockT>> BasicQuantileStatMap<ClockT>::get(
 template <typename ClockT>
 bool BasicQuantileStatMap<ClockT>::contains(folly::StringPiece name) const {
   folly::SharedMutex::ReadHolder g(mutex_);
-  auto it = counterMap_.find(name);
-  return it != counterMap_.end();
+  auto it = counterMap_.map.find(name);
+  return it != counterMap_.map.end();
 }
 
 template <typename ClockT>
 void BasicQuantileStatMap<ClockT>::getKeys(
     std::vector<std::string>& keys) const {
   folly::SharedMutex::ReadHolder g(mutex_);
-  for (const auto& [key, _] : counterMap_) {
+  for (const auto& [key, _] : counterMap_.map) {
     keys.push_back(key);
   }
 }
@@ -176,7 +177,7 @@ void BasicQuantileStatMap<ClockT>::getKeys(
 template <typename ClockT>
 size_t BasicQuantileStatMap<ClockT>::getNumKeys() const {
   folly::SharedMutex::ReadHolder g(mutex_);
-  return counterMap_.size();
+  return counterMap_.map.size();
 }
 
 template <typename ClockT>
@@ -211,13 +212,14 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
     CounterMapEntry entry;
     entry.stat = stat;
     entry.statDef = statDef;
-    counterMap_.emplace(makeKey(name, statDef, folly::none), entry);
+    counterMap_.map.emplace(makeKey(name, statDef, folly::none), entry);
 
     auto slidingWindowLengths = stat->getSlidingWindowLengths();
 
     for (auto slidingWindowLength : slidingWindowLengths) {
       entry.slidingWindowLength = slidingWindowLength;
-      counterMap_.emplace(makeKey(name, statDef, slidingWindowLength), entry);
+      counterMap_.map.emplace(
+          makeKey(name, statDef, slidingWindowLength), entry);
     }
   }
   StatMapEntry statMapEntry;

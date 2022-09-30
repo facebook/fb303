@@ -25,6 +25,7 @@
 
 #include <folly/Optional.h>
 #include <folly/SharedMutex.h>
+#include <folly/experimental/StringKeyedMap.h>
 #include <folly/experimental/StringKeyedUnorderedMap.h>
 
 #include <fb303/ExportType.h>
@@ -86,7 +87,7 @@ class BasicQuantileStatMap {
   // rebuild the digests.
   void flushAll() {
     folly::SharedMutex::ReadHolder g(mutex_);
-    for (auto& p : counterMap_) {
+    for (auto& p : counterMap_.map) {
       if (p.second.stat != nullptr) {
         p.second.stat->flush();
       }
@@ -95,7 +96,7 @@ class BasicQuantileStatMap {
 
   void forgetAll() {
     folly::SharedMutex::WriteHolder g(mutex_);
-    counterMap_.clear();
+    counterMap_.map.clear();
     statMap_.clear();
   }
 
@@ -111,10 +112,18 @@ class BasicQuantileStatMap {
     std::vector<StatDef> statDefs;
   };
 
-  folly::SharedMutex mutex_;
+  mutable folly::SharedMutex mutex_;
 
+  // Combining dirty bit with counters map
+  // This guarantees that when dirty bit is read and reset, there is no change
+  // to counters map
+  template <typename Mapped>
+  struct MapWithDirtyFlag {
+    folly::StringKeyedUnorderedMap<Mapped> map;
+    // will add a dirty keys boolean flag
+  };
   // The key to this map is the fully qualified stat name, e.g. MyStat.p99.60
-  folly::StringKeyedUnorderedMap<CounterMapEntry> counterMap_;
+  MapWithDirtyFlag<CounterMapEntry> counterMap_;
 
   // The key to this map is the base of the stat name, e.g. MyStat.
   folly::StringKeyedUnorderedMap<StatMapEntry> statMap_;

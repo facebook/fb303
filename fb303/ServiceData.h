@@ -532,15 +532,24 @@ class ServiceData {
   void mergeOptionsWithGflags(
       std::map<std::string, std::string>& _return) const;
 
+  void getKeys(std::vector<std::string>& keys) const;
   const std::chrono::seconds aliveSince_;
 
   std::atomic<bool> useOptionsAsFlags_;
   folly::Synchronized<StringKeyedMap<std::string>> options_;
 
-  folly::Synchronized<StringKeyedMap<Counter>> counters_;
+  // Combining dirty bit with counters map
+  // This guarantees that when dirty bit is read and reset, there is no change
+  // to counters map
+  template <typename Mapped>
+  struct MapWithDirtyFlag {
+    folly::StringKeyedMap<Mapped> map;
+    // will add dirty keys flag here
+  };
+  folly::Synchronized<MapWithDirtyFlag<Counter>> counters_;
+
   folly::Synchronized<StringKeyedMap<folly::Synchronized<std::string>>>
       exportedValues_;
-
   DynamicCounters dynamicCounters_;
   DynamicStrings dynamicStrings_;
   ExportedStatMapImpl statsMap_;
