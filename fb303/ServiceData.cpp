@@ -41,7 +41,6 @@ template <typename T>
 static T& as_mutable(T const& t) {
   return const_cast<T&>(t);
 }
-
 /*
  * The constructor used to create additional ServiceData instances.
  * IMPORTANT NOTE: There already is a global singleton instance living,
@@ -79,9 +78,11 @@ void ServiceData::flushAllData() {
 
 void ServiceData::resetAllData() {
   options_.wlock()->clear();
-
-  counters_.wlock()->map.clear();
-
+  {
+    auto countersWLock = counters_.wlock();
+    countersWLock->map.clear();
+    countersWLock->dirtyKeys = true;
+  }
   exportedValues_.wlock()->clear();
 
   statsMap_.forgetAllStats();
@@ -301,6 +302,7 @@ int64_t ServiceData::incrementCounter(StringPiece key, int64_t amount) {
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
   auto& ref = (countersWLock->map)[key];
+  countersWLock->dirtyKeys = true;
   return ref.fetch_add(amount, std::memory_order_relaxed) + amount;
 }
 
@@ -319,6 +321,7 @@ int64_t ServiceData::setCounter(StringPiece key, int64_t value) {
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
   auto& ref = (countersWLock->map)[key];
+  countersWLock->dirtyKeys = true;
   ref.store(value, std::memory_order_relaxed);
   return value;
 }
@@ -327,6 +330,7 @@ void ServiceData::clearCounter(StringPiece key) {
   auto countersWLock = counters_.wlock();
   auto it = countersWLock->map.find(key);
   if (it != countersWLock->map.end()) {
+    countersWLock->dirtyKeys = true;
     countersWLock->map.erase(it);
   }
 }
@@ -441,7 +445,6 @@ void ServiceData::getRegexCounters(
     map<string, int64_t>& _return,
     const string& regex) const {
   const boost::regex regexObject(regex);
-
   auto keys = getCounterKeys();
   keys.erase(
       std::remove_if(

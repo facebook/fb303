@@ -39,7 +39,7 @@ class CallbackValuesMap {
   template <typename Mapped>
   struct MapWithDirtyflag {
     folly::StringKeyedMap<Mapped> map;
-    // will add a dirty keys boolean flag
+    mutable bool dirtyKeys{false};
   };
   /** Returns all the values in the map by invoking all the callbacks */
   void getValues(ValuesMap* output) const;

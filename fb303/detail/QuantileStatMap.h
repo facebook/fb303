@@ -98,6 +98,7 @@ class BasicQuantileStatMap {
     folly::SharedMutex::WriteHolder g(mutex_);
     counterMap_.map.clear();
     statMap_.clear();
+    counterMap_.dirtyKeys = true;
   }
 
  private:
@@ -120,7 +121,7 @@ class BasicQuantileStatMap {
   template <typename Mapped>
   struct MapWithDirtyFlag {
     folly::StringKeyedUnorderedMap<Mapped> map;
-    // will add a dirty keys boolean flag
+    mutable bool dirtyKeys{false};
   };
   // The key to this map is the fully qualified stat name, e.g. MyStat.p99.60
   MapWithDirtyFlag<CounterMapEntry> counterMap_;

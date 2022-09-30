@@ -221,6 +221,7 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
       counterMap_.map.emplace(
           makeKey(name, statDef, slidingWindowLength), entry);
     }
+    counterMap_.dirtyKeys = true;
   }
   StatMapEntry statMapEntry;
   statMapEntry.stat = stat;

@@ -544,7 +544,7 @@ class ServiceData {
   template <typename Mapped>
   struct MapWithDirtyFlag {
     folly::StringKeyedMap<Mapped> map;
-    // will add dirty keys flag here
+    mutable bool dirtyKeys{false};
   };
   folly::Synchronized<MapWithDirtyFlag<Counter>> counters_;
 

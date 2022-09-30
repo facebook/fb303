@@ -103,6 +103,7 @@ void CallbackValuesMap<T>::registerCallback(
     const Callback& cob) {
   folly::SharedMutex::WriteHolder g(mutex_);
   callbackMap_.map[name] = std::make_shared<CallbackEntry>(cob);
+  callbackMap_.dirtyKeys = true;
 }
 
 template <typename T>
@@ -113,6 +114,7 @@ bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
     return false;
   }
   entry->second->clear();
+  callbackMap_.dirtyKeys = true;
   callbackMap_.map.erase(entry);
   VLOG(5) << "Unregistered  callback: " << name;
   return true;
@@ -124,6 +126,7 @@ void CallbackValuesMap<T>::clear() {
   for (auto& entry : callbackMap_.map) {
     entry.second->clear();
   }
+  callbackMap_.dirtyKeys = true;
   callbackMap_.map.clear();
 }
 
