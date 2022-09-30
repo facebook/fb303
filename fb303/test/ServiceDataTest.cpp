@@ -46,6 +46,14 @@ TEST_F(ServiceDataTest, getRegexCounters_rvo_example) {
   data.setCounter("strike", 8);
   auto expected = map<string, int64_t>{{"wiggle", 6}};
   EXPECT_EQ(expected, data.getRegexCounters("w.+"));
+  EXPECT_EQ(
+      expected, data.getRegexCounters("w.+")); // query again to test cache
+  auto expected2 = map<string, int64_t>{{"strike", 8}};
+  EXPECT_EQ(expected2, data.getRegexCounters("s.+"));
+  EXPECT_EQ(expected, data.getRegexCounters("w.+"));
+  auto const key = "wiggle";
+  data.clearCounter(key);
+  EXPECT_TRUE(data.getRegexCounters("w.+").empty());
 }
 
 TEST_F(ServiceDataTest, getExportedValue_rvo_example) {
