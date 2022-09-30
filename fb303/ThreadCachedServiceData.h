@@ -1161,6 +1161,18 @@ class DynamicTimeseriesWrapper {
     return key_.getMap();
   }
 
+  template <typename... Args>
+  const std::string& prepareFormattedKey(Args&&... subkeys) {
+    // getFormattedKey has a side-effect of preparing the key, so we just need
+    // to call it to ensure the stat is exported.
+    return key_.getFormattedKey(std::forward<Args>(subkeys)...);
+  }
+
+  std::shared_ptr<ThreadCachedServiceData::TLTimeseries> getDynamicCounter(
+      const std::string& key) {
+    return tcData().getTimeseriesSafe(key);
+  }
+
  private:
   inline ThreadCachedServiceData::ThreadLocalStatsMap& tcData() {
     return *ThreadCachedServiceData::getStatsThreadLocal();
@@ -1291,3 +1303,8 @@ constexpr int countPlaceholders(folly::StringPiece keyformat) {
       "Must have at least one placeholder.");                              \
   ::facebook::fb303::DynamicHistogramWrapper<countPlaceholders(keyformat)> \
       STATS_##varname(keyformat, bucketWidth, min, max, __VA_ARGS__)
+
+#define DECLARE_DYNAMIC_INSTANCE(timeseries, var, ...)     \
+  const std::string key##var =                             \
+      STATS_##timeseries.prepareFormattedKey(__VA_ARGS__); \
+  auto& var = *STATS_##timeseries.getDynamicCounter(key##var);
