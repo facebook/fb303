@@ -37,7 +37,7 @@ class CallbackValuesMap {
   // This guarantees that when dirty bit is read and reset, there is no change
   // to counters map
   template <typename Mapped>
-  struct MapWithDirtyflag {
+  struct MapWithDirtyFlag {
     folly::StringKeyedMap<Mapped> map;
     mutable bool dirtyKeys{false};
   };
@@ -102,7 +102,7 @@ class CallbackValuesMap {
 
  private:
   mutable folly::SharedMutex mutex_;
-  using CallbackMap = MapWithDirtyflag<std::shared_ptr<CallbackEntry>>;
+  using CallbackMap = MapWithDirtyFlag<std::shared_ptr<CallbackEntry>>;
 
   CallbackMap callbackMap_;
 };
