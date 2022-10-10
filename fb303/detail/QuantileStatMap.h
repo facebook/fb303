@@ -24,7 +24,7 @@
 #include <glog/logging.h>
 
 #include <folly/Optional.h>
-#include <folly/SharedMutex.h>
+#include <folly/Synchronized.h>
 #include <folly/experimental/StringKeyedMap.h>
 #include <folly/experimental/StringKeyedUnorderedMap.h>
 
@@ -86,8 +86,8 @@ class BasicQuantileStatMap {
   // This method can be used to force the buffers to be flushed and
   // rebuild the digests.
   void flushAll() {
-    folly::SharedMutex::ReadHolder g(mutex_);
-    for (auto& p : counterMap_.map) {
+    auto countersRLock = counters_.rlock();
+    for (auto& p : countersRLock->map) {
       if (p.second.stat != nullptr) {
         p.second.stat->flush();
       }
@@ -95,10 +95,10 @@ class BasicQuantileStatMap {
   }
 
   void forgetAll() {
-    folly::SharedMutex::WriteHolder g(mutex_);
-    counterMap_.map.clear();
-    statMap_.clear();
-    counterMap_.dirtyKeys = true;
+    auto countersWLock = counters_.wlock();
+    countersWLock->map.clear();
+    countersWLock->bases.clear();
+    countersWLock->dirtyKeys = true;
   }
 
  private:
@@ -113,21 +113,18 @@ class BasicQuantileStatMap {
     std::vector<StatDef> statDefs;
   };
 
-  mutable folly::SharedMutex mutex_;
-
   // Combining dirty bit with counters map
   // This guarantees that when dirty bit is read and reset, there is no change
   // to counters map
   template <typename Mapped>
   struct MapWithDirtyFlag {
+    // The key to this map is the fully qualified stat name, e.g. MyStat.p99.60
     folly::StringKeyedUnorderedMap<Mapped> map;
+    // The key to this map is the base of the stat name, e.g. MyStat.
+    folly::StringKeyedUnorderedMap<StatMapEntry> bases;
     mutable bool dirtyKeys{false};
   };
-  // The key to this map is the fully qualified stat name, e.g. MyStat.p99.60
-  MapWithDirtyFlag<CounterMapEntry> counterMap_;
-
-  // The key to this map is the base of the stat name, e.g. MyStat.
-  folly::StringKeyedUnorderedMap<StatMapEntry> statMap_;
+  folly::Synchronized<MapWithDirtyFlag<CounterMapEntry>> counters_;
 
   static std::string makeKey(
       folly::StringPiece base,
