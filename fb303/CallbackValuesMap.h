@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <folly/SharedMutex.h>
+#include <folly/Synchronized.h>
 #include <folly/experimental/StringKeyedMap.h>
 
 namespace facebook {
@@ -87,8 +87,7 @@ class CallbackValuesMap {
     bool getValue(T* output) const;
 
    private:
-    Callback callback_;
-    mutable folly::SharedMutex rwlock_;
+    folly::Synchronized<Callback> callback_;
   };
 
   /**
@@ -101,10 +100,9 @@ class CallbackValuesMap {
   std::shared_ptr<CallbackEntry> getCallback(folly::StringPiece name);
 
  private:
-  mutable folly::SharedMutex mutex_;
   using CallbackMap = MapWithDirtyFlag<std::shared_ptr<CallbackEntry>>;
 
-  CallbackMap callbackMap_;
+  folly::Synchronized<CallbackMap> callbackMap_;
 };
 
 } // namespace fb303
