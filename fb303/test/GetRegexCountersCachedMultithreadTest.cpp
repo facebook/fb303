@@ -18,15 +18,20 @@
 #include <thread>
 
 #include <gtest/gtest.h>
-#include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
 
 #include <folly/Conv.h>
+#include <folly/Memory.h>
 #include <folly/Random.h>
+#include <folly/Try.h>
+#include <folly/executors/CPUThreadPoolExecutor.h>
+#include <thrift/lib/cpp2/async/AsyncProcessor.h>
+#include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
 
-#include <fb303/BaseService.h>
-#include <fb303/test/gen-cpp2/TestService.h>
+#include <fb303/ServiceData.h>
+#include <fb303/thrift/gen-cpp2/BaseService.h>
 
 using namespace facebook::fb303;
+using namespace facebook::fb303::cpp2;
 
 using folly::Random;
 using std::condition_variable;
@@ -41,138 +46,131 @@ using std::vector;
  * Hence it is able to look at previous patterns and send
  *  the counters whose keys match the pattern
  */
-class TestHandler : public TestServiceSvIf, public BaseService {
-  static constexpr int kMaxIter = 3000;
+class TestHandler : virtual public BaseServiceSvIf {
+  ServiceData& data_;
 
  public:
-  TestHandler() : BaseService("TestService") {
-    auto* dynamicCounters = fbData->getDynamicCounters();
-    for (int iter = 0; iter < kMaxIter; iter++) {
-      auto counterName = folly::to<string>("matchingCounter", iter);
-      dynamicCounters->registerCallback(counterName, [iter]() { return iter; });
-    }
+  explicit TestHandler(ServiceData& data) : data_{data} {}
+
+  // the use of thread='eb' means this is the only option to override
+  void async_eb_getRegexCounters(
+      std::unique_ptr<apache::thrift::HandlerCallback<
+          std::unique_ptr<std::map<std::string, int64_t>>>> callback,
+      std::unique_ptr<std::string> regex) override {
+    getCountersExecutor_.add(
+        [this, callback = std::move(callback), regex = std::move(regex)] {
+          callback->complete(folly::makeTryWith([&] {
+            return folly::copy_to_unique_ptr(data_.getRegexCounters(*regex));
+          }));
+        });
   }
 
-  /* This will clear the cache and so subsequent calls would be unoptimized*/
-  void clearAndAddCounter() {
-    auto* dynamicCounters = fbData->getDynamicCounters();
-    dynamicCounters->unregisterCallback("counter");
-    dynamicCounters->registerCallback("counter", [] { return 0; });
-  }
-
-  /* This just adds a counter */
-  void addCounter(const string& counterName, int iter) {
-    auto* dynamicCounters = fbData->getDynamicCounters();
-    dynamicCounters->registerCallback(counterName, [iter] { return iter; });
-  }
-
-  cpp2::fb303_status getStatus() override {
-    return cpp2::fb303_status::ALIVE;
-  }
+  folly::CPUThreadPoolExecutor getCountersExecutor_{16}; // BaseService has 2
 };
 
 namespace {
 
-constexpr int kFixedThreads = 3;
-constexpr int kBumpThreads = 29;
-constexpr int kNumPerThread = 1000;
+class Phased {
+ private:
+  mutex mtx_;
+  condition_variable cond_;
+  int phase_ = -1;
 
-mutex gMtx;
-condition_variable gCond;
-int gPhase = -1;
-
-void phaseAdvance() {
-  unique_lock<mutex> lock(gMtx);
-  ++gPhase;
-  gCond.notify_all();
-}
-
-void phaseAwait(int phase) {
-  unique_lock<mutex> lock(gMtx);
-  while (gPhase < phase) {
-    gCond.wait(lock);
+ public:
+  void advance() {
+    unique_lock<mutex> lock(mtx_);
+    ++phase_;
+    cond_.notify_all();
   }
-}
+
+  void await(int target) {
+    unique_lock<mutex> lock(mtx_);
+    while (phase_ < target) {
+      cond_.wait(lock);
+    }
+  }
+};
+
+} // namespace
 
 // This is a test to ensure caching is thread safe,
 // we have 2 read threads calling getRegexCounters using a thrift client
 // We also create 2 write threads,
 // that periodically invalidates the cache by clearing and adding new counters
-template <typename F1, typename F2, typename F3>
-void runInThreads(F1 f1, F2 f2, F3 f3, std::shared_ptr<TestHandler> handler) {
-  vector<thread> threads(kFixedThreads + kBumpThreads);
-  threads[0] = thread(f1);
-  threads[1] = thread(f2);
-  threads[2] = thread(f3);
-  for (int i = 0; i < kBumpThreads; ++i) {
-    threads[i + kFixedThreads] = thread([&handler, i]() {
-      phaseAwait(0);
-      int randNum = 5000 + (Random::rand32() % 5001);
-      for (int j = i * kNumPerThread; j < ((i + 1) * kNumPerThread); ++j) {
-        auto counterName = folly::to<string>("counter_add_", j);
-        handler->addCounter(counterName, j);
-        usleep(randNum);
+TEST(GetRegexCountersCachedTest, GetRegexCountersOptimizedMultithreaded) {
+  constexpr int kMaxIter = 3000;
+  constexpr int kFixedThreads = 3;
+  constexpr int kBumpThreads = 29;
+  constexpr int kNumPerThread = 1000;
+
+  ServiceData data;
+  auto& dyn = *data.getDynamicCounters();
+  for (int iter = 0; iter < kMaxIter; iter++) {
+    auto counterName = folly::to<string>("matchingCounter", iter);
+    dyn.registerCallback(counterName, [iter] { return iter; });
+  }
+
+  auto handler = std::make_shared<TestHandler>(data);
+  apache::thrift::ScopedServerInterfaceThread server(handler);
+
+  Phased phase;
+  std::vector<thread> threads;
+  threads.emplace_back([&server, &phase] {
+    phase.await(0);
+    auto client = server.newClient<BaseServiceAsyncClient>();
+    for (int i = 0; i < 60; ++i) {
+      std::map<string, int64_t> counters;
+      client->sync_getRegexCounters(counters, "matching.*");
+
+      for (auto& [key, value] : counters) {
+        auto counterName = folly::to<string>("matchingCounter", value);
+        ASSERT_EQ(key, counterName);
       }
-      phaseAdvance();
+    }
+  });
+  threads.emplace_back([&server, &phase] {
+    phase.await(0);
+    auto client = server.newClient<BaseServiceAsyncClient>();
+    for (int i = 0; i < 50; ++i) {
+      std::map<string, int64_t> counters;
+      client->sync_getRegexCounters(counters, "counter.*");
+    }
+    phase.await(kBumpThreads);
+    std::map<string, int64_t> counters;
+    client->sync_getRegexCounters(counters, "counter.*");
+    for (auto& [key, value] : counters) {
+      if (key == "counter") {
+        continue;
+      }
+      auto counterName = folly::to<string>("counter_add_", value);
+      ASSERT_EQ(key, counterName);
+    }
+    ASSERT_EQ(counters.size(), kNumPerThread * kBumpThreads + 1);
+  });
+  threads.emplace_back([&phase, &dyn] {
+    phase.await(0);
+    for (int i = 0; i < 1000; ++i) {
+      dyn.unregisterCallback("counter"); // bust the cache
+      dyn.registerCallback("counter", [] { return 0; });
+      /* sleep override */ std::this_thread::sleep_for(
+          std::chrono::microseconds(Random::rand32(5000, 10001)));
+    }
+  });
+  for (int i = 0; i < kBumpThreads; ++i) {
+    threads.emplace_back([&phase, &dyn, i] {
+      phase.await(0);
+      for (int j = 0; j < kNumPerThread; ++j) {
+        int k = i * kNumPerThread + j;
+        auto counterName = folly::to<string>("counter_add_", k);
+        dyn.registerCallback(counterName, [k] { return k; });
+        /* sleep override */ std::this_thread::sleep_for(
+            std::chrono::microseconds(Random::rand32(5000, 10001)));
+      }
+      phase.advance();
     });
   }
-  phaseAdvance(); // tell the threads to begin
+  phase.advance(); // tell the threads to begin
   for (auto& th : threads) {
     th.join();
   }
-}
-
-} // namespace
-
-TEST(GetRegexCountersCachedTest, GetRegexCountersOptimizedMultithreaded) {
-  auto handler = std::make_shared<TestHandler>();
-  apache::thrift::ScopedServerInterfaceThread server(handler);
-  auto const address = server.getAddress();
-
-  auto opt = apache::thrift::RpcOptions();
-  opt.setTimeout(std::chrono::seconds(10));
-
-  auto fb303Client1 = server.newClient<TestServiceAsyncClient>();
-  auto fb303Client2 = server.newClient<TestServiceAsyncClient>();
-
-  runInThreads(
-      [&fb303Client1, &opt]() {
-        phaseAwait(0);
-        for (int i = 0; i < 60; ++i) {
-          std::map<string, int64_t> counters;
-          fb303Client1->sync_getRegexCounters(opt, counters, "matching.*");
-
-          for (auto& [key, value] : counters) {
-            auto counterName = folly::to<string>("matchingCounter", value);
-            ASSERT_EQ(key, counterName);
-          }
-        }
-      },
-      [&fb303Client2, &opt]() {
-        phaseAwait(0);
-        for (int i = 0; i < 50; ++i) {
-          std::map<string, int64_t> counters;
-          fb303Client2->sync_getRegexCounters(opt, counters, "counter.*");
-        }
-        phaseAwait(kBumpThreads);
-        std::map<string, int64_t> counters;
-        fb303Client2->sync_getRegexCounters(opt, counters, "counter.*");
-        for (auto& [key, value] : counters) {
-          if (key == "counter") {
-            continue;
-          }
-          auto counterName = folly::to<string>("counter_add_", value);
-          ASSERT_EQ(key, counterName);
-        }
-        ASSERT_EQ(counters.size(), kNumPerThread * kBumpThreads + 1);
-      },
-      [&handler]() {
-        phaseAwait(0);
-        int randNum = 5000 + (Random::rand32() % 5001);
-        for (int i = 0; i < 1000; ++i) {
-          handler->clearAndAddCounter();
-          usleep(randNum);
-        }
-      },
-      handler);
 }
