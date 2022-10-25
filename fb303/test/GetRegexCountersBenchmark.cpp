@@ -21,13 +21,13 @@
 #include <time.h>
 #include "common/stats/ServiceData.h"
 
-using namespace std;
 using namespace facebook::fb303;
 using namespace folly;
 using namespace facebook::stats;
+
 ServiceData fb303Data;
-const int kMaxIter = 3000;
-const int kGetRegexCountersCalls = 100;
+
+constexpr int kMaxIter = 3000;
 
 // sets up service data and initializes the counters
 void prepareData() {
@@ -44,36 +44,37 @@ void prepareData() {
 /* It calls getRegexCounter - first call will trigger caching
  * Subsequent calls (for kGetRegexCountersIter-1) are optimized
  */
-BENCHMARK(GetRegexCountersBenchmarkSubset) {
+BENCHMARK(GetRegexCountersBenchmarkSubset, iters) {
   BenchmarkSuspender startup;
   prepareData();
   startup.dismiss();
-  for (int iter = 0; iter < kGetRegexCountersCalls; iter++) {
+  for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters =
         fb303Data.getRegexCounters("matching.*");
   }
 }
 
 // Match only one counter
-BENCHMARK(GetRegexCountersBenchmarkOne) {
+BENCHMARK(GetRegexCountersBenchmarkOne, iters) {
   BenchmarkSuspender startup;
   prepareData();
   startup.dismiss();
-  for (int iter = 0; iter < kGetRegexCountersCalls; iter++) {
+  for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters =
         fb303Data.getRegexCounters("matchingCounter1");
   }
 }
 
 // Match all counters
-BENCHMARK(GetRegexCountersBenchmarkAll) {
+BENCHMARK(GetRegexCountersBenchmarkAll, iters) {
   BenchmarkSuspender startup;
   prepareData();
   startup.dismiss();
-  for (int iter = 0; iter < kGetRegexCountersCalls; iter++) {
+  for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters = fb303Data.getRegexCounters(".*");
   }
 }
+
 int main(int argc, char** argv) {
   folly::Init init{&argc, &argv, true};
   runBenchmarks();
@@ -81,10 +82,11 @@ int main(int argc, char** argv) {
 }
 
 /*
+Results from 20-core (40-thread) Intel(R) Xeon(R) Gold 6138 CPU @ 2.00GHz
 ============================================================================
 [...]03/test/GetRegexCountersBenchmark.cpp     relative  time/iter   iters/s
 ============================================================================
-GetRegexCountersBenchmarkSubset                           409.24ms      2.44
-GetRegexCountersBenchmarkOne                              126.50ms      7.90
-GetRegexCountersBenchmarkAll                                 1.20s   835.16m
+GetRegexCountersBenchmarkSubset                             2.83ms    353.91
+GetRegexCountersBenchmarkOne                                1.03ms    966.98
+GetRegexCountersBenchmarkAll                                7.26ms    137.66
 */

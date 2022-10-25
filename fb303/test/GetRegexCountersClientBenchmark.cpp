@@ -14,6 +14,11 @@
  * limitations under the License.
  */
 
+#include <time.h>
+
+#include <chrono>
+#include <functional>
+
 #include <boost/regex.hpp>
 #include <fb303/BaseService.h>
 #include <fb303/test/gen-cpp2/TestService.h>
@@ -24,15 +29,13 @@
 #include <folly/String.h>
 #include <folly/init/Init.h>
 #include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
-#include <chrono>
-#include <functional>
 
-#include <time.h>
-using namespace std;
 using namespace facebook::fb303;
 using namespace folly;
+
 std::unique_ptr<facebook::fb303::TestServiceAsyncClient> fb303Client;
 apache::thrift::RpcOptions opt;
+
 /* This test case creates a fb303 server and async client
  * The server has regex key caching enabled.
  * Hence it is able to look at previous patterns and send
@@ -40,8 +43,6 @@ apache::thrift::RpcOptions opt;
  */
 class TestHandler : public TestServiceSvIf, public BaseService {
  public:
-  static const int kGetRegexCountersCalls = 100;
-
   TestHandler() : BaseService("TestService") {
     DynamicCounters* dynamicCounters = fbData->getDynamicCounters();
     const int kMaxIter = 3000;
@@ -65,26 +66,26 @@ class TestHandler : public TestServiceSvIf, public BaseService {
  * Subsequent calls (for kGetRegexCountersIter-1) are optimized
  */
 
-BENCHMARK(GetRegexCountersServerSideSubset) {
-  for (int iter = 0; iter < TestHandler::kGetRegexCountersCalls; iter++) {
+BENCHMARK(GetRegexCountersServerSideSubset, iters) {
+  for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters;
     fb303Client->sync_getRegexCounters(opt, counters, "matching.*");
   }
 }
 
 // match only one counter
-BENCHMARK(GetRegexCountersServerSideOne) {
+BENCHMARK(GetRegexCountersServerSideOne, iters) {
   // subsequent calls leverage the cache
-  for (int iter = 0; iter < TestHandler::kGetRegexCountersCalls; iter++) {
+  for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters;
     fb303Client->sync_getRegexCounters(opt, counters, "matchingCounter1");
   }
 }
 
 // matches all the counters with .*
-BENCHMARK(GetRegexCountersServerSideAll) {
+BENCHMARK(GetRegexCountersServerSideAll, iters) {
   // subsequent calls leverage the cache
-  for (int iter = 0; iter < TestHandler::kGetRegexCountersCalls; iter++) {
+  for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters;
     fb303Client->sync_getRegexCounters(opt, counters, ".*");
   }
@@ -93,8 +94,8 @@ BENCHMARK(GetRegexCountersServerSideAll) {
 // Matches a subset of counters
 // gets all counters and applies filtering on client side
 // This adds extra cpu utilization for serialization and deserialization
-BENCHMARK(GetCountersClientSideFilteringSubset) {
-  for (int iter = 0; iter < TestHandler::kGetRegexCountersCalls; iter++) {
+BENCHMARK(GetCountersClientSideFilteringSubset, iters) {
+  for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters;
     fb303Client->sync_getCounters(opt, counters);
     const boost::regex regexObject("matching.*");
@@ -110,8 +111,8 @@ BENCHMARK(GetCountersClientSideFilteringSubset) {
 // matches only one counter
 // gets all counters and applies filtering on client side
 // This adds extra cpu utilization for serialization and deserialization
-BENCHMARK(GetCountersClientSideFilteringOne) {
-  for (int iter = 0; iter < TestHandler::kGetRegexCountersCalls; iter++) {
+BENCHMARK(GetCountersClientSideFilteringOne, iters) {
+  for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters;
     fb303Client->sync_getCounters(opt, counters);
     const boost::regex regexObject("matchingCounter1");
@@ -125,8 +126,8 @@ BENCHMARK(GetCountersClientSideFilteringOne) {
 }
 
 // Matches all counters with .*
-BENCHMARK(GetCountersClientSideFilteringAll) {
-  for (int iter = 0; iter < TestHandler::kGetRegexCountersCalls; iter++) {
+BENCHMARK(GetCountersClientSideFilteringAll, iters) {
+  for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters;
     const boost::regex regexObject(".*");
     fb303Client->sync_getCounters(opt, counters);
@@ -155,13 +156,14 @@ int main(int argc, char** argv) {
 }
 
 /*
+Results from 20-core (40-thread) Intel(R) Xeon(R) Gold 6138 CPU @ 2.00GHz
 ============================================================================
 [...]t/GetRegexCountersClientBenchmark.cpp     relative  time/iter   iters/s
 ============================================================================
-GetRegexCountersServerSideSubset                          600.58ms      1.67
-GetRegexCountersServerSideOne                             181.84ms      5.50
-GetRegexCountersServerSideAll                                1.78s   562.04m
-GetCountersClientSideFilteringSubset                         1.12s   890.12m
-GetCountersClientSideFilteringOne                         988.20ms      1.01
-GetCountersClientSideFilteringAll                            1.40s   715.96m
+GetRegexCountersServerSideSubset                            3.74ms    267.13
+GetRegexCountersServerSideOne                               1.32ms    760.41
+GetRegexCountersServerSideAll                               9.56ms    104.58
+GetCountersClientSideFilteringSubset                        5.22ms    191.50
+GetCountersClientSideFilteringOne                           4.74ms    210.76
+GetCountersClientSideFilteringAll                           6.79ms    147.20
 */
