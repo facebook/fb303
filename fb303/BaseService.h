@@ -92,9 +92,9 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   }
 
   /*** Returns a list of counter values */
-  void getSelectedCounters(
+  virtual void getSelectedCounters(
       std::map<std::string, int64_t>& _return,
-      std::unique_ptr<std::vector<std::string>> keys) override {
+      std::unique_ptr<std::vector<std::string>> keys) {
     ServiceData::get()->getSelectedCounters(_return, *keys);
   }
 
@@ -259,6 +259,45 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
         std::optional<size_t> limit = getCounterLimitFromRequest(reqCtx);
         std::map<std::string, int64_t> res;
         getRegexCounters(res, std::move(regex_));
+        if (limit) {
+          size_t numAvailable = res.size();
+          /*** Get first limit counters from map ***/
+          if (numAvailable > *limit) {
+            res.erase(std::next(res.begin(), *limit), res.end());
+          }
+          addCountersAvailableToResponse(reqCtx, numAvailable);
+        }
+        callback_->result(res);
+      } catch (...) {
+        callback_->exception(std::current_exception());
+      }
+    });
+  }
+
+  void async_eb_getSelectedCounters(
+      std::unique_ptr<apache::thrift::HandlerCallback<
+          std::unique_ptr<std::map<std::string, int64_t>>>> callback,
+      std::unique_ptr<std::vector<std::string>> keys) override {
+    using clock = std::chrono::steady_clock;
+    getCountersExecutor_.add([this,
+                              callback_ = std::move(callback),
+                              keys_ = std::move(keys),
+                              start = clock::now(),
+                              keepAlive = folly::getKeepAliveToken(
+                                  getCountersExecutor_)]() mutable {
+      if (auto expiration = getCountersExpiration();
+          expiration.count() > 0 && clock::now() - start > expiration) {
+        using Exn = apache::thrift::TApplicationException;
+        callback_->exception(folly::make_exception_wrapper<Exn>(
+            Exn::TIMEOUT, "counters executor is saturated, request rejected."));
+        return;
+      }
+      try {
+        // Check the header to see if limit is set
+        auto* reqCtx = callback_->getRequestContext();
+        std::optional<size_t> limit = getCounterLimitFromRequest(reqCtx);
+        std::map<std::string, int64_t> res;
+        getSelectedCounters(res, std::move(keys_));
         if (limit) {
           size_t numAvailable = res.size();
           /*** Get first limit counters from map ***/

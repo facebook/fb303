@@ -80,9 +80,7 @@ service BaseService {
    * key to counter value; if a requested counter doesn't exist, it won't
    * be in the returned map.
    */
-  map<string, i64> getSelectedCounters(1: list<string> keys) (
-    priority = 'IMPORTANT',
-  );
+  map<string, i64> getSelectedCounters(1: list<string> keys) (thread = 'eb');
 
   /**
    * Gets the value of a single counter
