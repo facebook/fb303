@@ -21,10 +21,12 @@
 
 #include <fb303/DynamicCounters.h>
 #include <fb303/detail/QuantileStatMap.h>
+#include <folly/Chrono.h>
 #include <folly/Optional.h>
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
+#include <folly/synchronization/RelaxedAtomic.h>
 
 #include <atomic>
 #include <chrono>
@@ -428,6 +430,14 @@ class ServiceData {
       const std::string& regex) const;
   std::map<std::string, int64_t> getRegexCounters(
       const std::string& regex) const;
+
+  /*** Optimized version of getRegexCounters,
+   which caches the matching keys for subsequent calls ***/
+  void getRegexCountersOptimized(
+      std::map<std::string, int64_t>& _return,
+      const std::string& regex) const;
+  std::map<std::string, int64_t> getRegexCountersOptimized(
+      const std::string& regex) const;
   /*** Returns true if a counter exists with the specified name */
   bool hasCounter(folly::StringPiece key) const;
 
@@ -538,15 +548,18 @@ class ServiceData {
   std::atomic<bool> useOptionsAsFlags_;
   folly::Synchronized<StringKeyedMap<std::string>> options_;
 
-  // Combining dirty bit with counters map
-  // This guarantees that when dirty bit is read and reset, there is no change
-  // to counters map
+  // Combining counters map with cache and epoch numbers.  If epochs
+  // match, cache is valid.
   template <typename Mapped>
-  struct MapWithDirtyFlag {
+  struct MapWithKeyCache {
     folly::StringKeyedMap<Mapped> map;
-    mutable bool dirtyKeys{false};
+    mutable folly::StringKeyedMap<std::vector<std::string>> regexCache;
+    mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
+    mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
+    mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{
+        std::chrono::seconds(0)};
   };
-  folly::Synchronized<MapWithDirtyFlag<Counter>> counters_;
+  folly::Synchronized<MapWithKeyCache<Counter>> counters_;
 
   folly::Synchronized<StringKeyedMap<folly::Synchronized<std::string>>>
       exportedValues_;

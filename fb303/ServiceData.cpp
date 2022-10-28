@@ -15,12 +15,12 @@
  */
 
 #include <fb303/ServiceData.h>
-#include <folly/Range.h>
 
-#include <boost/regex.hpp>
 #include <stdexcept>
 
+#include <boost/regex.hpp>
 #include <fb303/LegacyClock.h>
+#include <fb303/detail/RegexUtil.h>
 #include <folly/Conv.h>
 #include <folly/ExceptionString.h>
 #include <folly/Indestructible.h>
@@ -81,7 +81,10 @@ void ServiceData::resetAllData() {
   {
     auto countersWLock = counters_.wlock();
     countersWLock->map.clear();
-    countersWLock->dirtyKeys = true;
+
+    // avoid fetch_add() to avoid extra fences, since we hold the lock already
+    uint64_t epoch = countersWLock->mapEpoch.load();
+    countersWLock->mapEpoch.store(epoch + 1);
   }
   exportedValues_.wlock()->clear();
 
@@ -302,7 +305,11 @@ int64_t ServiceData::incrementCounter(StringPiece key, int64_t amount) {
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
   auto& ref = (countersWLock->map)[key];
-  countersWLock->dirtyKeys = true;
+
+  // avoid fetch_add() to avoid extra fences, since we hold the lock already
+  uint64_t epoch = countersWLock->mapEpoch.load();
+  countersWLock->mapEpoch.store(epoch + 1);
+
   return ref.fetch_add(amount, std::memory_order_relaxed) + amount;
 }
 
@@ -321,7 +328,11 @@ int64_t ServiceData::setCounter(StringPiece key, int64_t value) {
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
   auto& ref = (countersWLock->map)[key];
-  countersWLock->dirtyKeys = true;
+
+  // avoid fetch_add() to avoid extra fences, since we hold the lock already
+  uint64_t epoch = countersWLock->mapEpoch.load();
+  countersWLock->mapEpoch.store(epoch + 1);
+
   ref.store(value, std::memory_order_relaxed);
   return value;
 }
@@ -330,7 +341,9 @@ void ServiceData::clearCounter(StringPiece key) {
   auto countersWLock = counters_.wlock();
   auto it = countersWLock->map.find(key);
   if (it != countersWLock->map.end()) {
-    countersWLock->dirtyKeys = true;
+    // avoid fetch_add() to avoid extra fences, since we hold the lock already
+    uint64_t epoch = countersWLock->mapEpoch.load();
+    countersWLock->mapEpoch.store(epoch + 1);
     countersWLock->map.erase(it);
   }
 }
@@ -379,13 +392,10 @@ void ServiceData::getCounters(map<string, int64_t>& _return) const {
 }
 
 void ServiceData::getKeys(std::vector<std::string>& keys) const {
-  {
-    auto countersRLock = counters_.rlock();
-    keys.reserve(countersRLock->map.size());
-    for (const auto& elem : countersRLock->map) {
-      folly::StringPiece key = elem.first;
-      keys.emplace_back(key);
-    }
+  auto countersRLock = counters_.rlock();
+  keys.reserve(keys.size() + countersRLock->map.size());
+  for (const auto& [key, _] : countersRLock->map) {
+    keys.emplace_back(key);
   }
 }
 
@@ -419,19 +429,29 @@ map<string, int64_t> ServiceData::getCounters() const {
 }
 
 void ServiceData::getSelectedCounters(
-    map<string, int64_t>& _return,
+    map<string, int64_t>& output,
     const vector<string>& keys) const {
-  quantileMap_.getSelectedValues(_return, keys);
-  for (const string& key : keys) {
-    if (_return.find(key) == _return.end()) {
-      try {
-        int64_t value = getCounter(key);
-        _return[key] = value;
-      } catch (const std::invalid_argument&) {
-        // Don't insert anything into _return for non-existent keys.
+  // lock once and grab all the flat counters in one go...
+  {
+    auto countersRLock = counters_.rlock();
+    for (const string& key : keys) {
+      auto ptr = folly::get_ptr(countersRLock->map, key);
+      if (ptr) {
+        output[key] = ptr->load(std::memory_order_relaxed);
       }
     }
   }
+
+  // dynamic counters can replace flat counters
+  for (const string& key : keys) {
+    int64_t ret;
+    if (dynamicCounters_.getValue(key, &ret)) {
+      output[key] = ret;
+    }
+  }
+
+  // quantiles can replace flat and dynamic counters
+  quantileMap_.getSelectedValues(output, keys);
 }
 
 map<string, int64_t> ServiceData::getSelectedCounters(
@@ -458,10 +478,27 @@ void ServiceData::getRegexCounters(
   getSelectedCounters(_return, keys);
 }
 
+void ServiceData::getRegexCountersOptimized(
+    map<string, int64_t>& output,
+    const string& regex) const {
+  std::vector<std::string> keys;
+  detail::getRegexKeysImpl(keys, regex, counters_);
+  quantileMap_.getRegexKeys(keys, regex);
+  dynamicCounters_.getRegexKeys(keys, regex);
+  getSelectedCounters(output, keys);
+}
+
 map<string, int64_t> ServiceData::getRegexCounters(const string& regex) const {
   map<string, int64_t> _return;
   getRegexCounters(_return, regex);
   return _return;
+}
+
+map<string, int64_t> ServiceData::getRegexCountersOptimized(
+    const string& regex) const {
+  map<string, int64_t> output;
+  getRegexCountersOptimized(output, regex);
+  return output;
 }
 
 bool ServiceData::hasCounter(StringPiece key) const {

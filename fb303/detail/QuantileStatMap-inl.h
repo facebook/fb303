@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <fb303/detail/RegexUtil.h>
 #include <fmt/core.h>
 #include <folly/MapUtil.h>
 
@@ -169,9 +170,17 @@ template <typename ClockT>
 void BasicQuantileStatMap<ClockT>::getKeys(
     std::vector<std::string>& keys) const {
   auto countersRLock = counters_.rlock();
+  keys.reserve(keys.size() + countersRLock->map.size());
   for (const auto& [key, _] : countersRLock->map) {
-    keys.push_back(key);
+    keys.emplace_back(key);
   }
+}
+
+template <typename ClockT>
+void BasicQuantileStatMap<ClockT>::getRegexKeys(
+    std::vector<std::string>& keys,
+    const std::string& regex) const {
+  getRegexKeysImpl(keys, regex, counters_);
 }
 
 template <typename ClockT>
@@ -221,7 +230,10 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
       countersWLock->map.emplace(
           makeKey(name, statDef, slidingWindowLength), entry);
     }
-    countersWLock->dirtyKeys = true;
+
+    // avoid fetch_add() to avoid extra fences, since we hold the lock already
+    uint64_t epoch = countersWLock->mapEpoch.load();
+    countersWLock->mapEpoch.store(epoch + 1);
   }
   StatMapEntry statMapEntry;
   statMapEntry.stat = stat;

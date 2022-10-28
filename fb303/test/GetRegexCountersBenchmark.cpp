@@ -50,7 +50,7 @@ BENCHMARK(GetRegexCountersBenchmarkSubset, iters) {
   startup.dismiss();
   for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters =
-        fb303Data.getRegexCounters("matching.*");
+        fb303Data.getRegexCountersOptimized("matching.*");
   }
 }
 
@@ -61,7 +61,7 @@ BENCHMARK(GetRegexCountersBenchmarkOne, iters) {
   startup.dismiss();
   for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters =
-        fb303Data.getRegexCounters("matchingCounter1");
+        fb303Data.getRegexCountersOptimized("matchingCounter1");
   }
 }
 
@@ -71,7 +71,8 @@ BENCHMARK(GetRegexCountersBenchmarkAll, iters) {
   prepareData();
   startup.dismiss();
   for (int iter = 0; iter < iters; iter++) {
-    std::map<std::string, int64_t> counters = fb303Data.getRegexCounters(".*");
+    std::map<std::string, int64_t> counters =
+        fb303Data.getRegexCountersOptimized(".*");
   }
 }
 
@@ -86,7 +87,7 @@ Results from 20-core (40-thread) Intel(R) Xeon(R) Gold 6138 CPU @ 2.00GHz
 ============================================================================
 [...]03/test/GetRegexCountersBenchmark.cpp     relative  time/iter   iters/s
 ============================================================================
-GetRegexCountersBenchmarkSubset                             2.83ms    353.91
-GetRegexCountersBenchmarkOne                                1.03ms    966.98
-GetRegexCountersBenchmarkAll                                7.26ms    137.66
+GetRegexCountersBenchmarkSubset                             1.53ms    651.80
+GetRegexCountersBenchmarkOne                              418.52ns     2.39M
+GetRegexCountersBenchmarkAll                                5.36ms    186.40
 */

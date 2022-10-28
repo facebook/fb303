@@ -16,8 +16,10 @@
 
 #pragma once
 
+#include <folly/Chrono.h>
 #include <folly/Synchronized.h>
 #include <folly/experimental/StringKeyedMap.h>
+#include <folly/synchronization/RelaxedAtomic.h>
 
 namespace facebook {
 namespace fb303 {
@@ -33,14 +35,6 @@ class CallbackValuesMap {
   typedef std::map<std::string, T> ValuesMap;
   typedef std::function<T()> Callback; // callback type
 
-  // Combining dirty bit with counters map
-  // This guarantees that when dirty bit is read and reset, there is no change
-  // to counters map
-  template <typename Mapped>
-  struct MapWithDirtyFlag {
-    folly::StringKeyedMap<Mapped> map;
-    mutable bool dirtyKeys{false};
-  };
   /** Returns all the values in the map by invoking all the callbacks */
   void getValues(ValuesMap* output) const;
 
@@ -55,6 +49,10 @@ class CallbackValuesMap {
 
   /** Returns all keys present in the map */
   void getKeys(std::vector<std::string>* keys) const;
+
+  /* Returns the keys in the map that matches regex pattern */
+  void getRegexKeys(std::vector<std::string>& keys, const std::string& regex)
+      const;
 
   /** Returns the number of keys present in the map */
   size_t getNumKeys() const;
@@ -100,7 +98,19 @@ class CallbackValuesMap {
   std::shared_ptr<CallbackEntry> getCallback(folly::StringPiece name);
 
  private:
-  using CallbackMap = MapWithDirtyFlag<std::shared_ptr<CallbackEntry>>;
+  // Combining counters map with cache and epoch numbers.  If epochs
+  // match, cache is valid.
+  template <typename Mapped>
+  struct MapWithKeyCache {
+    folly::StringKeyedMap<Mapped> map;
+    mutable folly::StringKeyedMap<std::vector<std::string>> regexCache;
+    mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
+    mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
+    mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{
+        std::chrono::seconds(0)};
+  };
+
+  using CallbackMap = MapWithKeyCache<std::shared_ptr<CallbackEntry>>;
 
   folly::Synchronized<CallbackMap> callbackMap_;
 };

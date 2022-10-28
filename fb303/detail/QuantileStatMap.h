@@ -23,10 +23,12 @@
 #include <gflags/gflags.h>
 #include <glog/logging.h>
 
+#include <folly/Chrono.h>
 #include <folly/Optional.h>
 #include <folly/Synchronized.h>
 #include <folly/experimental/StringKeyedMap.h>
 #include <folly/experimental/StringKeyedUnorderedMap.h>
+#include <folly/synchronization/RelaxedAtomic.h>
 
 #include <fb303/ExportType.h>
 #include <fb303/QuantileStat.h>
@@ -71,6 +73,11 @@ class BasicQuantileStatMap {
   std::shared_ptr<stat_type> get(folly::StringPiece name) const;
   bool contains(folly::StringPiece name) const;
   void getKeys(std::vector<std::string>& keys) const;
+
+  /* Returns the keys in the map that matches regex pattern */
+  void getRegexKeys(std::vector<std::string>& keys, const std::string& regex)
+      const;
+
   size_t getNumKeys() const;
 
   folly::Optional<SnapshotEntry> getSnapshotEntry(
@@ -98,7 +105,10 @@ class BasicQuantileStatMap {
     auto countersWLock = counters_.wlock();
     countersWLock->map.clear();
     countersWLock->bases.clear();
-    countersWLock->dirtyKeys = true;
+
+    // avoid fetch_add() to avoid extra fences, since we hold the lock already
+    uint64_t epoch = countersWLock->mapEpoch.load();
+    countersWLock->mapEpoch.store(epoch + 1);
   }
 
  private:
@@ -113,18 +123,21 @@ class BasicQuantileStatMap {
     std::vector<StatDef> statDefs;
   };
 
-  // Combining dirty bit with counters map
-  // This guarantees that when dirty bit is read and reset, there is no change
-  // to counters map
+  // Combining counters map with cache and epoch numbers.  If epochs
+  // match, cache is valid.
   template <typename Mapped>
-  struct MapWithDirtyFlag {
+  struct MapWithKeyCache {
     // The key to this map is the fully qualified stat name, e.g. MyStat.p99.60
     folly::StringKeyedUnorderedMap<Mapped> map;
     // The key to this map is the base of the stat name, e.g. MyStat.
     folly::StringKeyedUnorderedMap<StatMapEntry> bases;
-    mutable bool dirtyKeys{false};
+    mutable folly::StringKeyedMap<std::vector<std::string>> regexCache;
+    mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
+    mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
+    mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{
+        std::chrono::seconds(0)};
   };
-  folly::Synchronized<MapWithDirtyFlag<CounterMapEntry>> counters_;
+  folly::Synchronized<MapWithKeyCache<CounterMapEntry>> counters_;
 
   static std::string makeKey(
       folly::StringPiece base,

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <fb303/detail/RegexUtil.h>
 #include <folly/MapUtil.h>
 #include <glog/logging.h>
 
@@ -67,9 +68,16 @@ template <typename T>
 void CallbackValuesMap<T>::getKeys(std::vector<std::string>* keys) const {
   auto rlock = callbackMap_.rlock();
   keys->reserve(keys->size() + rlock->map.size());
-  for (const auto& entry : rlock->map) {
-    keys->push_back(entry.first.str());
+  for (const auto& [key, _] : rlock->map) {
+    keys->emplace_back(key);
   }
+}
+
+template <typename T>
+void CallbackValuesMap<T>::getRegexKeys(
+    std::vector<std::string>& keys,
+    const std::string& regex) const {
+  detail::getRegexKeysImpl(keys, regex, callbackMap_);
 }
 
 template <typename T>
@@ -83,7 +91,10 @@ void CallbackValuesMap<T>::registerCallback(
     const Callback& cob) {
   auto wlock = callbackMap_.wlock();
   wlock->map[name] = std::make_shared<CallbackEntry>(cob);
-  wlock->dirtyKeys = true;
+
+  // avoid fetch_add() to avoid extra fences, since we hold the lock already
+  uint64_t epoch = wlock->mapEpoch.load();
+  wlock->mapEpoch.store(epoch + 1);
 }
 
 template <typename T>
@@ -94,7 +105,11 @@ bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
     return false;
   }
   entry->second->clear();
-  wlock->dirtyKeys = true;
+
+  // avoid fetch_add() to avoid extra fences, since we hold the lock already
+  uint64_t epoch = wlock->mapEpoch.load();
+  wlock->mapEpoch.store(epoch + 1);
+
   wlock->map.erase(entry);
   VLOG(5) << "Unregistered  callback: " << name;
   return true;
@@ -106,7 +121,9 @@ void CallbackValuesMap<T>::clear() {
   for (auto& entry : wlock->map) {
     entry.second->clear();
   }
-  wlock->dirtyKeys = true;
+  // avoid fetch_add() to avoid extra fences, since we hold the lock already
+  uint64_t epoch = wlock->mapEpoch.load();
+  wlock->mapEpoch.store(epoch + 1);
   wlock->map.clear();
 }
 

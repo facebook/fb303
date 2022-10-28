@@ -30,12 +30,13 @@ Internally, the things that can typically make an fb303 implementation of
 getRegexCounters() slow are: lock contention preventing full CPU
 utilization; and regular expression processing, specifically matching.
 
-Results (median of three, optimized build, 40-core 2GHz Xeon):
+Results (median of three)
+20-core (40-thread) Intel(R) Xeon(R) Gold 6138 CPU @ 2.00GHz
 
 ============================================================================
 fb303/test/GetRegexCountersMtBench.cpp         relative  time/iter   iters/s
 ============================================================================
-multithreaded                                               35.88s    27.87m
+multithreaded                                               26.58s    37.62m
 
 */
 
@@ -64,7 +65,7 @@ DEFINE_uint32(batch, 32, "Number of operations per batch");
 DEFINE_uint32(batches, 1024, "Number of batches per run");
 DEFINE_uint32(counters, 20000, "Number of unique counters");
 DEFINE_string(prefix, "sso_spills_over_counter_", "Prefix of counter names");
-DEFINE_bool(opt, false, "Use getRegexCountersOptimized()");
+DEFINE_bool(opt, true, "Use getRegexCountersOptimized()");
 
 namespace {
 
@@ -107,7 +108,7 @@ void doWork(
         const string& regex = (dice & 1) ? kRegex1 : kRegex0;
         std::map<string, int64_t> got;
         if (FLAGS_opt) {
-          throw std::runtime_error("not yet implemented");
+          serviceData.getRegexCountersOptimized(got, regex);
         } else {
           serviceData.getRegexCounters(got, regex);
         }
