@@ -23,6 +23,8 @@ THRIFT_FLAG_DEFINE_int64(fb303_counters_queue_timeout_ms, 5 * 1000);
 namespace facebook {
 namespace fb303 {
 
+/* static */ thread_local bool BaseService::useRegexCacheTL_ = false;
+
 BaseService::~BaseService() {}
 
 std::chrono::milliseconds BaseService::getCountersExpiration() const {

@@ -15,19 +15,20 @@
  */
 
 #pragma once
-#ifndef LIMITUTILS_H_
-#define LIMITUTILS_H
+
+#include <string_view>
+
 #include <thrift/lib/cpp2/server/Cpp2ConnContext.h>
 
 namespace facebook::fb303 {
 
-constexpr folly::StringPiece kCountersLimitHeader{"fb303_counters_read_limit"};
 constexpr folly::StringPiece kCountersAvailableHeader{
     "fb303_counters_available"};
 // Return an optional that contains a counter limit if one was specified
 // in the request headers.
-inline std::optional<size_t> getCounterLimitFromRequest(
-    apache::thrift::Cpp2RequestContext* reqCtx) {
+inline std::optional<size_t> readThriftHeader(
+    apache::thrift::Cpp2RequestContext* reqCtx,
+    std::string_view key) {
   if (reqCtx == nullptr) {
     return std::nullopt;
   }
@@ -37,7 +38,7 @@ inline std::optional<size_t> getCounterLimitFromRequest(
   }
   const apache::thrift::transport::THeader::StringToStringMap& headers =
       reqHeader->getHeaders();
-  auto* val = folly::get_ptr(headers, std::string(kCountersLimitHeader));
+  const std::string* val = folly::get_ptr(headers, key);
   if (val == nullptr) {
     return std::nullopt;
   }
@@ -63,4 +64,3 @@ inline void addCountersAvailableToResponse(
       kCountersAvailableHeader, std::to_string(available));
 }
 } // namespace facebook::fb303
-#endif /* LIMITUTILS_H_ */
