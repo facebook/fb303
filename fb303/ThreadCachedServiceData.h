@@ -693,6 +693,7 @@ template <class TLStatT>
 class StatWrapperBase {
  public:
   explicit StatWrapperBase(std::string key) : key_(std::move(key)) {}
+  explicit StatWrapperBase(std::string_view key) : key_(key) {}
   virtual ~StatWrapperBase() = default;
 
   // Even though the destructor above is defaulted, and required as this
@@ -737,8 +738,10 @@ class CounterWrapper
   // Two constructors are provided for use in the DEFINE_counter macro below.
   // If no name is provided, then first constructor is used with the variable
   // name being the key. If a name is provided, the second constructor is used.
-  explicit CounterWrapper(const std::string& key) : StatWrapperBase(key) {}
-  CounterWrapper(const std::string& /*var*/, const std::string& key)
+  explicit CounterWrapper(std::string key) : StatWrapperBase(std::move(key)) {}
+  CounterWrapper(std::string_view /*var*/, std::string_view key)
+      : StatWrapperBase(key) {}
+  CounterWrapper(const char* /*var*/, std::string_view key)
       : StatWrapperBase(key) {}
 
   void incrementValue(CounterType amount = 1) {
@@ -768,7 +771,7 @@ class TimeseriesWrapper {
       typename Arg1,
       typename... Args,
       typename std::enable_if<
-          std::is_convertible<Arg1, std::string>::value>::type* = nullptr>
+          std::is_convertible<Arg1, std::string_view>::value>::type* = nullptr>
   TimeseriesWrapper(
       const std::string& /*varname*/,
       const Arg1& key,
@@ -794,7 +797,7 @@ class TimeseriesWrapper {
       typename Arg1,
       typename... Args,
       typename std::enable_if<
-          !std::is_convertible<Arg1, std::string>::value>::type* = nullptr,
+          !std::is_convertible<Arg1, std::string_view>::value>::type* = nullptr,
       typename std::enable_if<
           !std::is_convertible<Arg1, ExportedStat>::value>::type* = nullptr>
   TimeseriesWrapper(
@@ -878,7 +881,7 @@ class TimeseriesPolymorphicWrapper : public TimeseriesWrapperBase {
       typename Arg1,
       typename... Args,
       typename std::enable_if<
-          std::is_convertible<Arg1, std::string>::value>::type* = nullptr>
+          std::is_convertible<Arg1, std::string_view>::value>::type* = nullptr>
   TimeseriesPolymorphicWrapper(
       const std::string& /*varname*/,
       const Arg1& key,
@@ -890,7 +893,7 @@ class TimeseriesPolymorphicWrapper : public TimeseriesWrapperBase {
       typename Arg1,
       typename... Args,
       typename std::enable_if<
-          !std::is_convertible<Arg1, std::string>::value>::type* = nullptr>
+          !std::is_convertible<Arg1, std::string_view>::value>::type* = nullptr>
   TimeseriesPolymorphicWrapper(
       const std::string& varname,
       const Arg1& arg1,
