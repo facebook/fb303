@@ -17,6 +17,7 @@
 #pragma once
 
 #include <folly/Range.h>
+#include <folly/container/F14Set.h>
 #include <folly/stats/Histogram.h>
 #include <folly/synchronization/AtomicUtil.h>
 
@@ -29,7 +30,6 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
-#include <unordered_set>
 
 namespace facebook {
 namespace fb303 {
@@ -270,7 +270,7 @@ class ThreadLocalStatsT {
    * link_->mutex protects access to tlStats_ (when LockTraits actually
    * provides thread-safety guarantees).
    */
-  std::unordered_set<TLStat*> tlStats_;
+  folly::F14FastSet<TLStat*> tlStats_;
 
   template <typename T>
   friend class TLStatT;
