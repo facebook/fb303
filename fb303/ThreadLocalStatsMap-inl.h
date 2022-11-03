@@ -97,6 +97,12 @@ typename ThreadLocalStatsMapT<LockTraits>::TLTimeseries* ThreadLocalStatsMapT<
 }
 
 template <class LockTraits>
+void ThreadLocalStatsMapT<LockTraits>::clearTimeseriesSafe(
+    folly::StringPiece name) {
+  state_.lock()->namedTimeseries_.erase(name);
+}
+
+template <class LockTraits>
 typename ThreadLocalStatsMapT<LockTraits>::TLHistogram* ThreadLocalStatsMapT<
     LockTraits>::getHistogramLocked(State& state, folly::StringPiece name) {
   auto& entry = state.namedHistograms_[name];

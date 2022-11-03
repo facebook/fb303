@@ -196,19 +196,23 @@ void ThreadCachedServiceData::addHistAndStatValues(
       key, values, now, sum, nsamples, checkContains);
 }
 
+void ThreadCachedServiceData::clearStat(
+    folly::StringPiece key,
+    ExportType exportType) {
+  (*keyCacheTable_)[exportType].erase(key);
+  ServiceData::get()->addStatExportType(key, exportType, nullptr);
+}
+
 void ThreadCachedServiceData::addStatValue(
     folly::StringPiece key,
     int64_t value,
     ExportType exportType) {
-  using KeyCacheTable =
-      std::array<ExportKeyCache, ExportTypeMeta::kNumExportTypes>;
-  static folly::ThreadLocal<KeyCacheTable> keyCacheTable;
-  if (UNLIKELY(!(*keyCacheTable)[exportType].has(key))) {
+  if (UNLIKELY(!(*keyCacheTable_)[exportType].has(key))) {
     // This is not present in the threadlocal export set; possible it was
     // not yet registered with the underlying ServiceData impl.
     // This time around, pass it to the ServiceData so the type is exported
     getServiceData()->addStatExportType(key, exportType);
-    (*keyCacheTable)[exportType].add(key);
+    (*keyCacheTable_)[exportType].add(key);
   }
   // now we know the export was done; finally bump the counter
   addStatValue(key, value);

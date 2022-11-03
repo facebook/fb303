@@ -155,6 +155,7 @@ class ThreadCachedServiceData {
 
   void
   addStatValue(folly::StringPiece key, int64_t value, ExportType exportType);
+  void clearStat(folly::StringPiece key, ExportType exportType);
 
   void addStatValueAggregated(
       folly::StringPiece key,
@@ -356,6 +357,9 @@ class ThreadCachedServiceData {
 
   ServiceData* serviceData_;
   StatsThreadLocal* threadLocalStats_;
+  using KeyCacheTable =
+      std::array<ExportKeyCache, ExportTypeMeta::kNumExportTypes>;
+  folly::ThreadLocal<KeyCacheTable> keyCacheTable_;
 
   std::atomic<std::chrono::milliseconds> interval_{
       std::chrono::milliseconds(0)};
@@ -593,6 +597,19 @@ class FormattedKeyHolder {
     return FOLLY_LIKELY(it != map.end())
         ? *it->second
         : getFormattedKeySlow(std::forward<Args>(subkeys)...);
+  }
+
+  template <typename... Args>
+  void eraseFormattedKey(Args&&... subkeys) {
+    static_assert(sizeof...(Args) == N, "Incorrect number of subkeys.");
+    static_assert(
+        (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
+        "Arguments must be strings or integers");
+
+    auto decay = folly::overload(decay_<int64_t>{}, decay_<std::string_view>{});
+    // calling outline folly::get_default would be a small perf hit
+    auto& map = *localMap_; // so call map-find inline to avoid
+    map.erase(std::tuple{decay(subkeys)...});
   }
 
  private:
@@ -1133,6 +1150,20 @@ class DynamicTimeseriesWrapper {
   void add(int64_t value, Args&&... subkeys) {
     auto const& key = key_.getFormattedKey(std::forward<Args>(subkeys)...);
     tcData().addStatValue(key, value);
+  }
+
+  // "subkeys" must be a list of exactly N strings or integers, one for each
+  // subkey.
+  // E.g. clear("red", "cat");
+  //      clear("red", 42);
+  template <typename... Args>
+  void clear(Args&&... subkeys) {
+    auto const& key = key_.getFormattedKey(subkeys...);
+    for (const auto exportType : exportTypes_) {
+      ThreadCachedServiceData::get()->clearStat(key, exportType);
+    }
+    tcData().clearTimeseriesSafe(key);
+    key_.eraseFormattedKey(std::forward<Args>(subkeys)...);
   }
 
   // "subkeys" must be a list of exactly N strings or integers, one for each

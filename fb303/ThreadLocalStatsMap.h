@@ -91,6 +91,10 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
       size_t numBuckets,
       size_t numLevels,
       const int levelDurations[]);
+  /*
+   * Clears the TLTimeseries with the given name for the current thread.
+   */
+  void clearTimeseriesSafe(folly::StringPiece name);
 
   /**
    * Gets the TLCounter with the given name. Never returns NULL. The
