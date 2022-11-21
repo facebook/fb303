@@ -465,7 +465,7 @@ std::string TFunctionStatHandler::getHistParamsMapKey(
   return key;
 }
 
-TStatsPerThread* TFunctionStatHandler::getStats(const std::string& fn_name) {
+TStatsPerThread* TFunctionStatHandler::getStats(const char* fnName) {
   auto mapPtr = tlFunctionMap_.get();
   if (mapPtr == nullptr) {
     mapPtr = new TStatsAggregator();
@@ -488,13 +488,13 @@ TStatsPerThread* TFunctionStatHandler::getStats(const std::string& fn_name) {
   // update should be needed in the common case, so we just use statMutex_
   // to guard it
   auto& map = *mapPtr;
-  auto it = map.find(fn_name);
+  auto it = map.find(fnName);
   if (it == map.end()) {
     // we're going to be writing the map, so lock out stat aggregation ftm
     std::unique_lock lock(statMutex_);
     auto stats = createStatsPerThread();
-    setThriftHistParams(stats.get(), fn_name.c_str());
-    map[fn_name] = stats;
+    setThriftHistParams(stats.get(), fnName);
+    map[fnName] = stats;
     return stats.get();
   }
   return it->second.get();

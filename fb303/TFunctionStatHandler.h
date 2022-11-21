@@ -269,7 +269,7 @@ class TFunctionStatHandler
    * This function looks for a TStatsAggregator within the current thread's
    * thread-specific memory associated with key_, creating it if necessary.
    */
-  TStatsPerThread* getStats(const std::string& fn_name);
+  TStatsPerThread* getStats(const char* fnName);
 
   /**
    * Merge stats from a given thread
@@ -331,10 +331,10 @@ class TFunctionStatHandler
    *          cast into a void*.
    */
   void* getContext(
-      const char* fn_name,
+      const char* fnName,
       apache::thrift::server::TConnectionContext* /*serverContext*/ =
           nullptr) override {
-    auto stats = getStats(std::string(fn_name));
+    auto stats = getStats(fnName);
     return (void*)(stats->getContext());
   }
 
