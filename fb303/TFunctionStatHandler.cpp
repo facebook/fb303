@@ -492,7 +492,7 @@ TStatsPerThread* TFunctionStatHandler::getStats(const char* fnName) {
   if (it == map.end()) {
     // we're going to be writing the map, so lock out stat aggregation ftm
     std::unique_lock lock(statMutex_);
-    auto stats = createStatsPerThread(fnName);
+    auto stats = createStatsPerThread();
     setThriftHistParams(stats.get(), fnName);
     map[fnName] = stats;
     return stats.get();
@@ -528,7 +528,7 @@ class StandardStatHandler : public TFunctionStatHandler {
     preDestroy();
   }
 
-  std::shared_ptr<TStatsPerThread> createStatsPerThread(const char*) override {
+  std::shared_ptr<TStatsPerThread> createStatsPerThread() override {
     return std::make_shared<StandardStatsPerThread>();
   }
 };
