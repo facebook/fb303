@@ -303,7 +303,8 @@ class TFunctionStatHandler
   /**
    * Construct an instance of TStatsPerThread.
    */
-  virtual std::shared_ptr<TStatsPerThread> createStatsPerThread() = 0;
+  virtual std::shared_ptr<TStatsPerThread> createStatsPerThread(
+      const char* fnName) = 0;
 
   /**
    * Calls setDefaultStat on all ExportedStatMapImpl members of this handler.
