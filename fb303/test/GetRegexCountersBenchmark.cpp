@@ -21,7 +21,6 @@
 #include <time.h>
 #include "common/stats/ServiceData.h"
 
-using namespace facebook::fb303;
 using namespace folly;
 using namespace facebook::stats;
 

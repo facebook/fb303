@@ -39,7 +39,6 @@ using std::mutex;
 using std::string;
 using std::thread;
 using std::unique_lock;
-using std::vector;
 
 /* This test case creates a fb303 server and async client
  * The server has regex key caching enabled.

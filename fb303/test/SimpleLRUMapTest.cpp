@@ -17,7 +17,6 @@
 #include "common/datastruct/SimpleLRUMap.h"
 
 #include "common/base/StlUtil.h"
-#include "common/init/Init.h"
 #include "common/time/Clock.h"
 
 #include <folly/Conv.h>
