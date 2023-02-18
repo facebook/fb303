@@ -235,7 +235,7 @@ class ThreadLocalStatsT {
    * another thread, call swapThreads() to inform the ThreadLocalStats object
    * that it is okay if the next access occurs from a different thread.
    * You are still responsible for performing the correct external
-   * synchronization when transferring ownerhsip of this ThreadLocalStats
+   * synchronization when transferring ownership of this ThreadLocalStats
    * object to the other thread.
    *
    * A common use case for this is if you set up the ThreadLocalStats object in
