@@ -222,8 +222,13 @@ class ThreadLocalStatsT {
    * loop, fb303/TLStatsAsyncAggregator.h contains a class that can
    * periodically call aggregate() on a ThreadLocalStats from the
    * EventBase loop.
+   *
+   * Returns the count of thread local stats that were aggregated. Calling code
+   * can use it as a measure of the overhead of maintaining TL copies of the
+   * stats. The returned value is basically the same as the size of the tlStats_
+   * map.
    */
-  void aggregate();
+  uint64_t aggregate();
 
   /**
    * Call this function if you are about to transfer ownership of this

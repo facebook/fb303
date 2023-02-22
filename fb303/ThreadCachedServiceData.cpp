@@ -24,10 +24,14 @@ using std::chrono::milliseconds;
 namespace {
 static const std::string kFunctionId =
     "ThreadCachedStatsMap::aggregateAcrossAllThreads";
-}
+} // namespace
 
 namespace facebook {
 namespace fb303 {
+
+DEFINE_timeseries(fb303_tcData_publish_time_usec, SUM, AVG);
+DEFINE_timeseries(fb303_tcData_aggregate_call_count, SUM);
+DEFINE_timeseries(fb303_tcData_tlmaps_aggregated, SUM);
 
 class PublisherManager {
  public:
@@ -104,9 +108,19 @@ ThreadCachedServiceData::ThreadCachedServiceData()
       threadLocalStats_{&ThreadCachedServiceData::getStatsThreadLocal()} {}
 
 void ThreadCachedServiceData::publishStats() {
+  auto start = std::chrono::steady_clock::now();
+  uint64_t totalAggregateCalls = 0;
+  uint64_t mapsAggregated = 0;
   for (ThreadLocalStatsMap& tlsm : threadLocalStats_->accessAllThreads()) {
-    tlsm.aggregate();
+    totalAggregateCalls += tlsm.aggregate();
+    mapsAggregated++;
   }
+  auto end = std::chrono::steady_clock::now();
+  auto interval =
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+  STATS_fb303_tcData_publish_time_usec.add(interval.count());
+  STATS_fb303_tcData_aggregate_call_count.add(totalAggregateCalls);
+  STATS_fb303_tcData_tlmaps_aggregated.add(mapsAggregated);
 }
 
 void ThreadCachedServiceData::startPublishThread(milliseconds interval) {

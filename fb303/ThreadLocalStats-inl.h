@@ -490,11 +490,11 @@ ThreadLocalStatsT<LockTraits>::~ThreadLocalStatsT() {
 }
 
 template <class LockTraits>
-void ThreadLocalStatsT<LockTraits>::aggregate() {
+uint64_t ThreadLocalStatsT<LockTraits>::aggregate() {
   auto guard = link_->lock();
 
   if (tlStats_.empty()) {
-    return;
+    return 0;
   }
 
   // TODO: In the future it would be nice if the stats code used a
@@ -503,6 +503,8 @@ void ThreadLocalStatsT<LockTraits>::aggregate() {
   for (TLStatT<LockTraits>* stat : tlStats_) {
     stat->aggregate(now);
   }
+
+  return tlStats_.size();
 }
 
 template <class LockTraits>
