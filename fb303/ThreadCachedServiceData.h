@@ -359,7 +359,7 @@ class ThreadCachedServiceData {
   StatsThreadLocal* threadLocalStats_;
   using KeyCacheTable =
       std::array<ExportKeyCache, ExportTypeMeta::kNumExportTypes>;
-  folly::ThreadLocal<KeyCacheTable> keyCacheTable_;
+  folly::ThreadLocal<KeyCacheTable, KeyCacheTable> keyCacheTable_;
 
   std::atomic<std::chrono::milliseconds> interval_{
       std::chrono::milliseconds(0)};
@@ -695,7 +695,7 @@ class FormattedKeyHolder {
   std::string keyFormat_;
   std::function<void(const std::string& key)> prepareKey_;
   folly::Synchronized<GlobalMap> globalMap_;
-  folly::ThreadLocal<LocalMap> localMap_;
+  folly::ThreadLocal<LocalMap, FormattedKeyHolder> localMap_;
 };
 
 } // namespace internal
@@ -733,7 +733,7 @@ class StatWrapperBase {
  protected:
   std::string key_;
 
-  folly::ThreadLocal<std::shared_ptr<TLStatT>> tlStat_;
+  folly::ThreadLocal<std::shared_ptr<TLStatT>, TLStatT> tlStat_;
 
   virtual std::shared_ptr<TLStatT> getStatSafe(const std::string& key) = 0;
 
@@ -840,7 +840,9 @@ class TimeseriesWrapper {
  private:
   std::string key_;
 
-  folly::ThreadLocal<std::shared_ptr<ThreadCachedServiceData::TLTimeseries>>
+  folly::ThreadLocal<
+      std::shared_ptr<ThreadCachedServiceData::TLTimeseries>,
+      ThreadCachedServiceData::TLTimeseries>
       tlTimeseries_;
 
   inline ThreadCachedServiceData::TLTimeseries* tcTimeseries() {
