@@ -128,7 +128,7 @@ void ServiceData::addStatExports(
   }
   bool addedHist = false;
   vector<string> statsSplit;
-  folly::split(",", stats, statsSplit);
+  folly::split(',', stats, statsSplit);
   for (const string& stat : statsSplit) {
     if (stat == "AVG") {
       statsMap_.exportStat(key, AVG, statPrototype);
@@ -699,10 +699,10 @@ ServiceData::SetOptionResult ServiceData::setOptionWithResult(
 
 void ServiceData::setVModuleOption(string_view /*key*/, string_view value) {
   vector<string> values;
-  folly::split(",", value, values);
+  folly::split(',', value, values);
   for (size_t i = 0; i < values.size(); ++i) {
     vector<string> module_value;
-    folly::split("=", values[i], module_value);
+    folly::split('=', values[i], module_value);
     if (module_value.size() != 2) {
       LOG(WARNING) << "Invalid vmodule value: " << values[i]
                    << ". Expected <module>=<int>";
