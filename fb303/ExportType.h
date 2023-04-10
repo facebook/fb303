@@ -112,6 +112,7 @@ struct QuantileConsts {
       {.5, .7, .9, .95, .99}};
   static constexpr const std::array<double, 4> kP50_P95_P99_P100{
       {.5, .95, .99, 1}};
+  static constexpr const std::array<double, 2> kP0_P100{{.0, 1}};
 };
 
 struct SlidingWindowPeriodConsts {
