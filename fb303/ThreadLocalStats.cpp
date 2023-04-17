@@ -16,6 +16,16 @@
 
 #include <fb303/ThreadLocalStats.h>
 
+#include <gflags/gflags.h>
+
+DEFINE_bool(
+    fb303_tcData_dont_update_on_read,
+    false,
+    "If set, timeseries owned by thread-local timeseries classes will never be updated "
+    "in between aggregation. It fixes a bug that is causing "
+    "rapid false oscillations in all timeseries (most noticeable "
+    "with aggregation intervals <= 10s");
+
 namespace facebook {
 namespace fb303 {
 
@@ -38,6 +48,14 @@ template class TLStatT<TLStatsThreadSafe>;
 template class TLTimeseriesT<TLStatsThreadSafe>;
 template class TLHistogramT<TLStatsThreadSafe>;
 template class TLCounterT<TLStatsThreadSafe>;
+
+namespace detail {
+
+bool shouldUpdateGlobalStatOnRead() {
+  return !FLAGS_fb303_tcData_dont_update_on_read;
+}
+
+} // namespace detail
 
 } // namespace fb303
 } // namespace facebook

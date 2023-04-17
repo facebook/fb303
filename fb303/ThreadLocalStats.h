@@ -44,10 +44,31 @@ template <class LockTraits>
 class TLTimeseriesT;
 
 namespace detail {
+
 template <typename LockTraits>
 class TLStatLink;
 template <typename LockTraits>
 class TLStatLinkPtr;
+
+/**
+ * FOR INTERNAL USE, controlled by the
+ * fb303_tcData_dont_update_on_read gflag.
+ *
+ * Return false if we shouldn't call update() on globalStat_
+ * when processing read requests.
+ * This mode fixes an aggregation bug of 100% / numBuckets drops
+ * of the aggregated value between the whole second boundary
+ * and the next call to TLTimeseries::aggregate().
+ *
+ * When this mode is enabled, you must call aggregate() once
+ * every few seconds or else it won't be able to decay properly
+ * if addValue()/addValueAggregated() calls stop altogether.
+ * ThreadCachedServiceData::startPublishThread() ensures this
+ * for the time series owned by it, and any custom wrappers
+ * should also make sure that they follow this rule.
+ */
+bool shouldUpdateGlobalStatOnRead();
+
 } // namespace detail
 
 /*

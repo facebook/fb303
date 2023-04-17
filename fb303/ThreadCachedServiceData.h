@@ -858,7 +858,8 @@ class TimeseriesWrapper {
   template <typename... Args>
   void exportStats(const ExportedStat* statPrototype, const Args&... args) {
     int _[] = {
-        (ServiceData::get()->addStatExportType(key_, args, statPrototype),
+        (ServiceData::get()->addStatExportType(
+             key_, args, statPrototype, detail::shouldUpdateGlobalStatOnRead()),
          0)...};
     (void)_;
   }

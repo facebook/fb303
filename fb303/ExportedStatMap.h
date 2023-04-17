@@ -212,6 +212,20 @@ class ExportedStatMap {
       const ExportedStat* copyMe = nullptr);
 
   /*
+   * Exports the stat specified by 'name' using the type provided. If no such
+   * stat exists in the map, a new one is created using copyMe. defaultStat_ is
+   * used when copyMe is nullptr.
+   *
+   * If updateOnRead is false, the exported stat will not be updated
+   * when processing read queries.
+   */
+  void exportStat(
+      folly::StringPiece name,
+      ExportType type,
+      const ExportedStat* copyMe,
+      bool updateOnRead);
+
+  /*
    * Unexports stats of all types with the specified name and removes it from
    * the map.
    */

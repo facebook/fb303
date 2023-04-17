@@ -245,9 +245,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
 
   using ExportedStatMap::exportStat;
   /*
-   * Exports the stat specified by 'name' using the type provided. If no such
-   * stat exists in the map, a new one is created using copyMe. defaultStat_ is
-   * used when copyMe is not given.
+   * Exports the stat using the name and type provided.
    *
    * This method is identical to the exportStat method in ExportedStatMap but is
    * more efficient because it avoids hashtable lookup per operation.
@@ -256,6 +254,24 @@ class ExportedStatMapImpl : public ExportedStatMap {
    * should prefer using the StatPtr object instead of LockableStat.
    */
   void exportStat(LockableStat stat, folly::StringPiece name, ExportType type);
+
+  /*
+   * Exports the stat using the name and type provided.
+   *
+   * If updateOnRead is false, the exported stat will not be updated
+   * when processing read queries.
+   *
+   * This method is identical to the exportStat method in ExportedStatMap but is
+   * more efficient because it avoids hashtable lookup per operation.
+   *
+   * This method is primarily left here for backwards compatibility. Users
+   * should prefer using the StatPtr object instead of LockableStat.
+   */
+  void exportStat(
+      LockableStat stat,
+      folly::StringPiece name,
+      ExportType type,
+      bool updateOnRead);
 };
 
 } // namespace fb303

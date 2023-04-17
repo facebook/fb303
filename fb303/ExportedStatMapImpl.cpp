@@ -24,10 +24,19 @@ namespace fb303 {
 
 void ExportedStatMapImpl::exportStat(
     LockableStat stat,
+    folly::StringPiece name,
+    ExportType type) {
+  return exportStat(std::move(stat), name, type, true /* updateOnRead */);
+}
+
+void ExportedStatMapImpl::exportStat(
+    LockableStat stat,
     StringPiece name,
-    ExportType exportType) {
+    ExportType exportType,
+    bool updateOnRead) {
   StatPtr item = stat.getStatPtr();
-  TimeseriesExporter::exportStat(item, exportType, name, dynamicCounters_);
+  TimeseriesExporter::exportStat(
+      item, exportType, name, dynamicCounters_, updateOnRead);
 }
 
 ExportedStatMapImpl::LockableStat ExportedStatMapImpl::getLockableStat(

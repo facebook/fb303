@@ -42,6 +42,19 @@ class TimeseriesExporter {
       DynamicCounters* counters);
 
   /**
+   * Register the counter callback with the DynamicCounters object.
+   *
+   * If updateOnRead is false, the stat will not be updated
+   * when processing read queries.
+   */
+  static void exportStat(
+      const StatPtr& stat,
+      ExportType type,
+      folly::StringPiece statName,
+      DynamicCounters* counters,
+      bool updateOnRead);
+
+  /**
    * Unregister the counter callback from the DynamicCounters object.
    */
   static void unExportStat(
@@ -73,6 +86,18 @@ class TimeseriesExporter {
    */
   static CounterType
   getStatValue(ExportedStat& stat, ExportType type, int level);
+
+  /*
+   * Get the specified export value from the specified timeseries level.
+   *
+   * This method also updates the stat with the current time (stats will not
+   * decay properly without this if no new items are being inserted)
+   *
+   * If update is true, calls the update() method on the stat
+   * before querying the value.
+   */
+  static CounterType
+  getStatValue(ExportedStat& stat, ExportType type, int level, bool update);
 };
 } // namespace fb303
 } // namespace facebook

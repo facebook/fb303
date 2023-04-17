@@ -23,11 +23,20 @@ namespace facebook {
 namespace fb303 {
 
 void ExportedStatMap::exportStat(
-    StringPiece name,
+    folly::StringPiece name,
     ExportType type,
     const ExportedStat* copyMe) {
+  return exportStat(name, type, copyMe, true /* updateOnRead */);
+}
+
+void ExportedStatMap::exportStat(
+    StringPiece name,
+    ExportType type,
+    const ExportedStat* copyMe,
+    bool updateOnRead) {
   StatPtr item = getStatPtrNoExport(name, nullptr, copyMe);
-  TimeseriesExporter::exportStat(item, type, name, dynamicCounters_);
+  TimeseriesExporter::exportStat(
+      item, type, name, dynamicCounters_, updateOnRead);
 }
 
 ExportedStatMap::StatPtr ExportedStatMap::getStatPtr(

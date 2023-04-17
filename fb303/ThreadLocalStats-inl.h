@@ -236,7 +236,18 @@ void TLTimeseriesT<LockTraits>::exportStat(fb303::ExportType exportType) {
   auto statMap = this->withContainerChecked(
       "exporting a stat",
       [](Container& container) { return container.getStatsMap(); });
-  statMap->exportStat(globalStat_, this->name(), exportType);
+
+  // We only update the values when aggregating so if we keep calling update()
+  // on the stat when reading it eventually it will decay by 100% / numBuckets
+  // at the next second boundary.
+  // Instead, we implicitly update it during aggregation itself,
+  // and the aggregation is guaranteed to be done periodically,
+  // usually once every second.
+  statMap->exportStat(
+      globalStat_,
+      this->name(),
+      exportType,
+      detail::shouldUpdateGlobalStatOnRead());
 }
 
 template <class LockTraits>
@@ -250,7 +261,14 @@ void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
   // aggregate() in the same second.  If aggregate is called once a second this
   // is no problem.  If it is called less than once a second, some values might
   // end up in the wrong bucket, making the buckets slightly uneven.
-  globalStat_.addValueAggregated(now, currentSum, currentCount);
+  auto lockedStatPtr = globalStat_.lock();
+  lockedStatPtr->addValueAggregated(now, currentSum, currentCount);
+
+  if (!detail::shouldUpdateGlobalStatOnRead()) {
+    // We must call update() after aggregation at least once
+    // so that subsequent reads see it.
+    lockedStatPtr->update(now.count());
+  }
 }
 
 template <class LockTraits>

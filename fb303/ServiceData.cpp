@@ -113,7 +113,15 @@ void ServiceData::addStatExportType(
     StringPiece key,
     ExportType type,
     const ExportedStat* statPrototype) {
-  statsMap_.exportStat(key, type, statPrototype);
+  return addStatExportType(key, type, statPrototype, true /* updateOnRead */);
+}
+
+void ServiceData::addStatExportType(
+    StringPiece key,
+    ExportType type,
+    const ExportedStat* statPrototype,
+    bool updateOnRead) {
+  statsMap_.exportStat(key, type, statPrototype, updateOnRead);
 }
 
 void ServiceData::addStatExports(

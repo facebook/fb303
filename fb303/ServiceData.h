@@ -164,6 +164,37 @@ class ServiceData {
       const ExportedStat* statPrototype = nullptr);
 
   /**
+   * Exports the given stat value to the counters, using the given export
+   * type. In other words, after calling for key = "foo", calls to
+   * getCounters() will contain several counters of the form:
+   *
+   * type AVG:   foo.avg    foo.avg.60    foo.avg.600    foo.avg.3600
+   * type SUM:   foo.sum    foo.sum.60    foo.sum.600    foo.sum.3600
+   * type RATE:  foo.rate   foo.rate.60   foo.rate.600   foo.rate.3600
+   * type COUNT: foo.count  foo.count.60  foo.count.600  foo.count.3600
+   *
+   * The values for these counters will be computed, of course, from data
+   * inserted via calls to addStatValue("foo", val).
+   *
+   * Here's a guide to what each export type produces:
+   *
+   *   addStatExportType("foo", AVG);    // == SUM / COUNT
+   *   addStatExportType("foo", SUM);    // tracks sum of values inserted
+   *   addStatExportType("foo", RATE);   // == SUM / (time period in secs)
+   *   addStatExportType("foo", COUNT);  // tracks # of values inserted
+   *
+   * Note that this function can be called multiple times for a given key
+   * to create multiple export counter types.  Also note that if this function
+   * is not called at all for a given key prior to data insertion, the key will
+   * be auto- exported as AVG by default.
+   */
+  void addStatExportType(
+      folly::StringPiece key,
+      ExportType exportType,
+      const ExportedStat* statPrototype,
+      bool updateOnRead);
+
+  /**
    *  Convenience function for simultaneously adding and exporting stats and a
    *  histogram with several percentiles at once.  The 'stats' input string is a
    *  comma separated list of stats and integers, e.g. "AVG,75,95" would

@@ -40,9 +40,20 @@ CounterType TimeseriesExporter::getStatValue(
     ExportedStat& stat,
     ExportType type,
     int level) {
+  return getStatValue(stat, type, level, true /* update */);
+}
+
+/* static */
+CounterType TimeseriesExporter::getStatValue(
+    ExportedStat& stat,
+    ExportType type,
+    int level,
+    bool update) {
   // update the stat with the current time -- if no new items are being
   // inserted, the stats won't decay properly without this update()
-  stat.update(get_legacy_stats_time());
+  if (update) {
+    stat.update(get_legacy_stats_time());
+  }
 
   // retrieve the correct type of info from the stat
   switch (type) {
@@ -109,6 +120,16 @@ void TimeseriesExporter::exportStat(
     ExportType type,
     StringPiece statName,
     DynamicCounters* counters) {
+  return exportStat(stat, type, statName, counters, true /* updateOnRead */);
+}
+
+/* static */
+void TimeseriesExporter::exportStat(
+    const StatPtr& stat,
+    ExportType type,
+    StringPiece statName,
+    DynamicCounters* counters,
+    bool updateOnRead) {
   CHECK_GE(type, 0);
   CHECK_LT(type, ExportTypeMeta::kNumExportTypes);
 
@@ -124,7 +145,7 @@ void TimeseriesExporter::exportStat(
 
     // register the actual counter callback with the DynamicCounters obj
     counters->registerCallback(counterName.data(), [=] {
-      return getStatValue(*stat->lock(), type, lev);
+      return getStatValue(*stat->lock(), type, lev, updateOnRead);
     });
   }
 }
