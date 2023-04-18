@@ -254,6 +254,12 @@ template <class LockTraits>
 void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
   auto [currentCount, currentSum] = value_.reset();
   if (currentCount == 0) {
+    if (!detail::shouldUpdateGlobalStatOnRead()) {
+      // We must call update() here so that the stat decays properly
+      // if no samples were added.
+      auto lockedStatPtr = globalStat_.lock();
+      lockedStatPtr->update(now.count());
+    }
     return;
   }
 
