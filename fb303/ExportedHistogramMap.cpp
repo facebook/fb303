@@ -42,7 +42,8 @@ ExportedHistogramMap::ExportedHistogramMap(
     const ExportedHistogram& copyMe)
     : dynamicCounters_(counters),
       dynamicStrings_(strings),
-      defaultHist_(std::make_shared<ExportedHistogram>(copyMe)) {}
+      defaultHist_(copyMe),
+      defaultStat_(MinuteTenMinuteHourTimeSeries<CounterType>()) {}
 
 ExportedHistogramMap::HistogramPtr ExportedHistogramMap::getOrCreateUnlocked(
     StringPiece name,
@@ -57,7 +58,7 @@ ExportedHistogramMap::HistogramPtr ExportedHistogramMap::getOrCreateUnlocked(
     return hist;
   }
 
-  auto value = std::make_shared<SyncHistogram>(**defaultHist_.rlock());
+  auto value = std::make_shared<SyncHistogram>(defaultHist_);
   if (copyMe) {
     *value = *copyMe;
   }
@@ -135,7 +136,7 @@ bool ExportedHistogramMap::addHistogram(
     };
 
     newHistogram = std::make_shared<SyncHistogram>(
-        folly::in_place, bucketWidth, min, max, **defaultStat_.rlock());
+        folly::in_place, bucketWidth, min, max, defaultStat_);
     ret.first->second = newHistogram;
 
     // End of scope:

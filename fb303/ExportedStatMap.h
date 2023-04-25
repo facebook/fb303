@@ -16,12 +16,9 @@
 
 #pragma once
 
-#include <memory>
-
 #include <fb303/ExportType.h>
 #include <fb303/MutexWrapper.h>
 #include <fb303/Timeseries.h>
-#include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
 
 namespace facebook {
@@ -57,7 +54,7 @@ class ExportedStatMap {
           MinuteTenMinuteHourTimeSeries<CounterType>())
       : dynamicCounters_(counters),
         defaultTypes_(1, defaultType),
-        defaultStat_(std::make_shared<ExportedStat>(defaultStat)) {}
+        defaultStat_(defaultStat) {}
 
   ExportedStatMap(
       DynamicCounters* counters,
@@ -66,7 +63,7 @@ class ExportedStatMap {
           MinuteTenMinuteHourTimeSeries<CounterType>())
       : dynamicCounters_(counters),
         defaultTypes_(defaultTypes),
-        defaultStat_(std::make_shared<ExportedStat>(defaultStat)) {}
+        defaultStat_(defaultStat) {}
 
   ExportedStatMap(const ExportedStatMap&) = delete;
   ExportedStatMap& operator=(const ExportedStatMap&) = delete;
@@ -75,14 +72,7 @@ class ExportedStatMap {
    * Set defaultStat_ field.
    */
   void setDefaultStat(const ExportedStat& defaultStat) {
-    *defaultStat_.wlock() = std::make_shared<ExportedStat>(defaultStat);
-  }
-
-  /*
-   * Set defaultStat_ field.
-   */
-  void setDefaultStatPtr(std::shared_ptr<ExportedStat> defaultStat) {
-    *defaultStat_.wlock() = std::move(defaultStat);
+    defaultStat_ = defaultStat;
   }
 
   /*
@@ -154,9 +144,8 @@ class ExportedStatMap {
    * using defaultStat_.
    */
   void exportStat(folly::StringPiece name) {
-    auto defaultStat = *defaultStat_.rlock();
     for (auto type : defaultTypes_) {
-      exportStat(name, type, defaultStat.get());
+      exportStat(name, type, &defaultStat_);
     }
   }
 
@@ -283,9 +272,7 @@ class ExportedStatMap {
   // (non-pointer, non-reference), but that's according to plan: the
   // derived classes only set data members in the base class, nothing
   // more (they have no data members of their own).
-  folly::Synchronized<std::shared_ptr<ExportedStat>> defaultStat_{
-      std::make_shared<ExportedStat>(
-          MinuteTenMinuteHourTimeSeries<CounterType>())};
+  ExportedStat defaultStat_;
 };
 
 } // namespace fb303
