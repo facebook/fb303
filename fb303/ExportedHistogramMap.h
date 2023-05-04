@@ -21,6 +21,7 @@
 #include <fb303/MutexWrapper.h>
 #include <fb303/TimeseriesHistogram.h>
 #include <folly/MapUtil.h>
+#include <folly/Synchronized.h>
 #include <folly/experimental/StringKeyedUnorderedMap.h>
 #include <folly/small_vector.h>
 
@@ -82,18 +83,34 @@ class ExportedHistogramMap {
    * Set defaultHist_ field.
    */
   void setDefaultHistogram(const ExportedHistogram& copyMe) {
-    defaultHist_ = copyMe;
+    *defaultHist_.wlock() = std::make_shared<ExportedHistogram>(copyMe);
+  }
+
+  void setDefaultHistogramPtr(std::shared_ptr<ExportedHistogram> copyMe) {
+    *defaultHist_.wlock() = std::move(copyMe);
   }
 
   /**
    * Set defaultStat_ field.
    */
   void setDefaultStat(const ExportedStat& defaultStat) {
-    defaultStat_ = defaultStat;
+    *defaultStat_.wlock() = std::make_shared<ExportedStat>(defaultStat);
   }
 
-  const ExportedStat& getDefaultStat() const {
-    return defaultStat_;
+  /**
+   * Set defaultStat_ field.
+   */
+  void setDefaultStatPtr(std::shared_ptr<ExportedStat> defaultStat) {
+    *defaultStat_.wlock() = std::move(defaultStat);
+  }
+
+  [[deprecated("Use getDefaultStatPtr")]] const ExportedStat& getDefaultStat()
+      const {
+    return **defaultStat_.rlock();
+  }
+
+  std::shared_ptr<ExportedStat> getDefaultStatPtr() const {
+    return *defaultStat_.rlock();
   }
 
   /**
@@ -380,12 +397,14 @@ class ExportedHistogramMap {
 
   DynamicCounters* dynamicCounters_;
   DynamicStrings* dynamicStrings_;
-  ExportedHistogram defaultHist_;
+  folly::Synchronized<std::shared_ptr<ExportedHistogram>> defaultHist_;
   // note: We slice defaultStat by copying it to a ExportedStat
   // (non-pointer, non-reference), but that's according to plan: the
   // derived classes only set data members in the base class, nothing
   // more (they have no data members of their own).
-  ExportedStat defaultStat_;
+  folly::Synchronized<std::shared_ptr<ExportedStat>> defaultStat_{
+      std::make_shared<ExportedStat>(
+          MinuteTenMinuteHourTimeSeries<CounterType>())};
 };
 
 // Lock the histogram and calculate the percentile
