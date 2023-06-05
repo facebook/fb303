@@ -292,13 +292,16 @@ class TFunctionStatHandler
    * @param counters pointer to the server's dynamic counter object
    * @param sampPerSecond target # of timing samples per second
    * @param secondsPerPeriod sampling rate
+   * @param useSubMinuteIntervalCounters whether or not to add high resolution
+   * counters
    */
   TFunctionStatHandler(
       DynamicCounters* counters,
       const std::string& serviceName,
       int32_t sampPerSecond = kSamplesPerSecond,
       int32_t secondsPerPeriod = kSecondsPerPeriod,
-      const std::string& counterNamePrefix = kDefaultCounterNamePrefix);
+      const std::string& counterNamePrefix = kDefaultCounterNamePrefix,
+      bool useSubMinuteIntervalCounters = false);
 
   /**
    * Construct an instance of TStatsPerThread.

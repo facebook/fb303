@@ -29,6 +29,31 @@ int64_t count_usec(std::chrono::steady_clock::duration d) {
 namespace facebook {
 namespace fb303 {
 
+namespace {
+
+constexpr int kFiveSecondMinuteTenMinuteHourDurations[] = {5, 60, 600, 3600, 0};
+
+template <class T>
+class FiveSecondMinuteTenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
+ public:
+  enum Levels {
+    FIVE_SECOND,
+    MINUTE,
+    TEN_MINUTE,
+    HOUR,
+    ALLTIME,
+    NUM_LEVELS,
+  };
+
+  FiveSecondMinuteTenMinuteHourTimeSeries()
+      : MultiLevelTimeSeries<T>(
+            NUM_LEVELS,
+            60,
+            kFiveSecondMinuteTenMinuteHourDurations) {}
+};
+
+} // namespace
+
 // Default key prefix for stats collected by TFunctionStatHandler
 const std::string TFunctionStatHandler::kDefaultCounterNamePrefix("thrift.");
 
@@ -163,7 +188,8 @@ TFunctionStatHandler::TFunctionStatHandler(
     const std::string& serviceName,
     int32_t sampPerSecond,
     int32_t secondsPerPeriod,
-    const std::string& counterNamePrefix)
+    const std::string& counterNamePrefix,
+    bool useSubMinuteIntervalCounters)
     : dummyHist_(1, 0, 1),
       counterNamePrefix_(counterNamePrefix),
       serviceName_(serviceName),
@@ -171,8 +197,18 @@ TFunctionStatHandler::TFunctionStatHandler(
       nThreads_(1),
       secondsPerPeriod_(secondsPerPeriod),
       desiredSamplesPerPeriod_(secondsPerPeriod * sampPerSecond),
-      statMapSum_(counters_, {SUM, RATE}),
-      statMapAvg_(counters_, AVG),
+      statMapSum_(
+          counters_,
+          {SUM, RATE},
+          useSubMinuteIntervalCounters
+              ? ExportedStat(FiveSecondMinuteTenMinuteHourTimeSeries<int64_t>())
+              : ExportedStat(MinuteTenMinuteHourTimeSeries<int64_t>())),
+      statMapAvg_(
+          counters_,
+          AVG,
+          useSubMinuteIntervalCounters
+              ? ExportedStat(FiveSecondMinuteTenMinuteHourTimeSeries<int64_t>())
+              : ExportedStat(MinuteTenMinuteHourTimeSeries<int64_t>())),
       histogramMap_(counters_, &dynamicStrings_, dummyHist_) {
   assert(desiredSamplesPerPeriod_ > 0);
 }
