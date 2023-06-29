@@ -23,6 +23,7 @@
 
 #include <fb303/ExportType.h>
 #include <fb303/QuantileStat.h>
+#include <fb303/ThreadCachedServiceData.h>
 #include <folly/Range.h>
 #include <folly/dynamic.h>
 
@@ -64,10 +65,6 @@ class DynamicQuantileStatWrapper {
       folly::Range<const size_t*> timeseriesLengths =
           SlidingWindowPeriodConsts::kOneMin);
 
-  virtual ~DynamicQuantileStatWrapper() {
-    delete stats_.load(std::memory_order_relaxed);
-  }
-
   template <typename... Args>
   void addValue(
       double value,
@@ -78,30 +75,17 @@ class DynamicQuantileStatWrapper {
   void addValue(double value, Args&&... subkeys);
 
  private:
-  using SubkeyArray = std::array<folly::dynamic, N>;
-
-  class SubkeyArrayHash {
-   public:
-    size_t operator()(const SubkeyArray& v) const {
-      size_t res = 0;
-      for (const auto& s : v) {
-        res ^= s.hash();
-      }
-      return res;
-    }
-  };
-
   struct Spec {
     std::vector<ExportType> stats;
     std::vector<double> quantiles;
     std::vector<size_t> timeseriesLengths;
   };
+  using StatPtr = std::shared_ptr<QuantileStat>;
+  using Cache = folly::F14FastMap<std::string const*, StatPtr>;
 
-  std::string format_;
+  internal::FormattedKeyHolder<N> key_;
+  folly::ThreadLocal<Cache> cache_;
   Spec spec_;
-
-  class MapHolder;
-  std::atomic<MapHolder*> stats_;
 };
 
 } // namespace facebook::fb303::detail

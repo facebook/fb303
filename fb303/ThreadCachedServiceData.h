@@ -684,7 +684,9 @@ class FormattedKeyHolder {
           [](std::string const& v) { return v; });
     }
     auto formattedKey = folly::svformat(keyFormat_, subkeyStrings);
-    prepareKey_(formattedKey);
+    if (prepareKey_) {
+      prepareKey_(formattedKey);
+    }
 
     auto writePtr = upgradePtr.moveFromUpgradeToWrite();
     iter = writePtr->emplace(subkeyArray, std::move(formattedKey)).first;

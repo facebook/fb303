@@ -17,20 +17,9 @@
 #pragma once
 
 #include <fb303/ServiceData.h>
-#include <folly/synchronization/Hazptr.h>
+#include <folly/MapUtil.h>
 
 namespace facebook::fb303::detail {
-
-template <size_t N>
-class DynamicQuantileStatWrapper<N>::MapHolder
-    : public folly::hazptr_obj_base<DynamicQuantileStatWrapper<N>::MapHolder> {
- public:
-  folly::F14NodeMap<
-      DynamicQuantileStatWrapper<N>::SubkeyArray,
-      std::shared_ptr<QuantileStat>,
-      DynamicQuantileStatWrapper<N>::SubkeyArrayHash>
-      map;
-};
 
 template <size_t N>
 DynamicQuantileStatWrapper<N>::DynamicQuantileStatWrapper(
@@ -38,7 +27,7 @@ DynamicQuantileStatWrapper<N>::DynamicQuantileStatWrapper(
     folly::Range<const ExportType*> stats,
     folly::Range<const double*> quantiles,
     folly::Range<const size_t*> timeseriesLengths)
-    : format_(std::move(keyFormat)), stats_(new MapHolder()) {
+    : key_(std::move(keyFormat), nullptr) {
   spec_.stats.insert(spec_.stats.end(), stats.begin(), stats.end());
   spec_.quantiles.insert(
       spec_.quantiles.end(), quantiles.begin(), quantiles.end());
@@ -54,33 +43,15 @@ void DynamicQuantileStatWrapper<N>::addValue(
     double value,
     std::chrono::steady_clock::time_point now,
     Args&&... subkeys) {
-  const SubkeyArray subkeyArray{{std::forward<Args>(subkeys)...}};
-
-  folly::hazptr_holder<> h = folly::make_hazard_pointer<>();
-  auto mapPtr = h.protect(stats_);
-
-  auto it = mapPtr->map.find(subkeyArray);
-  if (it != mapPtr->map.end()) {
-    it->second->addValue(value, now);
-    return;
+  auto const& key = key_.getFormattedKey(subkeys...);
+  auto& cache = *cache_;
+  auto ptr = folly::get_ptr(cache, &key);
+  if (!ptr) {
+    cache[&key] = ServiceData::get()->getQuantileStat(
+        key, spec_.stats, spec_.quantiles, spec_.timeseriesLengths);
+    ptr = &cache[&key];
   }
-
-  auto key = folly::svformat(format_, SubkeyArray(subkeyArray));
-  auto stat = ServiceData::get()->getQuantileStat(
-      key, spec_.stats, spec_.quantiles, spec_.timeseriesLengths);
-
-  MapHolder* newMap = nullptr;
-  do {
-    if (newMap) {
-      delete newMap;
-    }
-    mapPtr = h.protect(stats_);
-    newMap = new MapHolder(*mapPtr);
-    newMap->map[subkeyArray] = stat;
-  } while (
-      !stats_.compare_exchange_weak(mapPtr, newMap, std::memory_order_acq_rel));
-  h.reset_protection();
-  mapPtr->retire();
+  auto& stat = *ptr;
   stat->addValue(value, now);
 }
 
