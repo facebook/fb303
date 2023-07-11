@@ -269,7 +269,8 @@ void TFunctionStatHandler::postConstruct() {
   using namespace std::chrono;
   scheduler_.addFunction(
       [this] { this->consolidate(); },
-      duration_cast<milliseconds>(seconds(secondsPerPeriod_)));
+      duration_cast<milliseconds>(seconds(secondsPerPeriod_)),
+      "fb303-consolidate");
   scheduler_.setThreadName("fb303-consolidate");
   auto started = scheduler_.start();
   DCHECK(started);
