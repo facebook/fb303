@@ -289,7 +289,7 @@ void TLTimeseriesT<LockTraits>::init(
     size_t numLevels,
     const int levelDurations[],
     ThreadLocalStatsT<LockTraits>* stats) {
-  ExportedStat levels(numLevels, numBuckets, levelDurations);
+  ExportedStat levels((int)numLevels, (int)numBuckets, levelDurations);
   globalStat_ = stats->getStatsMap()->getLockableStatNoExport(
       this->name(), nullptr, &levels);
   this->postInit();
