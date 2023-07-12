@@ -19,4 +19,4 @@ tracing-serde = { git = "https://github.com/fbsource/tracing.git", rev = "339963
 tracing-subscriber = { git = "https://github.com/fbsource/tracing.git", rev = "3399637795795560a073fc60a2e6cfa67b8421f1" }
 
 [workspace]
-members = ["thrift"]
+members = ["thrift", "thrift/types"]
