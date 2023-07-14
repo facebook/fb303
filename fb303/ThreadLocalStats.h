@@ -313,9 +313,15 @@ class TLStatT {
   using Container = ThreadLocalStatsT<LockTraits>;
 
   TLStatT(const Container* stats, folly::StringPiece name);
+  TLStatT(const Container* stats, std::shared_ptr<const std::string> namePtr);
   virtual ~TLStatT();
 
   const std::string& name() const {
+    static const std::string kEmpty;
+    return name_ ? *name_ : kEmpty;
+  }
+
+  std::shared_ptr<const std::string> namePtr() const {
     return name_;
   }
 
@@ -439,7 +445,7 @@ class TLStatT {
   void unlink();
 
   detail::TLStatLinkPtr<LockTraits> link_;
-  std::string name_;
+  std::shared_ptr<const std::string> name_;
 
   /**
    * Synchronizes access to this TLStat's value. This class used to
@@ -515,6 +521,19 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
    * TLTimeseriesT during this operation.
    */
   TLTimeseriesT& operator=(TLTimeseriesT&& other) noexcept(false);
+
+  /**
+   * Copy the TLTimeseriesT object,
+   * linking it with a different ThreadLocalStatsT.
+   */
+  explicit TLTimeseriesT(
+      ThreadLocalStatsT<LockTraits>* stats,
+      const TLTimeseriesT& other)
+      : TLStatT<LockTraits>(stats, other.namePtr()),
+        globalStat_(other.globalStat_) {
+    DCHECK(!globalStat_.isNull());
+    this->postInit();
+  }
 
   /**
    * Add a new data point

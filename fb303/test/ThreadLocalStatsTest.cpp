@@ -473,6 +473,34 @@ TEST(ThreadLocalStats, moveStatFromOneContainerToAnother) {
   }
 }
 
+TEST(ThreadLocalStats, timeseriesCopy) {
+  using ThreadLocalStats = ThreadLocalStatsT<TLStatsThreadSafe>;
+  using TLTimeseries = TLTimeseriesT<TLStatsThreadSafe>;
+
+  ServiceData serviceData;
+
+  ThreadLocalStats tlStats1{&serviceData};
+  ThreadLocalStats tlStats2{&serviceData};
+
+  TLTimeseries ts1{&tlStats1, "bar", SUM, COUNT};
+  EXPECT_EQ(ts1.name(), "bar");
+  EXPECT_FALSE(ts1.getGlobalStat().isNull());
+  TLTimeseries ts2{&tlStats2, ts1};
+  EXPECT_FALSE(ts2.getGlobalStat().isNull());
+  EXPECT_EQ(ts2.name(), "bar");
+
+  ts1.addValue(3);
+  ts2.addValue(2);
+
+  tlStats1.aggregate();
+  EXPECT_EQ(serviceData.getCounter("bar.sum"), 3);
+  EXPECT_EQ(serviceData.getCounter("bar.count"), 1);
+
+  tlStats2.aggregate();
+  EXPECT_EQ(serviceData.getCounter("bar.sum"), 5);
+  EXPECT_EQ(serviceData.getCounter("bar.count"), 2);
+}
+
 class ThreadCachedServiceDataTest : public testing::Test {
  protected:
   void SetUp() override {

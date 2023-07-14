@@ -31,9 +31,15 @@ namespace fb303 {
  */
 
 template <class LockTraits>
-TLStatT<LockTraits>::TLStatT(const Container* stats, folly::StringPiece name)
+TLStatT<LockTraits>::TLStatT(
+    const Container* stats,
+    std::shared_ptr<const std::string> namePtr)
     : link_{typename detail::TLStatLinkPtr<LockTraits>::FromOther{}, stats->link_},
-      name_(name.str()) {}
+      name_(std::move(namePtr)) {}
+
+template <class LockTraits>
+TLStatT<LockTraits>::TLStatT(const Container* stats, folly::StringPiece name)
+    : TLStatT(stats, std::make_shared<std::string>(name.str())) {}
 
 template <class LockTraits>
 TLStatT<LockTraits>::~TLStatT() {
@@ -170,7 +176,7 @@ auto TLStatT<LockTraits>::withContainerChecked(const char* errorMsg, Fn&& fn) {
   auto guard = link_->lock();
   if (!link_->container_) {
     throw std::runtime_error(folly::to<std::string>(
-        name_,
+        name(),
         ": ThreadLocalStats container has already been destroyed while ",
         errorMsg));
   }
