@@ -40,8 +40,8 @@ std::vector<TimeType> convertToDuration(
 
 template <class T>
 MultiLevelTimeSeries<T>::MultiLevelTimeSeries(
-    int num_levels,
-    int num_buckets,
+    size_t num_levels,
+    size_t num_buckets,
     const int* level_durations)
     : BaseType(
           num_buckets,
