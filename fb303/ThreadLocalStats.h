@@ -26,6 +26,7 @@
 #include <fb303/ExportedStatMapImpl.h>
 #include <fb303/ServiceData.h>
 
+#include <atomic>
 #include <chrono>
 #include <mutex>
 #include <shared_mutex>
@@ -303,11 +304,8 @@ class ThreadLocalStatsT {
    */
   folly::F14FastSet<TLStat*> tlStats_;
 
-  template <typename T>
-  friend class TLStatT;
-
-  template <typename T>
-  friend class detail::TLStatLink;
+  friend class TLStatT<LockTraits>;
+  friend class detail::TLStatLink<LockTraits>;
 };
 
 /**
@@ -825,8 +823,7 @@ class TLStatLink {
 
   explicit TLStatLink(Container* container)
       : updateGlobalStatsOnRead_{container->updateGlobalStatsOnRead_},
-        container_{container},
-        refCount_{1} {}
+        container_{container} {}
 
   TLStatLink(const TLStatLink&) = delete;
   TLStatLink(TLStatLink&&) = delete;
@@ -835,18 +832,13 @@ class TLStatLink {
   TLStatLink& operator=(TLStatLink&&) = delete;
 
   void incRef() {
-    std::unique_lock guard{mutex_};
-    ++refCount_;
+    refCount_.fetch_add(1, std::memory_order_relaxed);
   }
 
   void decRef() {
-    size_t after;
-    {
-      std::unique_lock guard{mutex_};
-      DCHECK_GT(refCount_, 0u);
-      after = --refCount_;
-    }
-    if (after == 0) {
+    auto before = refCount_.fetch_sub(1, std::memory_order_acq_rel);
+    DCHECK_GT(before, 0); // Or else we've underflowed.
+    if (before == 1) {
       delete this;
     }
   }
@@ -868,20 +860,14 @@ class TLStatLink {
   // still accessible after the container has been destroyed.
   const bool updateGlobalStatsOnRead_;
 
-  /**
-   * Protects refcount_, container_, and container_->tlStats_.
-   */
+  // Protects container_ and container_->tlStats_.
   Lock mutex_;
 
   // If container_ is non-null, then the pointee Container is guaranteed to be
   // alive. ThreadLocalStats's destructor zeroes this pointer.
-  Container* container_{nullptr};
+  Container* container_ = nullptr;
 
-  // TODO: It's slightly inefficient to keep the refcount under a
-  // mutex. It is not updated simultaneously with container_ or
-  // tlStats_, so it could be replaced with std::atomic<size_t> or
-  // size_t depending on LockTraits.
-  size_t refCount_{0};
+  std::atomic<size_t> refCount_ = 1;
 
   friend class ThreadLocalStatsT<LockTraits>;
   friend class TLStatT<LockTraits>;
