@@ -24,8 +24,8 @@
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
-#include <future>
 #include <limits>
+#include <memory>
 #include <string>
 #include <thread>
 
@@ -319,10 +319,12 @@ TEST(ThreadLocalStats, moveCounter) {
 template <typename LockTraits>
 void testDestroyContainerBeforeStat() {
   ServiceData data;
-  std::optional<ThreadLocalStatsT<LockTraits>> tlstats{std::in_place, &data};
+  auto tlstats = std::make_unique<ThreadLocalStatsT<LockTraits>>(&data);
 
-  TLCounterT<LockTraits> ctr1{&*tlstats, "foo"};
-  TLHistogramT<LockTraits> ctr2{&*tlstats, "bar", 1, 20, 30, SUM, COUNT, 50};
+  TLCounterT<LockTraits> ctr1{tlstats.get(), "foo"};
+  TLHistogramT<LockTraits> ctr2{
+      tlstats.get(), "bar", 1, 20, 30, SUM, COUNT, 50};
+  TLTimeseriesT<LockTraits> ctr3{tlstats.get(), "bar", SUM, COUNT};
 
   tlstats.reset();
 }
@@ -341,15 +343,17 @@ TEST(ThreadLocalStats, destroyThreadContainerBeforeStat) {
 template <typename LockTraits>
 void testDestroyContainerBeforeMovingStat() {
   ServiceData data;
-  std::optional<ThreadLocalStatsT<LockTraits>> tlstats{std::in_place, &data};
+  auto tlstats = std::make_unique<ThreadLocalStatsT<LockTraits>>(&data);
 
   TLCounterT<LockTraits> ctr1{&*tlstats, "foo"};
   TLHistogramT<LockTraits> ctr2{&*tlstats, "bar", 1, 20, 30, SUM, COUNT, 50};
+  TLTimeseriesT<LockTraits> ctr3{tlstats.get(), "bar", SUM, COUNT};
 
   tlstats.reset();
 
-  TLCounterT<LockTraits> ctr3{std::move(ctr1)};
-  TLHistogramT<LockTraits> ctr4{std::move(ctr2)};
+  TLCounterT<LockTraits> ctr4{std::move(ctr1)};
+  TLHistogramT<LockTraits> ctr5{std::move(ctr2)};
+  TLTimeseriesT<LockTraits> ctr6{std::move(ctr3)};
 }
 
 TEST(ThreadLocalStats, destroyContainerBeforeMovingStat) {
@@ -364,24 +368,28 @@ TEST(ThreadLocalStats, destroyContainerBeforeMovingStat) {
 }
 
 struct ContainerAndStats {
-  std::optional<ThreadLocalStatsT<TLStatsThreadSafe>> container;
-  std::optional<TLCounterT<TLStatsThreadSafe>> stat1;
-  std::optional<TLCounterT<TLStatsThreadSafe>> stat2;
-  std::optional<TLCounterT<TLStatsThreadSafe>> stat3;
+  std::unique_ptr<ThreadLocalStatsT<TLStatsThreadSafe>> container;
+  std::unique_ptr<TLCounterT<TLStatsThreadSafe>> counter;
+  std::unique_ptr<TLTimeseriesT<TLStatsThreadSafe>> timeseries;
+  std::unique_ptr<TLHistogramT<TLStatsThreadSafe>> histogram;
 };
 
 TEST(ThreadLocalStats, stressStatDestructionRace) {
   ServiceData data;
 
-  folly::test::Barrier gate(FLAGS_num_threads * 4);
+  folly::test::Barrier gate(FLAGS_num_threads * 4 + 1);
 
   std::vector<std::thread> threads;
   for (gflags::int32 i = 0; i < FLAGS_num_threads; ++i) {
     auto c = std::make_shared<ContainerAndStats>();
-    c->container.emplace(&data);
-    c->stat1.emplace(&c->container.value(), "stat1");
-    c->stat2.emplace(&c->container.value(), "stat2");
-    c->stat3.emplace(&c->container.value(), "stat3");
+    c->container =
+        std::make_unique<ThreadLocalStatsT<TLStatsThreadSafe>>(&data);
+    c->counter = std::make_unique<TLCounterT<TLStatsThreadSafe>>(
+        c->container.get(), "stat1");
+    c->timeseries = std::make_unique<TLTimeseriesT<TLStatsThreadSafe>>(
+        c->container.get(), "stat2", SUM, COUNT);
+    c->histogram = std::make_unique<TLHistogramT<TLStatsThreadSafe>>(
+        c->container.get(), "stat3", 1, 20, 30, SUM, COUNT, 50);
 
     threads.emplace_back([&, c] {
       gate.wait();
@@ -389,17 +397,19 @@ TEST(ThreadLocalStats, stressStatDestructionRace) {
     });
     threads.emplace_back([&, c] {
       gate.wait();
-      c->stat1.reset();
+      c->counter.reset();
     });
     threads.emplace_back([&, c] {
       gate.wait();
-      c->stat2.reset();
+      c->timeseries.reset();
     });
     threads.emplace_back([&, c] {
       gate.wait();
-      c->stat3.reset();
+      c->histogram.reset();
     });
   }
+
+  gate.wait();
 
   for (auto& thread : threads) {
     thread.join();
@@ -411,17 +421,17 @@ TEST(ThreadLocalStats, handOffBetweenThreads) {
   using TLTimeseries = TLTimeseriesT<TLStatsNoLocking>;
 
   ServiceData serviceData;
+  std::unique_ptr<ThreadLocalStats> container;
 
-  std::optional<TLTimeseries> t;
+  std::unique_ptr<TLTimeseries> t;
 
-  auto f = std::async(std::launch::async, [&] {
-    auto p = std::make_unique<ThreadLocalStats>(&serviceData);
-    t = TLTimeseries{p.get(), "foo", SUM, COUNT};
+  auto thread = std::thread([&] {
+    container = std::make_unique<ThreadLocalStats>(&serviceData);
+    t = std::make_unique<TLTimeseries>(container.get(), "foo", SUM, COUNT);
     t->addValue(1);
-    return p;
   });
 
-  auto container = f.get();
+  thread.join();
   container->swapThreads();
 
   t->addValue(2);
