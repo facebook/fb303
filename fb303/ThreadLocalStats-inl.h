@@ -184,6 +184,11 @@ auto TLStatT<LockTraits>::withContainerChecked(const char* errorMsg, Fn&& fn) {
   return fn(*link_->container_);
 }
 
+template <typename LockTraits>
+bool TLStatT<LockTraits>::shouldUpdateGlobalStatsOnRead() const {
+  return link_->shouldUpdateGlobalStatsOnRead();
+}
+
 /*
  * TLTimeseriesT
  */
@@ -253,14 +258,14 @@ void TLTimeseriesT<LockTraits>::exportStat(fb303::ExportType exportType) {
       globalStat_,
       this->name(),
       exportType,
-      detail::shouldUpdateGlobalStatOnRead());
+      this->shouldUpdateGlobalStatsOnRead());
 }
 
 template <class LockTraits>
 void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
   auto [currentCount, currentSum] = value_.reset();
   if (currentCount == 0) {
-    if (!detail::shouldUpdateGlobalStatOnRead()) {
+    if (!this->shouldUpdateGlobalStatsOnRead()) {
       // We must call update() here so that the stat decays properly
       // if no samples were added.
       auto lockedStatPtr = globalStat_.lock();
@@ -276,7 +281,7 @@ void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
   auto lockedStatPtr = globalStat_.lock();
   lockedStatPtr->addValueAggregated(now, currentSum, currentCount);
 
-  if (!detail::shouldUpdateGlobalStatOnRead()) {
+  if (!this->shouldUpdateGlobalStatsOnRead()) {
     // We must call update() after aggregation at least once
     // so that subsequent reads see it.
     lockedStatPtr->update(now.count());
@@ -499,8 +504,11 @@ void TLCounterT<LockTraits>::aggregate() {
  */
 
 template <class LockTraits>
-ThreadLocalStatsT<LockTraits>::ThreadLocalStatsT(ServiceData* serviceData)
+ThreadLocalStatsT<LockTraits>::ThreadLocalStatsT(
+    ServiceData* serviceData,
+    bool updateGlobalStatsOnRead)
     : serviceData_{serviceData ? serviceData : fbData.ptr()},
+      updateGlobalStatsOnRead_{updateGlobalStatsOnRead},
       link_{new detail::TLStatLink<LockTraits>{this}} {}
 
 template <class LockTraits>

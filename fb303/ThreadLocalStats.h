@@ -195,7 +195,9 @@ class ThreadLocalStatsT {
    * Create a new ThreadLocalStats container. Per default (NULL),
    * serviceData will be initialized to facebook::fb303::fbData
    */
-  explicit ThreadLocalStatsT(ServiceData* serviceData = nullptr);
+  explicit ThreadLocalStatsT(
+      ServiceData* serviceData = nullptr,
+      bool updateGlobalStatsOnRead = detail::shouldUpdateGlobalStatOnRead());
 
   virtual ~ThreadLocalStatsT();
 
@@ -282,6 +284,9 @@ class ThreadLocalStatsT {
   // from multiple threads.
   ServiceData* const serviceData_;
 
+  // See detail::shouldUpdateGlobalStatsOnRead().
+  bool updateGlobalStatsOnRead_;
+
   /**
    * ThreadLocalStats and every TLStat in tlStats_ has a pointer to
    * the TLStatLink.  On destruction, ThreadLocalStats clears
@@ -300,6 +305,9 @@ class ThreadLocalStatsT {
 
   template <typename T>
   friend class TLStatT;
+
+  template <typename T>
+  friend class detail::TLStatLink;
 };
 
 /**
@@ -405,6 +413,12 @@ class TLStatT {
    */
   template <typename Fn>
   auto withContainerChecked(const char* errorMsg, Fn&& fn);
+
+  /**
+   * Check if we should call update on the read path.
+   * See detail::shouldUpdateGlobalStatsOnRead() for details.
+   */
+  bool shouldUpdateGlobalStatsOnRead() const;
 
  private:
   /**
@@ -810,7 +824,9 @@ class TLStatLink {
   using Lock = typename LockTraits::RegistryLock;
 
   explicit TLStatLink(Container* container)
-      : container_{container}, refCount_{1} {}
+      : updateGlobalStatsOnRead_{container->updateGlobalStatsOnRead_},
+        container_{container},
+        refCount_{1} {}
 
   TLStatLink(const TLStatLink&) = delete;
   TLStatLink(TLStatLink&&) = delete;
@@ -843,7 +859,15 @@ class TLStatLink {
     return std::unique_lock{mutex_};
   }
 
+  bool shouldUpdateGlobalStatsOnRead() const {
+    return updateGlobalStatsOnRead_;
+  }
+
  private:
+  // Caches the corresponding field in container_ so that it's
+  // still accessible after the container has been destroyed.
+  const bool updateGlobalStatsOnRead_;
+
   /**
    * Protects refcount_, container_, and container_->tlStats_.
    */
