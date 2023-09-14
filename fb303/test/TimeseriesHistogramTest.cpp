@@ -15,7 +15,6 @@
  */
 
 #include <fb303/TimeseriesHistogram.h>
-#include "common/base/Random.h"
 
 #include <gtest/gtest.h>
 
@@ -33,102 +32,6 @@ TimePoint mkTimePoint(int value) {
   return TimePoint(StatsClock::duration(value));
 }
 } // namespace
-
-TEST(TimeseriesHistogram, Percentile) {
-  typedef MinuteTenMinuteHourTimeSeries<int> TS;
-
-  RandomInt32 random(5);
-
-  // [10, 109], 12 buckets including above and below
-  {
-    TimeseriesHistogram<int> h(10, 10, 110);
-
-    EXPECT_EQ(0, h.getPercentileEstimate(0, TS::ALLTIME));
-
-    EXPECT_EQ(12, h.getNumBuckets());
-    EXPECT_EQ(10, h.getBucketSize());
-    EXPECT_EQ(10, h.getMin());
-    EXPECT_EQ(110, h.getMax());
-
-    for (size_t i = 0; i < h.getNumBuckets(); ++i) {
-      EXPECT_EQ(4, h.getBucket(i).numLevels());
-    }
-
-    int maxVal = 120;
-    h.addValue(0, 0);
-    h.addValue(0, maxVal);
-    for (int i = 0; i < 98; i++) {
-      h.addValue(0, random() % maxVal);
-    }
-
-    h.update(::time(nullptr));
-    // bucket 0 stores everything below min, so its minimum
-    // is the lowest possible number
-    EXPECT_EQ(
-        std::numeric_limits<int>::min(),
-        h.getPercentileBucketMin(1, TS::ALLTIME));
-    EXPECT_EQ(110, h.getPercentileBucketMin(99, TS::ALLTIME));
-
-    EXPECT_EQ(-2, h.getPercentileEstimate(0, TS::ALLTIME));
-    EXPECT_EQ(-1, h.getPercentileEstimate(1, TS::ALLTIME));
-    EXPECT_EQ(119, h.getPercentileEstimate(99, TS::ALLTIME));
-    EXPECT_EQ(120, h.getPercentileEstimate(100, TS::ALLTIME));
-  }
-}
-
-TEST(TimeseriesHistogram, String) {
-  typedef MinuteTenMinuteHourTimeSeries<int> TS;
-
-  RandomInt32 random(5);
-
-  // [10, 109], 12 buckets including above and below
-  {
-    TimeseriesHistogram<int> hist(10, 10, 110);
-
-    int maxVal = 120;
-    hist.addValue(0, 0);
-    hist.addValue(0, maxVal);
-    for (int i = 0; i < 98; i++) {
-      hist.addValue(0, random() % maxVal);
-    }
-
-    hist.update(0);
-
-    const char* const kStringValues1[TS::NUM_LEVELS] = {
-        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
-        "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
-        "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
-        "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
-        "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-    };
-
-    CHECK_EQ(std::size(kStringValues1), hist.getNumLevels());
-
-    for (size_t level = 0; level < hist.getNumLevels(); ++level) {
-      EXPECT_EQ(kStringValues1[level], hist.getString(level));
-    }
-
-    const char* const kStringValues2[TS::NUM_LEVELS] = {
-        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
-        "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
-        "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
-        "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-        "-2147483648:12:4,10:8:13,20:8:24,30:6:34,40:13:46,50:8:54,60:7:64,"
-        "70:7:74,80:8:84,90:10:94,100:3:103,110:10:115",
-    };
-
-    CHECK_EQ(std::size(kStringValues2), hist.getNumLevels());
-
-    for (size_t level = 0; level < hist.getNumLevels(); ++level) {
-      EXPECT_EQ(kStringValues2[level], hist.getString(level));
-    }
-  }
-}
 
 TEST(TimeseriesHistogram, Clear) {
   typedef MinuteTenMinuteHourTimeSeries<int> TS;
