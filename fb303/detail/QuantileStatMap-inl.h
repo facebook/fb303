@@ -92,7 +92,7 @@ void BasicQuantileStatMap<ClockT>::getValues(
         quantiles.push_back(statDef.quantile);
       }
     }
-    auto estimates = sme.stat->getEstimates(quantiles, now);
+    const auto& estimates = sme.stat->getEstimates(quantiles, now);
     auto timeSinceCreation = std::chrono::duration_cast<std::chrono::seconds>(
         now - sme.stat->creationTime());
     for (const auto& statDef : sme.statDefs) {
