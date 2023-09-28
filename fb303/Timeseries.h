@@ -279,6 +279,45 @@ class TenMinutesChunksTimeSeries : public MultiLevelTimeSeries<T> {
   TenMinutesChunksTimeSeries()
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kTenMinutesChunksDurations) {}
 };
+
+const int kSubminuteMinuteDurations[] = {5, 10, 20, 30, 60, 0};
+
+template <class T>
+class SubminuteMinuteTimeSeries : public MultiLevelTimeSeries<T> {
+ public:
+  enum Levels {
+    FIVE_SECOND,
+    TEN_SECOND,
+    TWENTY_SECOND,
+    THIRTY_SECOND,
+    MINUTE,
+    ALLTIME,
+    NUM_LEVELS,
+  };
+
+  SubminuteMinuteTimeSeries()
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kSubminuteMinuteDurations) {}
+};
+
+const int kSubminuteMinuteOnlyDurations[] = {5, 10, 20, 30, 60};
+
+template <class T>
+class SubminuteMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
+ public:
+  enum Levels {
+    FIVE_SECOND,
+    TEN_SECOND,
+    TWENTY_SECOND,
+    THIRTY_SECOND,
+    MINUTE,
+    NUM_LEVELS,
+  };
+
+  SubminuteMinuteOnlyTimeSeries()
+      : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kSubminuteMinuteOnlyDurations) {
+  }
+};
+
 } // namespace fb303
 } // namespace facebook
 

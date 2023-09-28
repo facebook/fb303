@@ -1038,6 +1038,70 @@ struct MinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
   static const ExportedStat& templateExportedStat();
 };
 
+struct SubminuteMinuteTimeseriesWrapper : public TimeseriesWrapperBase {
+ public:
+  template <typename... Args>
+  explicit SubminuteMinuteTimeseriesWrapper(
+      std::string key,
+      const Args&... args)
+      : TimeseriesWrapperBase(std::move(key)) {
+    exportStats(args...);
+  }
+
+ protected:
+  std::shared_ptr<ThreadCachedServiceData::TLTimeseries> getStatSafe(
+      const std::string& key) override {
+    return ThreadCachedServiceData::getStatsThreadLocal()->getTimeseriesSafe(
+        key, (size_t)60, (size_t)1, fb303::kSubminuteMinuteDurations);
+  }
+
+ private:
+  template <typename... Args>
+  void exportStats(const Args&... args) {
+    // Created counters will export with fb303::kSubminuteMinuteDurations
+    // levels.
+    int _[] = {
+        (ServiceData::get()->addStatExportType(
+             key_, args, &templateExportedStat()),
+         0)...};
+    (void)_;
+  }
+
+  static const ExportedStat& templateExportedStat();
+};
+
+struct SubminuteMinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
+ public:
+  template <typename... Args>
+  explicit SubminuteMinuteOnlyTimeseriesWrapper(
+      std::string key,
+      const Args&... args)
+      : TimeseriesWrapperBase(std::move(key)) {
+    exportStats(args...);
+  }
+
+ protected:
+  std::shared_ptr<ThreadCachedServiceData::TLTimeseries> getStatSafe(
+      const std::string& key) override {
+    return ThreadCachedServiceData::getStatsThreadLocal()->getTimeseriesSafe(
+        key, (size_t)60, (size_t)1, fb303::kSubminuteMinuteOnlyDurations);
+  }
+
+ private:
+  template <typename... Args>
+  void exportStats(const Args&... args) {
+    // Created counters will export with fb303::kSubminuteMinuteOnlyDurations
+    // levels.
+    int _[] = {
+        (ServiceData::get()->addStatExportType(
+             key_, args, &templateExportedStat()),
+         0)...};
+    (void)_;
+  }
+
+  static const ExportedStat& templateExportedStat();
+};
+
 class HistogramWrapper {
  public:
   template <typename... Args>

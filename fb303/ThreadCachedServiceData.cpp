@@ -80,6 +80,19 @@ const ExportedStat& MinuteOnlyTimeseriesWrapper::templateExportedStat() {
   return *obj.get();
 }
 
+const ExportedStat& SubminuteMinuteTimeseriesWrapper::templateExportedStat() {
+  static const folly::Indestructible<SubminuteMinuteTimeSeries<CounterType>>
+      obj;
+  return *obj.get();
+}
+
+const ExportedStat&
+SubminuteMinuteOnlyTimeseriesWrapper::templateExportedStat() {
+  static const folly::Indestructible<SubminuteMinuteOnlyTimeSeries<CounterType>>
+      obj;
+  return *obj.get();
+}
+
 ThreadCachedServiceData::StatsThreadLocal&
 ThreadCachedServiceData::getStatsThreadLocal() {
   static folly::Indestructible<ThreadCachedServiceData::StatsThreadLocal>
