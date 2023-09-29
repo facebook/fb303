@@ -24,8 +24,7 @@
 using folly::StringPiece;
 using std::chrono::duration_cast;
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 std::array<const char* const, 5> kTypeString = {{
     "sum",
@@ -170,5 +169,4 @@ void TimeseriesExporter::unExportStat(
     counters->unregisterCallback(counterName.data());
   }
 }
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

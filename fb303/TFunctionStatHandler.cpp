@@ -26,8 +26,7 @@ int64_t count_usec(std::chrono::steady_clock::duration d) {
 }
 } // namespace
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 namespace {
 
@@ -596,5 +595,4 @@ void withThriftFunctionStats(
   fn();
 }
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

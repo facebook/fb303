@@ -18,8 +18,7 @@
 
 using folly::EventBase;
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 const uint32_t TLStatsAsyncAggregator::kDefaultIntervalMS;
 
@@ -49,5 +48,4 @@ void TLStatsAsyncAggregator::timeoutExpired() noexcept {
   scheduleTimeout(intervalMS_);
 }
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

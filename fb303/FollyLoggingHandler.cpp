@@ -35,8 +35,7 @@ std::string configToStr(const LogConfig& config) {
 }
 } // namespace
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 void registerFollyLoggingOptionHandlers(
     StringPiece name,
@@ -66,5 +65,4 @@ void registerFollyLoggingOptionHandlers(
       });
 }
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

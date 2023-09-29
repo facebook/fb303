@@ -29,8 +29,7 @@
 using folly::StringPiece;
 using std::chrono::duration_cast;
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 static std::string getHistogramBuckets(const HistogramPtr& hist, int level) {
   CHECK(hist);
@@ -217,5 +216,4 @@ void HistogramExporter::unexportStat(
         counters->unregisterCallback(counterName);
       });
 }
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

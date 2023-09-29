@@ -16,8 +16,7 @@
 
 #include <fb303/Timeseries.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 // Explicitly instantiate the timeseries datastructures using int64_t.
 
@@ -31,5 +30,4 @@ template class MinuteOnlyTimeSeries<int64_t>;
 template class TenMinuteOnlyTimeSeries<int64_t>;
 template class HourTimeSeries<int64_t>;
 template class TenMinutesChunksTimeSeries<int64_t>;
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

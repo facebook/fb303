@@ -34,8 +34,7 @@ using std::string;
 using std::string_view;
 using std::vector;
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 template <typename T>
 static T& as_mutable(T const& t) {
@@ -57,7 +56,7 @@ ServiceData::ServiceData()
           &dynamicStrings_,
           ExportedHistogram(1000, 0, 10000)) {}
 
-ServiceData::~ServiceData() {}
+ServiceData::~ServiceData() = default;
 
 std::shared_ptr<ServiceData> ServiceData::getShared() {
   static folly::Indestructible<std::shared_ptr<ServiceData>> serviceData(
@@ -619,7 +618,7 @@ void ServiceData::getRegexExportedValues(
 
   getExportedValues(allExportedValues);
 
-  for (auto elem : allExportedValues) {
+  for (const auto& elem : allExportedValues) {
     if (regex_match(elem.first, regexObject)) {
       _return[elem.first] = elem.second;
     }
@@ -790,7 +789,6 @@ void ServiceData::mergeOptionsWithGflags(map<string, string>& _return) const {
   for (const auto& entry : allFlags) {
     _return[entry.name] = entry.current_value;
   }
-  return;
 }
 
 void ServiceData::registerDynamicOption(
@@ -801,5 +799,4 @@ void ServiceData::registerDynamicOption(
   std::swap((*dynamicOptions_.wlock())[name], option);
 }
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

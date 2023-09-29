@@ -22,12 +22,8 @@ DEFINE_bool(
     "If true use count of the samples over a time window to compute rate. "
     " Else default to the better behavior of using sum");
 
-namespace facebook {
-namespace fb303 {
-namespace detail {
+namespace facebook::fb303::detail {
 
 template class BasicQuantileStatMap<std::chrono::steady_clock>;
 
-} // namespace detail
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303::detail

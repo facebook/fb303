@@ -16,8 +16,7 @@
 
 #include <fb303/ThreadLocalStatsMap.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 /*
  * Explicitly instantiate the commonly-used instantations of
@@ -26,5 +25,4 @@ namespace fb303 {
 template class ThreadLocalStatsMapT<TLStatsNoLocking>;
 template class ThreadLocalStatsMapT<TLStatsThreadSafe>;
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

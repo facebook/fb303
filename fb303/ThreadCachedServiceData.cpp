@@ -26,8 +26,7 @@ static const std::string kFunctionId =
     "ThreadCachedStatsMap::aggregateAcrossAllThreads";
 } // namespace
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 DEFINE_timeseries(fb303_tcData_publish_time_usec, SUM, AVG);
 DEFINE_timeseries(fb303_tcData_aggregate_call_count, SUM);
@@ -244,5 +243,4 @@ void ThreadCachedServiceData::addStatValue(
   // now we know the export was done; finally bump the counter
   addStatValue(key, value);
 }
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

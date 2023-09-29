@@ -26,8 +26,7 @@ DEFINE_bool(
     "rapid false oscillations in all timeseries (most noticeable "
     "with aggregation intervals <= 10s");
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 /*
  * Explicitly instantiate the commonly-used instantations of ThreadLocalStatsT.
@@ -57,5 +56,4 @@ bool shouldUpdateGlobalStatOnRead() {
 
 } // namespace detail
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

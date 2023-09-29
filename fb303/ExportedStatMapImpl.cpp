@@ -19,8 +19,7 @@
 
 using folly::StringPiece;
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 void ExportedStatMapImpl::exportStat(
     LockableStat stat,
@@ -54,5 +53,4 @@ ExportedStatMapImpl::LockableStat ExportedStatMapImpl::getLockableStatNoExport(
       ExportedStatMap::getStatPtrNoExport(name, createdPtr, copyMe));
 }
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

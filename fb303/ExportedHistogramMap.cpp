@@ -20,8 +20,7 @@
 
 using folly::StringPiece;
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 CounterType getHistogramPercentile(
     const ExportedHistogramMap::HistogramPtr& hist,
@@ -216,5 +215,4 @@ void ExportedHistogramMap::clearAllHistograms() {
     histPtrKvp.second->lock()->clear();
   }
 }
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

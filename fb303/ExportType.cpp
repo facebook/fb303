@@ -16,8 +16,7 @@
 
 #include <fb303/ExportType.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 constexpr const std::size_t ExportTypeMeta::kNumExportTypes;
 constexpr const std::array<ExportType, ExportTypeMeta::kNumExportTypes>
@@ -65,5 +64,4 @@ constexpr const std::array<size_t, 1> SlidingWindowPeriodConsts::kOneMin;
 constexpr const std::array<size_t, 2> SlidingWindowPeriodConsts::kOneMinTenMin;
 constexpr const std::array<size_t, 3>
     SlidingWindowPeriodConsts::kOneMinTenMinHour;
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

@@ -20,8 +20,7 @@
 
 #include <stdexcept>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 time_t get_legacy_stats_time() {
 #ifdef __APPLE__
@@ -36,5 +35,4 @@ time_t get_legacy_stats_time() {
 #endif
 }
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

@@ -16,10 +16,8 @@
 
 #include <fb303/QuantileStat.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 template class BasicQuantileStat<std::chrono::steady_clock>;
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303
