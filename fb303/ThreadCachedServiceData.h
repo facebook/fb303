@@ -1161,6 +1161,24 @@ class MinuteOnlyHistogram : public HistogramWrapper {
             MinuteOnlyTimeSeries<CounterType>()) {}
 };
 
+class SubminuteMinuteOnlyHistogram : public HistogramWrapper {
+ public:
+  template <typename... Args>
+  SubminuteMinuteOnlyHistogram(
+      const std::string& key,
+      int64_t bucketWidth,
+      int64_t min,
+      int64_t max,
+      const Args&... args)
+      : HistogramWrapper(
+            key,
+            bucketWidth,
+            min,
+            max,
+            args...,
+            SubminuteMinuteOnlyTimeSeries<CounterType>()) {}
+};
+
 /**
  * DynamicTimeseriesWrapper is similar to TimeseriesWrapper, but instead of
  * having a fixed key, it takes a key format (e.g. "foo.{}") containing one or
