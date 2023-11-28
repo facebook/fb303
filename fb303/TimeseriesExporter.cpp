@@ -35,6 +35,11 @@ std::array<const char* const, 5> kTypeString = {{
 }};
 
 /* static */
+std::array<const char* const, 5> TimeseriesExporter::getTypeString() {
+  return kTypeString;
+}
+
+/* static */
 CounterType TimeseriesExporter::getStatValue(
     ExportedStat& stat,
     ExportType type,
@@ -97,7 +102,7 @@ void TimeseriesExporter::getCounterName(
         "%.*s.%s",
         static_cast<int>(statName.size()),
         statName.data(),
-        kTypeString[type]);
+        TimeseriesExporter::getTypeString()[type]);
   } else {
     // typical name: 'ad_request.rate.600' or 'ad_request_elapsed_time.avg.3600'
     auto durationSecs =
@@ -108,7 +113,7 @@ void TimeseriesExporter::getCounterName(
         "%.*s.%s.%ld",
         static_cast<int>(statName.size()),
         statName.data(),
-        kTypeString[type],
+        TimeseriesExporter::getTypeString()[type],
         static_cast<long>(durationSecs.count()));
   }
 }

@@ -77,6 +77,8 @@ class TimeseriesExporter {
       ExportType type,
       const int level);
 
+  static std::array<const char* const, 5> getTypeString();
+
  private:
   /*
    * Get the specified export value from the specified timeseries level.
