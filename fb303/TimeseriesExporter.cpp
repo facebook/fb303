@@ -72,7 +72,7 @@ CounterType TimeseriesExporter::getStatValue(
     case COUNT:
       // getCount() returns int64_t, so we cast it to CounterType to be safe
       return static_cast<CounterType>(stat.count(level));
-  };
+  }
   // We intentionally avoid having a default switch statement so gcc's
   // -Wswitch flag will warn if we do not handle all enum values here.
 
