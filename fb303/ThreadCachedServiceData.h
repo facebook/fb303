@@ -20,9 +20,11 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <variant>
 
 #include <fb303/ExportType.h>
@@ -441,8 +443,28 @@ struct HistogramSpec {
   }
 };
 
-template <size_t N>
+namespace detail {
+struct Nothing {};
+
+template <typename CachedFieldType>
+struct CachedStorage {
+  const std::string* key;
+  CachedFieldType cached;
+};
+
+template <>
+struct CachedStorage<detail::Nothing> {
+  const std::string* key;
+  FOLLY_ATTR_NO_UNIQUE_ADDRESS detail::Nothing cached;
+};
+
+} // namespace detail
+
+template <size_t N, typename CachedType = detail::Nothing>
 class FormattedKeyHolder {
+ private:
+  using ValueType = detail::CachedStorage<CachedType>;
+
  public:
   using Subkey = std::variant<int64_t, std::string>;
   using SubkeyArray = std::array<Subkey, N>;
@@ -558,7 +580,7 @@ class FormattedKeyHolder {
   //  ThreadCachedServiceData::addStatValue() only accepts string references)
   using LocalMap = folly::F14FastMap<
       std::reference_wrapper<const SubkeyArray>,
-      const std::string*,
+      ValueType,
       SubkeyArrayHash,
       SubkeyArrayEqualTo>;
 
@@ -584,19 +606,15 @@ class FormattedKeyHolder {
    * and registers the stats export types if not registered already.
    */
   template <typename... Args>
-  const std::string& getFormattedKey(Args&&... subkeys) {
-    static_assert(sizeof...(Args) == N, "Incorrect number of subkeys.");
-    static_assert(
-        (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
-        "Arguments must be strings or integers");
+  std::pair<std::string_view, std::reference_wrapper<CachedType>>
+  getFormattedKeyWithExtra(Args&&... subkeys) {
+    auto& v = getFormattedEntry(std::forward<Args>(subkeys)...);
+    return {*v.key, v.cached};
+  }
 
-    auto decay = folly::overload(decay_<int64_t>{}, decay_<std::string_view>{});
-    // calling outline folly::get_default would be a small perf hit
-    auto const& map = *localMap_; // so call map-find inline to avoid
-    auto it = map.find(std::tuple{decay(subkeys)...});
-    return FOLLY_LIKELY(it != map.end())
-        ? *it->second
-        : getFormattedKeySlow(std::forward<Args>(subkeys)...);
+  template <typename... Args>
+  const std::string& getFormattedKey(Args&&... subkeys) {
+    return *getFormattedEntry(std::forward<Args>(subkeys)...).key;
   }
 
   template <typename... Args>
@@ -613,6 +631,22 @@ class FormattedKeyHolder {
   }
 
  private:
+  template <typename... Args>
+  ValueType& getFormattedEntry(Args&&... subkeys) {
+    static_assert(sizeof...(Args) == N, "Incorrect number of subkeys.");
+    static_assert(
+        (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
+        "Arguments must be strings or integers");
+
+    auto decay = folly::overload(decay_<int64_t>{}, decay_<std::string_view>{});
+    // calling outline folly::get_default would be a small perf hit
+    auto& map = *localMap_; // so call map-find inline to avoid
+    auto it = map.find(std::tuple{decay(subkeys)...});
+    return FOLLY_LIKELY(it != map.end())
+        ? it->second
+        : getFormattedKeySlow(std::forward<Args>(subkeys)...);
+  }
+
   template <typename T>
   struct decay_ {
     FOLLY_ERASE constexpr T operator()(T const& t) const {
@@ -632,11 +666,12 @@ class FormattedKeyHolder {
    * corresponding formatted-key.
    */
   template <typename... Args>
-  const std::string& getFormattedKeySlow(Args&&... subkeys) {
+  ValueType& getFormattedKeySlow(Args&&... subkeys) {
     auto mkvar = folly::overload(
         mkvar_<int64_t>{}, mkvar_<std::string_view, std::string>{});
     auto const& [k, v] = getFormattedKeyGlobal({mkvar(subkeys)...});
-    return *localMap_->emplace(std::cref(k), &v).first->second;
+    return localMap_->emplace(std::cref(k), ValueType{&v, CachedType{}})
+        .first->second;
   }
 
   /**
@@ -1206,6 +1241,10 @@ class SubminuteMinuteOnlyHistogram : public HistogramWrapper {
 template <int N> // N is the number of subkeys.
 class DynamicTimeseriesWrapper {
  public:
+  using KeyHolder = internal::FormattedKeyHolder<
+      N,
+      std::shared_ptr<ThreadCachedServiceData::TLTimeseries>>;
+
   DynamicTimeseriesWrapper(
       std::string keyFormat,
       std::vector<ExportType> exportTypes)
@@ -1251,8 +1290,14 @@ class DynamicTimeseriesWrapper {
   //      add(2, "red", 42);
   template <typename... Args>
   void add(int64_t value, Args&&... subkeys) {
-    auto const& key = key_.getFormattedKey(std::forward<Args>(subkeys)...);
-    tcData().addStatValue(key, value);
+    auto key = key_.getFormattedKeyWithExtra(std::forward<Args>(subkeys)...);
+    if (key.second.get() == nullptr) {
+      ThreadCachedServiceData::ThreadLocalStatsMap& tcData =
+          *ThreadCachedServiceData::getStatsThreadLocal();
+      // Cache thread local counter
+      key.second.get() = tcData.getTimeseriesSafe(key.first);
+    }
+    key.second.get()->addValue(value);
   }
 
   // "subkeys" must be a list of exactly N strings or integers, one for each
@@ -1294,7 +1339,7 @@ class DynamicTimeseriesWrapper {
 
   // Returns a copy of the global map.
   // Only for debugging; not designed to be efficient.
-  typename internal::FormattedKeyHolder<N>::GlobalMap getMap() const {
+  typename KeyHolder::GlobalMap getMap() const {
     return key_.getMap();
   }
 
@@ -1323,7 +1368,7 @@ class DynamicTimeseriesWrapper {
     }
   }
 
-  internal::FormattedKeyHolder<N> key_;
+  KeyHolder key_;
   std::vector<ExportType> exportTypes_;
 };
 
