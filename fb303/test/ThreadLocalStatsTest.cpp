@@ -537,7 +537,7 @@ class ThreadCachedServiceDataTest : public testing::Test {
       }
     }
     return true;
-  };
+  }
   static auto ms(int64_t value) {
     return std::chrono::milliseconds(value);
   }
