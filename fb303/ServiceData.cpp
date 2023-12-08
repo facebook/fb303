@@ -180,6 +180,13 @@ void ServiceData::addStatValue(
   statsMap_.addValue(key, get_legacy_stats_time(), value, exportType);
 }
 
+void ServiceData::addStatValue(
+    StringPiece key,
+    int64_t value,
+    folly::Range<const ExportType*> exportTypes) {
+  statsMap_.addValue(key, get_legacy_stats_time(), value, exportTypes);
+}
+
 void ServiceData::addStatValueAggregated(
     StringPiece key,
     int64_t sum,

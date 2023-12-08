@@ -194,6 +194,18 @@ class ExportedStatMapImpl : public ExportedStatMap {
 
   /*
    * Returns the StatPtr object specified by 'name' if it exists in the map
+   * and creates one with defaultStat_ if the value is missing from the map. If
+   * it is newly created, this method exports the stat using the given
+   * exportTypes.
+   *
+   * The returned StatPtr is unlocked.
+   */
+  LockableStat getLockableStat(
+      folly::StringPiece name,
+      folly::Range<const ExportType*> exportTypes);
+
+  /*
+   * Returns the StatPtr object specified by 'name' if it exists in the map
    * and creates one with copyMe if the value is missing from the map. If
    * copyMe is null, defaultStat_ is used. Unlike getStatItem() it does not
    * automatically export the stat.

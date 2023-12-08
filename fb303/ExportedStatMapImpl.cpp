@@ -45,6 +45,13 @@ ExportedStatMapImpl::LockableStat ExportedStatMapImpl::getLockableStat(
       ExportedStatMap::getStatPtr(name, type));
 }
 
+ExportedStatMapImpl::LockableStat ExportedStatMapImpl::getLockableStat(
+    folly::StringPiece name,
+    folly::Range<const ExportType*> exportTypes) {
+  return ExportedStatMapImpl::LockableStat(
+      ExportedStatMap::getStatPtr(name, exportTypes));
+}
+
 ExportedStatMapImpl::LockableStat ExportedStatMapImpl::getLockableStatNoExport(
     StringPiece name,
     bool* createdPtr,

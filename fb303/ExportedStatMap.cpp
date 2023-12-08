@@ -33,26 +33,41 @@ void ExportedStatMap::exportStat(
     ExportType type,
     const ExportedStat* copyMe,
     bool updateOnRead) {
+  exportStat(name, {&type, 1}, copyMe, updateOnRead);
+}
+
+void ExportedStatMap::exportStat(
+    StringPiece name,
+    folly::Range<const ExportType*> types,
+    const ExportedStat* copyMe,
+    bool updateOnRead) {
   StatPtr item = getStatPtrNoExport(name, nullptr, copyMe);
-  TimeseriesExporter::exportStat(
-      item, type, name, dynamicCounters_, updateOnRead);
+  for (auto type : types) {
+    TimeseriesExporter::exportStat(
+        item, type, name, dynamicCounters_, updateOnRead);
+  }
 }
 
 ExportedStatMap::StatPtr ExportedStatMap::getStatPtr(
     StringPiece name,
     const ExportType* exportType) {
+  return getStatPtr(
+      name,
+      exportType ? folly::range(exportType, exportType + 1)
+                 : folly::crange(defaultTypes_));
+}
+
+ExportedStatMap::StatPtr ExportedStatMap::getStatPtr(
+    StringPiece name,
+    folly::Range<const ExportType*> exportTypes) {
   // find the stat
   bool created = false;
   StatPtr item = getStatPtrNoExport(name, &created);
 
   if (created) {
     // if newly created, add export types
-    if (nullptr != exportType) {
-      TimeseriesExporter::exportStat(item, *exportType, name, dynamicCounters_);
-    } else {
-      for (auto type : defaultTypes_) {
-        TimeseriesExporter::exportStat(item, type, name, dynamicCounters_);
-      }
+    for (auto type : exportTypes) {
+      TimeseriesExporter::exportStat(item, type, name, dynamicCounters_);
     }
   }
   return item;

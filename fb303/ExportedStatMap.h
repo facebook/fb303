@@ -137,6 +137,18 @@ class ExportedStatMap {
 
   /*
    * Returns the StatPtr object specified by 'name' if it exists in the map
+   * and creates one with defaultStat_ if the value is missing from the map. If
+   * it is newly created, this method exports the stats using the given
+   * exportTypes.
+   *
+   * The returned StatPtr is unlocked.
+   */
+  StatPtr getStatPtr(
+      folly::StringPiece name,
+      folly::Range<const ExportType*> exportTypes);
+
+  /*
+   * Returns the StatPtr object specified by 'name' if it exists in the map
    * and creates one with copyMe if the value is missing from the map. If
    * copyMe is null, defaultStat_ is used. Unlike getStatItem() it does not
    * automatically export the stat.
@@ -154,10 +166,7 @@ class ExportedStatMap {
    * using defaultStat_.
    */
   void exportStat(folly::StringPiece name) {
-    auto defaultStat = *defaultStat_.rlock();
-    for (auto type : defaultTypes_) {
-      exportStat(name, type, defaultStat.get());
-    }
+    exportStat(name, defaultTypes_, defaultStat_.rlock()->get());
   }
 
   /*
@@ -170,6 +179,18 @@ class ExportedStatMap {
       CounterType value,
       ExportType type) {
     getStatPtr(name, &type)->lock()->addValue(now, value);
+  }
+
+  /*
+   * Adds value into the stat specified by 'name.' If none is found in the map,
+   * a new one is created and exported using ExportType type first.
+   */
+  void addValue(
+      folly::StringPiece name,
+      time_t now,
+      CounterType value,
+      folly::Range<const ExportType*> exportTypes) {
+    getStatPtr(name, exportTypes)->lock()->addValue(now, value);
   }
 
   /*
@@ -235,6 +256,15 @@ class ExportedStatMap {
       ExportType type,
       const ExportedStat* copyMe,
       bool updateOnRead);
+
+  /*
+   * Equivalent to calling single-type exportStat() for each type in types.
+   */
+  void exportStat(
+      folly::StringPiece name,
+      folly::Range<const ExportType*> types,
+      const ExportedStat* copyMe = nullptr,
+      bool updateOnRead = true);
 
   /*
    * Unexports stats of all types with the specified name and removes it from

@@ -236,6 +236,10 @@ class ServiceData {
   void addStatValue(folly::StringPiece key, int64_t value = 1);
   void
   addStatValue(folly::StringPiece key, int64_t value, ExportType exportType);
+  void addStatValue(
+      folly::StringPiece key,
+      int64_t value,
+      folly::Range<const ExportType*> exportType);
   void addStatValueAggregated(
       folly::StringPiece key,
       int64_t sum,
