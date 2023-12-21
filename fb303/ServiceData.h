@@ -36,8 +36,7 @@
 #include <string_view>
 #include <vector>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 /**
  * ServiceData stores statistics and other information used by most
@@ -606,7 +605,7 @@ class ServiceData {
 
   class DynamicOption {
    public:
-    DynamicOption() {}
+    DynamicOption() = default;
     DynamicOption(DynamicOptionGetter g, DynamicOptionSetter s)
         : getter(std::move(g)), setter(std::move(s)) {}
 
@@ -673,5 +672,4 @@ struct ServiceDataWrapper {
  */
 static constexpr ServiceDataWrapper fbData;
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

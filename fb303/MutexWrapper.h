@@ -19,8 +19,7 @@
 #include <folly/SharedMutex.h>
 #include <folly/Synchronized.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 // Stats objects need a small footprint fast mutex. std::mutex is based on
 // pthread_mutex and 40 bytes in size. folly::SharedMutex is not as performance
@@ -45,5 +44,4 @@ class MutexWrapper {
   }
 };
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

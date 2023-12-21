@@ -32,8 +32,7 @@
 #include <shared_mutex>
 #include <string>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 template <class LockTraits>
 class TLStatT;
@@ -188,9 +187,9 @@ bool shouldUpdateGlobalStatOnRead();
 template <class LockTraits>
 class ThreadLocalStatsT {
  public:
-  typedef TLCounterT<LockTraits> TLCounter;
-  typedef TLHistogramT<LockTraits> TLHistogram;
-  typedef TLTimeseriesT<LockTraits> TLTimeseries;
+  using TLCounter = TLCounterT<LockTraits>;
+  using TLHistogram = TLHistogramT<LockTraits>;
+  using TLTimeseries = TLTimeseriesT<LockTraits>;
 
   /**
    * Create a new ThreadLocalStats container. Per default (NULL),
@@ -966,7 +965,6 @@ class TLStatLinkPtr {
 };
 } // namespace detail
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303
 
 #include <fb303/ThreadLocalStats-inl.h>

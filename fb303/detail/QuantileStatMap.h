@@ -39,9 +39,7 @@
  */
 DECLARE_bool(fb303_qstat_legacy_use_count_for_rate);
 
-namespace facebook {
-namespace fb303 {
-namespace detail {
+namespace facebook::fb303::detail {
 
 /*
  * QuantileStats don't use DynamicCounters because DynamicCounters would not
@@ -159,8 +157,6 @@ using QuantileStatMap = BasicQuantileStatMap<std::chrono::steady_clock>;
 
 extern template class BasicQuantileStatMap<std::chrono::steady_clock>;
 
-} // namespace detail
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303::detail
 
 #include <fb303/detail/QuantileStatMap-inl.h>

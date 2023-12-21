@@ -20,8 +20,7 @@
 #include <folly/stats/Histogram.h>
 #include <folly/stats/TimeseriesHistogram.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 /**
  * TimeseriesHistogram is a class which allows you to track data distributions
@@ -137,7 +136,6 @@ class TimeseriesHistogram : public folly::TimeseriesHistogram<
   std::string debugString() const;
 };
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303
 
 #include <fb303/TimeseriesHistogram-inl.h>

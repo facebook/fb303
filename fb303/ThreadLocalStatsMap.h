@@ -24,8 +24,7 @@
 #include <folly/container/F14Map.h>
 #include <folly/hash/Hash.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 /**
  * ThreadLocalStatsMap subclasses ThreadLocalStats, and provides APIs for
@@ -161,7 +160,6 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
   folly::Synchronized<State, NamedMapLock> state_;
 };
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303
 
 #include <fb303/ThreadLocalStatsMap-inl.h>

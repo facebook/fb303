@@ -16,10 +16,9 @@
 
 #pragma once
 
-#include <time.h>
+#include <ctime>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 /**
  * The stats code traditionally measured time with the wall clock at
@@ -34,5 +33,4 @@ namespace fb303 {
  */
 time_t get_legacy_stats_time();
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

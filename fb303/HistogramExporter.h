@@ -21,8 +21,7 @@
 #include <fb303/MutexWrapper.h>
 #include <fb303/TimeseriesHistogram.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 using ExportedHistogram = TimeseriesHistogram<CounterType>;
 using HistogramPtr =
@@ -75,5 +74,4 @@ class HistogramExporter {
       const Fn& fn);
 };
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

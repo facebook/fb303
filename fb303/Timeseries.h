@@ -19,8 +19,7 @@
 #include <folly/stats/BucketedTimeSeries.h>
 #include <folly/stats/MultiLevelTimeSeries.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 /** class MultiLevelTimeSeries
  *
@@ -318,7 +317,6 @@ class SubminuteMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
   }
 };
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303
 
 #include <fb303/Timeseries-inl.h>

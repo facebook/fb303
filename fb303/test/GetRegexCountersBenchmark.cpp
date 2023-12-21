@@ -18,7 +18,7 @@
 #include <folly/DynamicConverter.h>
 #include <folly/String.h>
 #include <folly/init/Init.h>
-#include <time.h>
+#include <ctime>
 #include "common/stats/ServiceData.h"
 
 using namespace folly;

@@ -20,8 +20,7 @@
 #include <folly/io/async/AsyncTimeout.h>
 #include <folly/io/async/EventBase.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 /**
  * A class that uses AsyncTimeout to periodically call aggregate() on a
@@ -36,7 +35,7 @@ class TLStatsAsyncAggregator : private folly::AsyncTimeout {
    * into a template as well to support TLStatsThreadSafe in the future if
    * there is a need to do so.
    */
-  typedef ThreadLocalStatsT<TLStatsNoLocking> ThreadLocalStats;
+  using ThreadLocalStats = ThreadLocalStatsT<TLStatsNoLocking>;
 
   /**
    * By default, scheduleAggregation() will cause aggregate() to be called
@@ -78,5 +77,4 @@ class TLStatsAsyncAggregator : private folly::AsyncTimeout {
   ThreadLocalStats* stats_;
 };
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

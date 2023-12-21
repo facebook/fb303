@@ -24,8 +24,7 @@
 #include <folly/SharedMutex.h>
 #include <folly/synchronization/DistributedMutex.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 namespace detail {
 
@@ -309,5 +308,4 @@ class TLStatsThreadSafe {
   static void swapThreads(RegistryLock& /*lock*/) {}
 };
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

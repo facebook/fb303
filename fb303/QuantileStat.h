@@ -23,8 +23,7 @@
 #include <folly/stats/QuantileEstimator.h>
 #include <folly/stats/TDigest.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 template <typename ClockT>
 class BasicQuantileStat {
@@ -122,7 +121,6 @@ using QuantileStat = BasicQuantileStat<std::chrono::steady_clock>;
 
 extern template class BasicQuantileStat<std::chrono::steady_clock>;
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303
 
 #include <fb303/QuantileStat-inl.h>

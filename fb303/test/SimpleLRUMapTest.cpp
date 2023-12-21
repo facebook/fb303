@@ -51,7 +51,7 @@ class evictedCallback {
   }
 };
 
-typedef SimpleLRUMap<int, string> lru_map;
+using lru_map = SimpleLRUMap<int, string>;
 
 void noEvictions(lru_map::value_type&&) {
   ADD_FAILURE();

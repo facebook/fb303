@@ -23,7 +23,7 @@
 #include <folly/init/Init.h>
 #include <functional>
 
-#include <time.h>
+#include <ctime>
 using namespace std;
 using namespace facebook::fb303;
 using namespace folly;

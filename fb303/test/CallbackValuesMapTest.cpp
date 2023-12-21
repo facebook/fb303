@@ -26,7 +26,7 @@ using boost::bind;
 using facebook::fb303::CallbackValuesMap;
 using std::string;
 
-typedef CallbackValuesMap<int> TestCallbackValuesMap;
+using TestCallbackValuesMap = CallbackValuesMap<int>;
 
 // simple callback function for testing
 static int echo(const int value) {

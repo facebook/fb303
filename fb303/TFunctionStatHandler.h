@@ -21,8 +21,7 @@
 #include <folly/experimental/FunctionScheduler.h>
 #include <thrift/lib/cpp/TProcessor.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 struct TStatsRequestContext {
   using clock = std::chrono::steady_clock;
@@ -422,5 +421,4 @@ void withThriftFunctionStats(
     BaseService* service,
     folly::Function<void()>&& fn);
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

@@ -41,8 +41,7 @@
 #include <folly/hash/Hash.h>
 #include <folly/synchronization/CallOnce.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 /**
  * ThreadCachedServiceData wraps a ServiceData object, and exposes the same
@@ -319,8 +318,8 @@ class ThreadCachedServiceData {
     getServiceData()->getOptions(_return);
   }
 
-  typedef ServiceData::DynamicOptionGetter DynamicOptionGetter;
-  typedef ServiceData::DynamicOptionSetter DynamicOptionSetter;
+  using DynamicOptionGetter = ServiceData::DynamicOptionGetter;
+  using DynamicOptionSetter = ServiceData::DynamicOptionSetter;
 
   void registerDynamicOption(
       folly::StringPiece name,
@@ -330,9 +329,9 @@ class ThreadCachedServiceData {
         name, std::move(getter), std::move(setter));
   }
 
-  typedef ThreadLocalStatsMap::TLCounter TLCounter;
-  typedef ThreadLocalStatsMap::TLHistogram TLHistogram;
-  typedef ThreadLocalStatsMap::TLTimeseries TLTimeseries;
+  using TLCounter = ThreadLocalStatsMap::TLCounter;
+  using TLHistogram = ThreadLocalStatsMap::TLHistogram;
+  using TLTimeseries = ThreadLocalStatsMap::TLTimeseries;
 
   /**
    * Get a pointer to the ThreadLocalStatsMap object that caches stats for this
@@ -1418,8 +1417,7 @@ class DynamicHistogramWrapper {
   const internal::HistogramSpec spec_;
 };
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303
 
 namespace facebook {
 

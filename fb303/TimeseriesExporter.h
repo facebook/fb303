@@ -20,8 +20,7 @@
 #include <fb303/MutexWrapper.h>
 #include <fb303/Timeseries.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 class DynamicCounters;
 using CounterType = int64_t;
@@ -101,5 +100,4 @@ class TimeseriesExporter {
   static CounterType
   getStatValue(ExportedStat& stat, ExportType type, int level, bool update);
 };
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

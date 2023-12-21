@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <time.h>
+#include <ctime>
 
 #include <chrono>
 #include <functional>

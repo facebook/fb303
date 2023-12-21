@@ -23,8 +23,7 @@
 
 #include <glog/logging.h>
 
-namespace facebook {
-namespace fb303 {
+namespace facebook::fb303 {
 
 // TODO: Allow the choice between std::list, std::vector or other containers
 // through traits - T1974246
@@ -37,21 +36,21 @@ template <
     typename TRatio = double,
     typename... TMapArgs>
 struct SimpleLRUMap {
-  typedef typename std::remove_const<
-      typename std::remove_reference<TKey>::type>::type key_type;
-  typedef TValue mapped_type;
-  typedef std::pair<const key_type, mapped_type> value_type;
-  typedef TStats stats_type;
-  typedef TRatio ratio_type;
+  using key_type = typename std::remove_const<
+      typename std::remove_reference<TKey>::type>::type;
+  using mapped_type = TValue;
+  using value_type = std::pair<const key_type, mapped_type>;
+  using stats_type = TStats;
+  using ratio_type = TRatio;
 
  private:
-  typedef std::list<value_type> list_type;
-  typedef TMap<key_type, typename list_type::iterator, TMapArgs...> map_type;
+  using list_type = std::list<value_type>;
+  using map_type = TMap<key_type, typename list_type::iterator, TMapArgs...>;
 
  public:
-  typedef typename list_type::size_type size_type;
-  typedef typename list_type::const_iterator const_iterator;
-  typedef typename list_type::iterator iterator;
+  using size_type = typename list_type::size_type;
+  using const_iterator = typename list_type::const_iterator;
+  using iterator = typename list_type::iterator;
 
  private:
   size_type capacity_;
@@ -471,5 +470,4 @@ struct SimpleLRUMap {
   }
 };
 
-} // namespace fb303
-} // namespace facebook
+} // namespace facebook::fb303

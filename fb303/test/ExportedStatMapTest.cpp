@@ -21,7 +21,7 @@
 #include <atomic>
 #include <thread>
 
-#include <time.h>
+#include <ctime>
 using namespace std;
 using namespace facebook;
 using namespace facebook::fb303;
