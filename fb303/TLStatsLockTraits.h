@@ -301,7 +301,7 @@ class TLStatsThreadSafe {
     std::atomic<bool> locked_{false};
 
     // Serialize calls to reset()
-    folly::SharedMutex mutex_;
+    mutable folly::SharedMutex mutex_;
   };
 
   static void willAcquireStatLock(RegistryLock& /*registryLock*/) {}
