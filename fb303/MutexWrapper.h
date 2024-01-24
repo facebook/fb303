@@ -32,7 +32,7 @@ namespace facebook::fb303 {
 // wrap that here by tracking the token returned by its lock in a TLS array.
 class MutexWrapper {
  private:
-  folly::SharedMutex mutex_;
+  mutable folly::SharedMutex mutex_;
 
  public:
   void lock() {
