@@ -98,7 +98,6 @@ class Phased {
 // that periodically invalidates the cache by clearing and adding new counters
 TEST(GetRegexCountersCachedTest, GetRegexCountersOptimizedMultithreaded) {
   constexpr int kMaxIter = 3000;
-  constexpr int kFixedThreads = 3;
   constexpr int kBumpThreads = 29;
   constexpr int kNumPerThread = 1000;
 
