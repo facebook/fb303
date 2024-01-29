@@ -66,7 +66,7 @@ ExportedHistogramMap::HistogramPtr ExportedHistogramMap::getOrCreateUnlocked(
     // The returned iterator may be invalidated by a concurrent insert, so it
     // must be dereferenced before releasing the lock guard.
     HistMap::value_type toInsert(name, std::move(value));
-    auto lockedHistMap = histMap_.lock();
+    auto lockedHistMap = histMap_.wlock();
     auto item = lockedHistMap->insert(std::move(toInsert));
     inserted = item.second;
     hist = item.first->second;
@@ -113,7 +113,7 @@ bool ExportedHistogramMap::addHistogram(
 
   // Acquire the lock while attempting the insert.
   {
-    auto lockedHistMap = histMap_.lock();
+    auto lockedHistMap = histMap_.wlock();
 
     // Call emplace() with a null HistogramPtr first.  Creating a new histogram
     // object is somewhat expensive, so wait to create it until we know we'll
@@ -211,7 +211,7 @@ void ExportedHistogramMap::unexportStat(StringPiece name, ExportType type) {
 }
 
 void ExportedHistogramMap::clearAllHistograms() {
-  auto lockedHistMap = histMap_.lock();
+  auto lockedHistMap = histMap_.wlock();
   for (auto& histPtrKvp : *lockedHistMap) {
     histPtrKvp.second->lock()->clear();
   }

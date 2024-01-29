@@ -117,8 +117,7 @@ class ExportedHistogramMap {
    * Returns true if the given histogram exists in the map
    */
   bool contains(folly::StringPiece name) const {
-    auto lockedHistMap = histMap_.lock();
-    return lockedHistMap->find(name) != lockedHistMap->end();
+    return histMap_.rlock()->contains(name);
   }
 
   /**
@@ -142,8 +141,7 @@ class ExportedHistogramMap {
    * If the histogram doesn't exist, returns a nullptr.
    */
   HistogramPtr getHistogramUnlocked(folly::StringPiece name) {
-    auto lockedHistMap = histMap_.lock();
-    return folly::get_default(*lockedHistMap, name);
+    return folly::get_default(*histMap_.rlock(), name);
   }
 
   /**
@@ -372,7 +370,7 @@ class ExportedHistogramMap {
    * on clearing the entire DynamicCounters and DynamicStrings maps anyway.)
    */
   void forgetAllHistograms() {
-    histMap_.lock()->clear();
+    histMap_.wlock()->clear();
   }
 
   /*
@@ -382,7 +380,7 @@ class ExportedHistogramMap {
    *
    */
   void forgetHistogramsFor(folly::StringPiece name) {
-    histMap_.lock()->erase(name);
+    histMap_.wlock()->erase(name);
   }
 
  protected:
@@ -393,7 +391,7 @@ class ExportedHistogramMap {
       int64_t min,
       int64_t max) const;
 
-  folly::Synchronized<HistMap, MutexWrapper> histMap_;
+  folly::Synchronized<HistMap> histMap_;
 
   DynamicCounters* dynamicCounters_;
   DynamicStrings* dynamicStrings_;
