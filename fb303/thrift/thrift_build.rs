@@ -44,6 +44,7 @@ fn main() {
         conf.base_path(base_path);
 
         conf.types_crate("fb303_core__types");
+        conf.clients_crate("fb303_core__clients");
 
         let options = "deprecated_default_enum_min_i32,serde";
         if !options.is_empty() {
