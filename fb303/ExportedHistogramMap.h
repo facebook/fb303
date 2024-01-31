@@ -62,7 +62,7 @@ class ExportedHistogramMap {
   using SyncHistogram = folly::Synchronized<ExportedHistogram, MutexWrapper>;
   using HistogramPtr = std::shared_ptr<SyncHistogram>;
   using LockedHistogramPtr = SyncHistogram::LockedPtr;
-  using HistMap = folly::StringKeyedUnorderedMap<HistogramPtr>;
+  using HistMap = folly::F14NodeMap<std::string, HistogramPtr>;
 
   /**
    * Creates an ExportedHistogramMap and hooks it up to the given

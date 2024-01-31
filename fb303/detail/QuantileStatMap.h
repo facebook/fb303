@@ -126,9 +126,9 @@ class BasicQuantileStatMap {
   template <typename Mapped>
   struct MapWithKeyCache {
     // The key to this map is the fully qualified stat name, e.g. MyStat.p99.60
-    folly::StringKeyedUnorderedMap<Mapped> map;
+    folly::F14NodeMap<std::string, Mapped> map;
     // The key to this map is the base of the stat name, e.g. MyStat.
-    folly::StringKeyedUnorderedMap<StatMapEntry> bases;
+    folly::F14NodeMap<std::string, StatMapEntry> bases;
     mutable folly::StringKeyedMap<std::vector<std::string>> regexCache;
     mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
     mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
