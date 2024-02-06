@@ -37,35 +37,22 @@ struct UniqueNoLock {
 };
 
 /**
- * DebugCheckedLock asserts that the lock is only ever acquired from
- * the same thread.
+ * DebugCheckedLock asserts that the lock is not acquired concurrently by
+ * multiple threads.
  */
 struct DebugCheckedLock {
   void lock() {
-    assertOnCorrectThread();
+    [[maybe_unused]] auto old =
+        owner_.exchange(std::this_thread::get_id(), std::memory_order_acq_rel);
+    assert(old == std::thread::id{});
   }
 
-  void unlock() {}
-
-  void assertOnCorrectThread() {
-    // The first time we are called, set the thread ID.
-    // We do this here rather than in the constructor, since some users
-    // create a ThreadLocalStats object in one thread before spawning the
-    // thread that will actually use the ThreadLocalStats object.
-    if (threadID_ == std::thread::id()) {
-      threadID_ = std::this_thread::get_id();
-      return;
-    }
-
-    assert(threadID_ == std::this_thread::get_id());
-  }
-
-  void swapThreads() {
-    threadID_ = std::thread::id();
+  void unlock() {
+    owner_.store(std::thread::id{}, std::memory_order_release);
   }
 
  private:
-  std::thread::id threadID_;
+  std::atomic<std::thread::id> owner_;
 };
 
 } // namespace detail
@@ -148,16 +135,6 @@ class TLStatsNoLocking {
     T count_{0};
     T sum_{0};
   };
-
-  static void willAcquireStatLock(detail::DebugCheckedLock& registryLock) {
-    registryLock.assertOnCorrectThread();
-  }
-  static void willAcquireStatLock(detail::UniqueNoLock&) {}
-
-  static void swapThreads(detail::DebugCheckedLock& lock) {
-    lock.swapThreads();
-  }
-  static void swapThreads(detail::UniqueNoLock&) {}
 };
 
 /**
@@ -303,9 +280,6 @@ class TLStatsThreadSafe {
     // Serialize calls to reset()
     mutable folly::SharedMutex mutex_;
   };
-
-  static void willAcquireStatLock(RegistryLock& /*registryLock*/) {}
-  static void swapThreads(RegistryLock& /*lock*/) {}
 };
 
 } // namespace facebook::fb303

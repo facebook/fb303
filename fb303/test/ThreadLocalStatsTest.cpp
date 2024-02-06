@@ -432,7 +432,8 @@ TEST(ThreadLocalStats, handOffBetweenThreads) {
   });
 
   thread.join();
-  container->swapThreads();
+
+  // Access to t is serialized because thread is joined.
 
   t->addValue(2);
 

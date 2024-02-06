@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <folly/CppAttributes.h>
 #include <folly/Range.h>
 #include <folly/container/F14Set.h>
 #include <folly/stats/Histogram.h>
@@ -72,15 +73,14 @@ bool shouldUpdateGlobalStatOnRead();
 } // namespace detail
 
 /*
- * A ThreadLocalStats object stores thread-local copies of a group of
- * statistics.
+ * A ThreadLocalStats object stores per-thread copies of a group of statistics.
  *
  * Benefits
  * --------
  *
  * Using ThreadLocalStats is much more efficient than directly using
  * ServiceData::addStatValue() and ServiceData::addHistogramValue().
- * ThreadLocalStats provides efficieny gains in two ways:
+ * ThreadLocalStats provides efficiency gains in two ways:
  *
  * - Lockless operation.
  *   Because the statistics are thread local, no locks need to be acquired to
@@ -89,8 +89,8 @@ bool shouldUpdateGlobalStatOnRead();
  *   (For callers who wish to be able to call aggregate() from other threads,
  *   ThreadLocalStatsT must be used in TLStatsThreadSafe mode.  This does add
  *   some internal synchronization, but is still much lower overhead than
- *   ServiceData. TLStatsThreadSafe synchronizes on fine grained-spinlocks,
- *   and avoid's ServiceData's highly contended global string lookup locks.)
+ *   ServiceData. TLStatsThreadSafe synchronizes on fine-grained locks, and
+ *   avoids ServiceData's highly contended global string lookup locks).
  *
  * - No string lookups.
  *   ServiceData::addStatValue() and ServiceData::addHistogramValue() both
@@ -112,6 +112,12 @@ bool shouldUpdateGlobalStatOnRead();
  * desired when you have stats whose name is not known until runtime.  However,
  * by doing your own thread-local string lookups only when necessary you can
  * avoid the lock contention required for the global name map.
+ *
+ * You are responsible for managing the per-thread instances of the stats
+ * class. This is commonly done using folly::ThreadLocal<>. However, any other
+ * dispatching mechanism can be used as long as each instance is used by only
+ * one thread at a time. It is not necessary that each instance is pinned to a
+ * specific thread, just that access to it is serialized.
  *
  * Example
  * -------
@@ -146,9 +152,10 @@ bool shouldUpdateGlobalStatOnRead();
  *   TLHistogram latencies_;
  * };
  *
- * The code in ti/proxygen/http/HTTPProxyStats.h also contains a more extensive
- * real-world example showing how to use ThreadLocalStats, including using
- * dynamically named stats.
+ * class MyService {
+ *   ...
+ *   folly::ThreadLocal<MyServiceRequestStats> threadLocalStats;
+ * };
  *
  * Aggregation
  * -----------
@@ -168,9 +175,9 @@ bool shouldUpdateGlobalStatOnRead();
  *
  * ThreadLocalStatsT accepts a LockTraits template parameter to control its
  * operation. TLStatsNoLocking can be specified to make ThreadLocalStatsT
- * perform no locking at all, for the highest possible performance.  However,
- * in this mode all operations must be performed from a single thread,
- * including any aggregate() calls.
+ * perform no locking at all, for the highest possible performance.  However, in
+ * this mode all operations must be externally serialized (for example by
+ * running on a single thread), including any aggregate() calls.
  *
  * TLStatsThreadSafe can be specified as the LockTraits parameter to make
  * ThreadLocalStatsT synchronize its data access. This will add a small amount
@@ -253,25 +260,6 @@ class ThreadLocalStatsT {
    */
   uint64_t aggregate();
 
-  /**
-   * Call this function if you are about to transfer ownership of this
-   * ThreadLocalStats object to another thread.
-   *
-   * This is mainly only used for debug bookkeeping purposes: in debug mode
-   * ThreadLocalStats checks to make sure it is always used from the correct
-   * thread.  If you are intentionally moving a ThreadLocalStats object to
-   * another thread, call swapThreads() to inform the ThreadLocalStats object
-   * that it is okay if the next access occurs from a different thread.
-   * You are still responsible for performing the correct external
-   * synchronization when transferring ownership of this ThreadLocalStats
-   * object to the other thread.
-   *
-   * A common use case for this is if you set up the ThreadLocalStats object in
-   * one thread before spawning the thread that will ultimately end up using
-   * the ThreadLocalStats object for the lifetime of the program.
-   */
-  void swapThreads();
-
  private:
   using TLStat = TLStatT<LockTraits>;
 
@@ -334,13 +322,6 @@ class TLStatT {
 
  protected:
   enum SubclassMove { SUBCLASS_MOVE };
-
-  auto guardStatLock() const {
-    // Assert the stat is being used by the thread currently responsible
-    // for the container in debug mode.
-    LockTraits::willAcquireStatLock(link_->mutex_);
-    return std::unique_lock{statLock_};
-  }
 
   /**
    * Helper constructor for move-construction of subclasses
@@ -417,6 +398,18 @@ class TLStatT {
    */
   bool shouldUpdateGlobalStatsOnRead() const;
 
+  /**
+   * Synchronizes access to this TLStat's value. This class used to
+   * use the bottom bit of the container_ pointer as a spin lock which
+   * saves some space, but more recently we switched to DistributedMutex
+   * which is cheap in the common uncontended case and doesn't impact
+   * the pointer lookup (due to stashing the lock bit)
+   *
+   * If the space matters, we can buy a word by storing name_ in a
+   * folly::fbstring.
+   */
+  FOLLY_ATTR_NO_UNIQUE_ADDRESS mutable typename LockTraits::StatLock statLock_;
+
  private:
   /**
    * Explicitly deleted move andy copy constructors.
@@ -457,18 +450,6 @@ class TLStatT {
 
   detail::TLStatLinkPtr<LockTraits> link_;
   std::shared_ptr<const std::string> name_;
-
-  /**
-   * Synchronizes access to this TLStat's value. This class used to
-   * use the bottom bit of the container_ pointer as a spin lock which
-   * saves some space, but more recently we switched to DistributedMutex
-   * which is cheap in the common uncontended case and doesn't impact
-   * the pointer lookup (due to stashing the lock bit)
-   *
-   * If the space matters, we can buy a word by storing name_ in a
-   * folly::fbstring.
-   */
-  mutable typename LockTraits::StatLock statLock_;
 };
 
 /**
@@ -676,13 +657,13 @@ class TLHistogramT : public TLStatT<LockTraits> {
   int64_t getMax() const;
 
   void addValue(int64_t value) {
-    auto g = this->guardStatLock();
+    std::unique_lock g{this->statLock_};
     simpleHistogram_.addValue(value);
     dirty_ = true;
   }
 
   void addRepeatedValue(int64_t value, int64_t nsamples) {
-    auto g = this->guardStatLock();
+    std::unique_lock g{this->statLock_};
     simpleHistogram_.addRepeatedValue(value, nsamples);
     dirty_ = true;
   }
@@ -840,10 +821,6 @@ class TLStatLink {
     if (before == 1) {
       delete this;
     }
-  }
-
-  void swapThreads() {
-    LockTraits::swapThreads(mutex_);
   }
 
   std::unique_lock<Lock> lock() {

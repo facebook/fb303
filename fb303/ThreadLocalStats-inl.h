@@ -380,13 +380,13 @@ TLHistogramT<LockTraits>& TLHistogramT<LockTraits>::operator=(
     fb303::CounterType min;
     fb303::CounterType max;
     {
-      auto g = this->guardStatLock();
+      std::unique_lock g{this->statLock_};
       bucketSize = other.simpleHistogram_.getBucketSize();
       min = other.simpleHistogram_.getMin();
       max = other.simpleHistogram_.getMax();
     }
     {
-      auto g = this->guardStatLock();
+      std::unique_lock g{this->statLock_};
       DCHECK_EQ(0u, simpleHistogram_.computeTotalCount());
       simpleHistogram_ =
           folly::Histogram<fb303::CounterType>{bucketSize, min, max};
@@ -403,25 +403,25 @@ TLHistogramT<LockTraits>::~TLHistogramT() {
 
 template <class LockTraits>
 int64_t TLHistogramT<LockTraits>::getBucketSize() const {
-  auto g = this->guardStatLock();
+  std::unique_lock g{this->statLock_};
   return simpleHistogram_.getBucketSize();
 }
 
 template <class LockTraits>
 int64_t TLHistogramT<LockTraits>::getMin() const {
-  auto g = this->guardStatLock();
+  std::unique_lock g{this->statLock_};
   return simpleHistogram_.getMin();
 }
 
 template <class LockTraits>
 int64_t TLHistogramT<LockTraits>::getMax() const {
-  auto g = this->guardStatLock();
+  std::unique_lock g{this->statLock_};
   return simpleHistogram_.getMax();
 }
 
 template <class LockTraits>
 void TLHistogramT<LockTraits>::aggregate(std::chrono::seconds now) {
-  auto g = this->guardStatLock();
+  std::unique_lock g{this->statLock_};
   if (!dirty_) {
     return;
   }
@@ -543,11 +543,6 @@ uint64_t ThreadLocalStatsT<LockTraits>::aggregate() {
   }
 
   return tlStats_.size();
-}
-
-template <class LockTraits>
-void ThreadLocalStatsT<LockTraits>::swapThreads() {
-  link_->swapThreads();
 }
 
 } // namespace fb303
