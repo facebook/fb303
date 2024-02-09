@@ -104,7 +104,7 @@ bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
   if (entry == wlock->map.end()) {
     return false;
   }
-  entry->second->clear();
+  auto callbackCopy = std::move(entry->second);
 
   // avoid fetch_add() to avoid extra fences, since we hold the lock already
   uint64_t epoch = wlock->mapEpoch.load();
@@ -112,6 +112,10 @@ bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
 
   wlock->map.erase(entry);
   VLOG(5) << "Unregistered  callback: " << name;
+
+  // clear the callback after releasing the lock
+  wlock.unlock();
+  callbackCopy->clear();
   return true;
 }
 

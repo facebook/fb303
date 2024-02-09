@@ -20,6 +20,7 @@
 #include <thread>
 
 #include <boost/bind.hpp>
+#include <folly/synchronization/Baton.h>
 #include <gtest/gtest.h>
 
 using boost::bind;
@@ -118,4 +119,31 @@ TEST(CallbackValuesMapTest, GetCallback) {
   int val2;
   key2Cb->getValue(&val2);
   EXPECT_EQ(val2, 321);
+}
+
+TEST(CallbackValuesMapTest, DoubleDynamicCounterDeadlock) {
+  TestCallbackValuesMap callbackMap;
+  callbackMap.registerCallback("a", []() { return 42; });
+  callbackMap.registerCallback("b", [&callbackMap]() {
+    sleep(2);
+    int val;
+    callbackMap.getValue("a", &val);
+    return val;
+  });
+
+  std::thread t1([&callbackMap]() {
+    int val;
+    callbackMap.getValue("b", &val);
+  });
+
+  folly::Baton<> baton;
+  std::thread t2([&callbackMap, &baton, &t1]() {
+    sleep(1);
+    callbackMap.unregisterCallback("b");
+    t1.join();
+    baton.post();
+  });
+  ASSERT_TRUE(baton.try_wait_for(std::chrono::seconds(10)));
+  t2.join();
+  SUCCEED();
 }
