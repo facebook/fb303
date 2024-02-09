@@ -22,7 +22,7 @@
 #include <fb303/TimeseriesHistogram.h>
 #include <folly/MapUtil.h>
 #include <folly/Synchronized.h>
-#include <folly/experimental/StringKeyedUnorderedMap.h>
+#include <folly/container/F14Map.h>
 #include <folly/small_vector.h>
 
 namespace facebook {

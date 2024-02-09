@@ -26,8 +26,8 @@
 #include <folly/Chrono.h>
 #include <folly/Optional.h>
 #include <folly/Synchronized.h>
+#include <folly/container/F14Map.h>
 #include <folly/experimental/StringKeyedMap.h>
-#include <folly/experimental/StringKeyedUnorderedMap.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
 #include <fb303/ExportType.h>
