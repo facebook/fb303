@@ -25,7 +25,7 @@
 #include <fb303/QuantileStat.h>
 #include <fb303/ThreadCachedServiceData.h>
 #include <folly/Range.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 
 namespace facebook::fb303::detail {
 

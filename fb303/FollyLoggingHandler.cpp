@@ -17,7 +17,7 @@
 #include <fb303/FollyLoggingHandler.h>
 
 #include <fb303/ServiceData.h>
-#include <folly/json.h>
+#include <folly/json/json.h>
 #include <folly/logging/LogConfigParser.h>
 #include <folly/logging/LoggerDB.h>
 
