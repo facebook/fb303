@@ -22,7 +22,6 @@
 #include <fb303/LegacyClock.h>
 #include <fb303/detail/RegexUtil.h>
 #include <folly/Conv.h>
-#include <folly/ExceptionString.h>
 #include <folly/Indestructible.h>
 #include <folly/MapUtil.h>
 #include <folly/String.h>
