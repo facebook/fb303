@@ -61,10 +61,15 @@ class MultiLevelTimeSeries : public folly::MultiLevelTimeSeries<T> {
   // Duration and TimePoint.
   using TimeType = typename BaseType::Duration;
 
-  MultiLevelTimeSeries(
+  explicit MultiLevelTimeSeries(
       size_t num_levels,
       size_t num_buckets,
       const int* level_durations);
+
+  explicit MultiLevelTimeSeries(
+      size_t num_buckets,
+      folly::Range<const int*> durations)
+      : MultiLevelTimeSeries(durations.size(), num_buckets, durations.data()) {}
 
   void update(time_t now) {
     BaseType::update(convertTimeT(now));

@@ -45,24 +45,7 @@ MultiLevelTimeSeries<T>::MultiLevelTimeSeries(
     const int* level_durations)
     : BaseType(
           num_buckets,
-          num_levels,
-          &(detail::convertToDuration<TimeType>(
-              num_levels,
-              level_durations))[0]) {
-  // Note: the version of MultiLevelTimeSeries in folly is updated to work with
-  // std::chrono::duration rather then integer/time_t directly. Therefore it
-  // expects an array of std::chrono::duration in the constructor. However, we
-  // have an array of integers here that we need to convert to an array of
-  // std::chrono::duration. Rather than manually allocating an array in the heap
-  // and manage the memory ourselves, we call convertToDuration() which return a
-  // vector by value. We then use the returned vector as a temporary and pass
-  // its internal as an array to folly::MultiLevelTimeSeries's constructor. The
-  // temporary vector is guaranteed to be in scope. All memory allocation is
-  // automatically cleaned up. The compiler also may be able to perform return
-  // value optimization. Finally it's safe to pass the internal address of the
-  // vector as an array. This is guaranteed by the standard. See
-  // http://www.open-std.org/jtc1/sc22/wg21/docs/lwg-defects.html#69.
-}
+          detail::convertToDuration<TimeType>(num_levels, level_durations)) {}
 
 } // namespace fb303
 } // namespace facebook
