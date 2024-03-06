@@ -20,7 +20,6 @@
 
 namespace facebook::fb303::detail {
 
-using folly::StringKeyedMap;
 using std::string;
 using std::vector;
 
@@ -40,7 +39,7 @@ void filterRegexKeys(vector<string>& keys, const string& regex) {
 void cacheRegexKeys(
     vector<string>& keys,
     const string& regex,
-    StringKeyedMap<vector<string>>& cache) {
+    std::map<string, vector<string>, std::less<>>& cache) {
   // If this becomes an issue, we can use an SHA-256 of the regex
   if (regex.size() > kRegexLengthLimit) {
     return;

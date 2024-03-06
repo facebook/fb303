@@ -16,7 +16,9 @@
 
 #pragma once
 
+#include <functional>
 #include <map>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -27,7 +29,6 @@
 #include <folly/Optional.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
-#include <folly/experimental/StringKeyedMap.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
 #include <fb303/ExportType.h>
@@ -129,7 +130,8 @@ class BasicQuantileStatMap {
     folly::F14NodeMap<std::string, Mapped> map;
     // The key to this map is the base of the stat name, e.g. MyStat.
     folly::F14NodeMap<std::string, StatMapEntry> bases;
-    mutable folly::StringKeyedMap<std::vector<std::string>> regexCache;
+    mutable std::map<std::string, std::vector<std::string>, std::less<>>
+        regexCache;
     mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
     mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
     mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{

@@ -31,6 +31,7 @@
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
+#include <functional>
 #include <map>
 #include <string>
 #include <string_view>
@@ -586,8 +587,9 @@ class ServiceData {
   // match, cache is valid.
   template <typename Mapped>
   struct MapWithKeyCache {
-    folly::StringKeyedMap<Mapped> map;
-    mutable folly::StringKeyedMap<std::vector<std::string>> regexCache;
+    std::map<std::string, Mapped, std::less<>> map;
+    mutable std::map<std::string, std::vector<std::string>, std::less<>>
+        regexCache;
     mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
     mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
     mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{
