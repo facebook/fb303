@@ -34,7 +34,7 @@ void CallbackValuesMap<T>::getValues(ValuesMap* output) const {
     // a vector to avoid N allocations when copying a std::map with N entries
     mapCopy.reserve(map.map.size());
     for (const auto& entry : map.map) {
-      mapCopy.emplace_back(entry.first.str(), entry.second);
+      mapCopy.emplace_back(entry.first, entry.second);
     }
   });
 
@@ -90,7 +90,7 @@ void CallbackValuesMap<T>::registerCallback(
     folly::StringPiece name,
     const Callback& cob) {
   auto wlock = callbackMap_.wlock();
-  wlock->map[name] = std::make_shared<CallbackEntry>(cob);
+  wlock->map[std::string(name)] = std::make_shared<CallbackEntry>(cob);
 
   // avoid fetch_add() to avoid extra fences, since we hold the lock already
   uint64_t epoch = wlock->mapEpoch.load();

@@ -317,7 +317,7 @@ int64_t ServiceData::incrementCounter(StringPiece key, int64_t amount) {
 
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
-  auto& ref = (countersWLock->map)[key];
+  auto& ref = (countersWLock->map)[std::string(key)];
 
   // avoid fetch_add() to avoid extra fences, since we hold the lock already
   uint64_t epoch = countersWLock->mapEpoch.load();
@@ -340,7 +340,7 @@ int64_t ServiceData::setCounter(StringPiece key, int64_t value) {
 
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
-  auto& ref = (countersWLock->map)[key];
+  auto& ref = (countersWLock->map)[std::string(key)];
 
   // avoid fetch_add() to avoid extra fences, since we hold the lock already
   uint64_t epoch = countersWLock->mapEpoch.load();

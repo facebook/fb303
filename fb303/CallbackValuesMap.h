@@ -17,6 +17,7 @@
 #pragma once
 
 #include <folly/Chrono.h>
+#include <folly/Range.h>
 #include <folly/Synchronized.h>
 #include <folly/experimental/StringKeyedMap.h>
 #include <folly/synchronization/RelaxedAtomic.h>
