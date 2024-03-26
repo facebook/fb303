@@ -135,7 +135,7 @@ bool ExportedHistogramMap::addHistogram(
     };
 
     newHistogram = std::make_shared<SyncHistogram>(
-        folly::in_place, bucketWidth, min, max, **defaultStat_.rlock());
+        std::in_place, bucketWidth, min, max, **defaultStat_.rlock());
     ret.first->second = newHistogram;
 
     // End of scope:
