@@ -214,8 +214,9 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
    * because it's more time consuming than getStatus().
    */
   void async_eb_getCounters(
-      std::unique_ptr<apache::thrift::HandlerCallback<
-          std::unique_ptr<std::map<std::string, int64_t>>>> callback) override {
+      apache::thrift::HandlerCallback<
+          std::unique_ptr<std::map<std::string, int64_t>>>::Ptr callback)
+      override {
     using clock = std::chrono::steady_clock;
     getCountersExecutor_.add([this,
                               callback_ = std::move(callback),
@@ -251,8 +252,8 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   }
 
   void async_eb_getRegexCounters(
-      std::unique_ptr<apache::thrift::HandlerCallback<
-          std::unique_ptr<std::map<std::string, int64_t>>>> callback,
+      apache::thrift::HandlerCallback<
+          std::unique_ptr<std::map<std::string, int64_t>>>::Ptr callback,
       std::unique_ptr<std::string> regex) override {
     using clock = std::chrono::steady_clock;
     getCountersExecutor_.add([this,
@@ -297,8 +298,8 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   }
 
   void async_eb_getSelectedCounters(
-      std::unique_ptr<apache::thrift::HandlerCallback<
-          std::unique_ptr<std::map<std::string, int64_t>>>> callback,
+      apache::thrift::HandlerCallback<
+          std::unique_ptr<std::map<std::string, int64_t>>>::Ptr callback,
       std::unique_ptr<std::vector<std::string>> keys) override {
     using clock = std::chrono::steady_clock;
     getCountersExecutor_.add([this,
