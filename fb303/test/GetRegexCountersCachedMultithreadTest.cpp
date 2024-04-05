@@ -53,8 +53,8 @@ class TestHandler : virtual public BaseServiceSvIf {
 
   // the use of thread='eb' means this is the only option to override
   void async_eb_getRegexCounters(
-      apache::thrift::HandlerCallback<
-          std::unique_ptr<std::map<std::string, int64_t>>>::Ptr callback,
+      std::unique_ptr<apache::thrift::HandlerCallback<
+          std::unique_ptr<std::map<std::string, int64_t>>>> callback,
       std::unique_ptr<std::string> regex) override {
     getCountersExecutor_.add(
         [this, callback = std::move(callback), regex = std::move(regex)] {
