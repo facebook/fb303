@@ -473,9 +473,8 @@ class FormattedKeyHolder {
   // round down floating-point keys or get a runtime-error with nullptrs.
   template <typename T>
   static constexpr bool IsValidSubkey =
-      (std::is_convertible_v<T, folly::StringPiece> ||
-       std::is_integral_v<T>)&&!std::is_same_v<T, std::nullptr_t> &&
-      !std::is_same_v<T, bool>;
+      (std::is_convertible_v<T, folly::StringPiece> || std::is_integral_v<T>) &&
+      !std::is_same_v<T, std::nullptr_t> && !std::is_same_v<T, bool>;
 
   // Hash function
   struct SubkeyHash //
