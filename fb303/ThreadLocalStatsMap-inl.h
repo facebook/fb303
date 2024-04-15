@@ -45,7 +45,7 @@ void ThreadLocalStatsMapT<LockTraits>::addHistogramValue(
     folly::StringPiece name,
     int64_t value) {
   auto state = state_.lock();
-  TLHistogram* histogram = getHistogramLocked(*state, name);
+  TLHistogram* histogram = getHistogramLockedPtr(*state, name);
   if (histogram) {
     histogram->addValue(value);
   }
@@ -103,26 +103,54 @@ void ThreadLocalStatsMapT<LockTraits>::clearTimeseriesSafe(
 }
 
 template <class LockTraits>
+std::shared_ptr<typename ThreadLocalStatsMapT<LockTraits>::TLHistogram>
+ThreadLocalStatsMapT<LockTraits>::getHistogramSafe(folly::StringPiece name) {
+  auto state = state_.lock();
+  return this->getHistogramLocked(*state, name);
+}
+
+template <class LockTraits>
 typename ThreadLocalStatsMapT<LockTraits>::TLHistogram* ThreadLocalStatsMapT<
-    LockTraits>::getHistogramLocked(State& state, folly::StringPiece name) {
+    LockTraits>::getHistogramLockedPtr(State& state, folly::StringPiece name) {
   auto& entry = state.namedHistograms_[name];
   if (!entry) {
-    // Uncommon case: We don't know about this histogram in this thread yet.
-    // Look up the global histogram info.
-    ExportedHistogramMapImpl::LockableHistogram globalHist =
-        this->getHistogramMap()->getLockableHistogram(name);
-    if (globalHist.isNull()) {
-      // This histogram doesn't exist: it has never been created with
-      // ServiceData::addHistogram().  Just ignore this call.
-      // (This is the same behavior as ServiceData::addHistogram() when called
-      // on a non-existent histogram.)
-      return nullptr;
-    }
-
-    entry = std::make_shared<TLHistogram>(this, name, globalHist);
+    entry = this->createHistogramLocked(state, name);
   }
 
   return entry.get();
+}
+
+template <class LockTraits>
+std::shared_ptr<typename ThreadLocalStatsMapT<LockTraits>::TLHistogram>
+ThreadLocalStatsMapT<LockTraits>::createHistogramLocked(
+    State&,
+    folly::StringPiece name) {
+  // Uncommon case: We don't know about this histogram in this thread yet.
+  // Look up the global histogram info.
+  ExportedHistogramMapImpl::LockableHistogram globalHist =
+      this->getHistogramMap()->getLockableHistogram(name);
+  if (globalHist.isNull()) {
+    // This histogram doesn't exist: it has never been created with
+    // ServiceData::addHistogram().  Just ignore this call.
+    // (This is the same behavior as ServiceData::addHistogram() when called
+    // on a non-existent histogram.)
+    return nullptr;
+  }
+
+  return std::make_shared<TLHistogram>(this, name, globalHist);
+}
+
+template <class LockTraits>
+std::shared_ptr<typename ThreadLocalStatsMapT<LockTraits>::TLHistogram>
+ThreadLocalStatsMapT<LockTraits>::getHistogramLocked(
+    State& state,
+    folly::StringPiece name) {
+  auto& entry = state.namedHistograms_[name];
+  if (!entry) {
+    entry = this->createHistogramLocked(state, name);
+  }
+
+  return entry;
 }
 
 template <class LockTraits>

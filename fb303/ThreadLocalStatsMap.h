@@ -101,6 +101,13 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
    */
   std::shared_ptr<TLCounter> getCounterSafe(folly::StringPiece name);
 
+  /**
+   * Gets the TLHistogram with the given name. Returns NULL if the global
+   * histogram hasn't been created yet. The TLHistogram returned should not
+   * be shared with other threads.
+   */
+  std::shared_ptr<TLHistogram> getHistogramSafe(folly::StringPiece name);
+
   void resetAllData();
 
  private:
@@ -140,7 +147,13 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
    * cannot automatically create one without knowing the histogram min, max,
    * and bucket width.)
    */
-  TLHistogram* getHistogramLocked(State& state, folly::StringPiece name);
+  std::shared_ptr<TLHistogram> getHistogramLocked(
+      State& state,
+      folly::StringPiece name);
+  TLHistogram* getHistogramLockedPtr(State& state, folly::StringPiece name);
+  std::shared_ptr<TLHistogram> createHistogramLocked(
+      State& state,
+      folly::StringPiece name);
 
   /*
    * Get the TLCounter with the given name.

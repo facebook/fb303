@@ -1158,8 +1158,7 @@ class HistogramWrapper {
 
   void add(int64_t value = 1) {
     ensureApplySpec();
-    (*ThreadCachedServiceData::getStatsThreadLocal())
-        .addHistogramValue(key_, value);
+    tcHistogram()->addValue(value);
   }
 
  protected:
@@ -1171,9 +1170,23 @@ class HistogramWrapper {
     folly::call_once(once_, &HistogramWrapper::doApplySpecLocked, this);
   }
 
+  inline ThreadCachedServiceData::TLHistogram* tcHistogram() {
+    ThreadCachedServiceData::TLHistogram* cached = tlHistogram_->get();
+    if (cached) {
+      return cached;
+    }
+
+    auto histogram =
+        ThreadCachedServiceData::getStatsThreadLocal()->getHistogramSafe(key_);
+    *tlHistogram_ = histogram;
+    return histogram.get();
+  }
+
   folly::once_flag once_;
   std::string key_;
   internal::HistogramSpec spec_;
+  folly::ThreadLocal<std::shared_ptr<ThreadCachedServiceData::TLHistogram>>
+      tlHistogram_;
 };
 
 class MinuteOnlyHistogram : public HistogramWrapper {
