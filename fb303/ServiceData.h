@@ -546,6 +546,9 @@ class ServiceData {
   void getOptions(std::map<std::string, std::string>& _return) const;
   std::map<std::string, std::string> getOptions() const;
 
+  void mergeOptionsWithGflags(
+      std::map<std::string, std::string>& _return) const;
+
   using DynamicOptionGetter = folly::Function<std::string()>;
   using DynamicOptionSetter = folly::Function<void(std::string const&)>;
 
@@ -573,9 +576,6 @@ class ServiceData {
   };
   template <typename Mapped>
   using StringKeyedMap = folly::F14FastMap<std::string, Mapped>;
-
-  void mergeOptionsWithGflags(
-      std::map<std::string, std::string>& _return) const;
 
   void getKeys(std::vector<std::string>& keys) const;
   const std::chrono::seconds aliveSince_;
