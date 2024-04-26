@@ -1,0 +1,64 @@
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+
+cpp_library(
+    name = "quantile_stat_map",
+    srcs = [
+        "QuantileStatMap.cpp",
+    ],
+    headers = [
+        "QuantileStatMap.h",
+        "QuantileStatMap-inl.h",
+    ],
+    modular_headers = True,
+    exported_deps = [
+        "fbsource//third-party/fmt:fmt",
+        ":regex_util",
+        "//fb303:export_type",
+        "//fb303:quantile_stat",
+        "//folly:chrono",
+        "//folly:map_util",
+        "//folly:optional",
+        "//folly:synchronized",
+        "//folly/container:f14_hash",
+        "//folly/synchronization:relaxed_atomic",
+    ],
+    exported_external_deps = [
+        "gflags",
+        "glog",
+    ],
+)
+
+cpp_library(
+    name = "quantile_stat_wrappers",
+    srcs = [
+        "QuantileStatWrappers.cpp",
+    ],
+    headers = [
+        "QuantileStatWrappers.h",
+        "QuantileStatWrappers-inl.h",
+    ],
+    exported_deps = [
+        "//fb303:export_type",
+        "//fb303:quantile_stat",
+        "//fb303:service_data",
+        "//fb303:thread_cached_service_data",
+        "//folly:map_util",
+        "//folly:range",
+        "//folly/json:dynamic",
+    ],
+)
+
+cpp_library(
+    name = "regex_util",
+    srcs = [
+        "RegexUtil.cpp",
+    ],
+    modular_headers = True,
+    exported_deps = [
+        "//folly:chrono",
+        "//folly:map_util",
+    ],
+    external_deps = [
+        ("boost", None, "boost_regex"),
+    ],
+)

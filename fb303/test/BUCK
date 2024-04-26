@@ -1,0 +1,324 @@
+load("@fbcode_macros//build_defs:cpp_benchmark.bzl", "cpp_benchmark")
+load("@fbcode_macros//build_defs:cpp_unittest.bzl", "cpp_unittest")
+load("@fbcode_macros//build_defs:thrift_library.bzl", "thrift_library")
+
+thrift_library(
+    name = "if",
+    languages = [
+        "cpp2",
+    ],
+    thrift_srcs = {
+        "test.thrift": [
+            "TestService",
+        ],
+    },
+    deps = [
+        "//fb303/thrift:fb303_core",
+    ],
+)
+
+cpp_unittest(
+    name = "get_counters_concurrency_test",
+    srcs = [
+        "GetCountersConcurrencyTest.cpp",
+    ],
+    deps = [
+        ":if-cpp2-services",
+        "//fb303:base_service",
+        "//thrift/lib/cpp2/util:util",
+    ],
+)
+
+cpp_unittest(
+    name = "get_counters_limit_test",
+    srcs = [
+        "GetCountersWithLimitTest.cpp",
+    ],
+    deps = [
+        ":if-cpp2-services",
+        "//common/fb303/cpp:default_monitor",
+        "//fb303:base_service",
+        "//thrift/lib/cpp2/util:util",
+    ],
+)
+
+cpp_benchmark(
+    name = "get_regex_counters_client_benchmark",
+    srcs = [
+        "GetRegexCountersClientBenchmark.cpp",
+    ],
+    deps = [
+        ":if-cpp2-services",
+        "//fb303:base_service",
+        "//folly:benchmark",
+        "//folly:optional",
+        "//folly:random",
+        "//folly:string",
+        "//folly/init:init",
+        "//folly/json:dynamic",
+        "//thrift/lib/cpp2/util:util",
+    ],
+    external_deps = [
+        ("boost", None, "boost_regex"),
+    ],
+)
+
+cpp_benchmark(
+    name = "get_regex_counters_benchmark",
+    srcs = [
+        "GetRegexCountersBenchmark.cpp",
+    ],
+    deps = [
+        "//common/stats:service_data",
+        "//folly:benchmark",
+        "//folly:string",
+        "//folly/init:init",
+        "//folly/json:dynamic",
+    ],
+)
+
+cpp_benchmark(
+    name = "get_regex_counters_mt_bench",
+    srcs = ["GetRegexCountersMtBench.cpp"],
+    deps = [
+        "//fb303:service_data",
+        "//folly:benchmark",
+        "//folly:conv",
+        "//folly:random",
+        "//folly/init:init",
+    ],
+)
+
+cpp_unittest(
+    name = "get_regex_caching_multithread",
+    srcs = [
+        "GetRegexCountersCachedMultithreadTest.cpp",
+    ],
+    deps = [
+        "//fb303:service_data",
+        "//fb303/thrift:fb303_core-cpp2-services",
+        "//folly:conv",
+        "//folly:memory",
+        "//folly:random",
+        "//folly:try",
+        "//folly/executors:cpu_thread_pool_executor",
+        "//thrift/lib/cpp2/async:async_processor",
+        "//thrift/lib/cpp2/util:util",
+    ],
+)
+
+cpp_unittest(
+    name = "CallbackValuesMapTest",
+    srcs = ["CallbackValuesMapTest.cpp"],
+    deps = [
+        "//fb303:callback_values_map",
+        "//folly/synchronization:baton",
+    ],
+    external_deps = [
+        "boost",
+    ],
+)
+
+cpp_unittest(
+    name = "legacy_clock_test",
+    srcs = [
+        "LegacyClockTest.cpp",
+    ],
+    deps = [
+        "//fb303:legacy_clock",
+    ],
+)
+
+cpp_unittest(
+    name = "exported_histogram_test",
+    srcs = [
+        "ExportedHistogramTest.cpp",
+    ],
+    deps = [
+        "//fb303:histogram_exporter",
+    ],
+)
+
+cpp_unittest(
+    name = "exported_stat_map_test",
+    srcs = [
+        "ExportedStatMapTest.cpp",
+    ],
+    deps = [
+        "//fb303:dynamic_counters",
+        "//fb303:exported_stat_map_impl",
+    ],
+)
+
+cpp_unittest(
+    name = "exported_stat_map_load_test",
+    srcs = [
+        "ExportedStatMapLoadTest.cpp",
+    ],
+    deps = [
+        "//common/stats:service_data",
+        "//fb303:exported_stat_map_impl",
+        "//folly:string",
+    ],
+)
+
+cpp_benchmark(
+    name = "exported_stat_map_benchmark",
+    srcs = [
+        "ExportedStatMapBenchMark.cpp",
+    ],
+    deps = [
+        "//fb303:exported_stat_map_impl",
+        "//fb303:histogram_exporter",
+        "//folly:benchmark",
+        "//folly:random",
+        "//folly/init:init",
+    ],
+    external_deps = [
+        ("boost", None, "boost_lexical_cast"),
+    ],
+)
+
+cpp_benchmark(
+    name = "quantile_stat_benchmark",
+    srcs = ["QuantileStatBenchmark.cpp"],
+    deps = [
+        "//common/stats:macros",
+        "//fb303:thread_cached_service_data",
+        "//folly:benchmark",
+        "//folly/init:init",
+    ],
+    external_deps = [
+        ("boost", None, "boost_thread"),
+    ],
+)
+
+cpp_unittest(
+    name = "quantile_stat_test",
+    srcs = [
+        "QuantileStatTest.cpp",
+    ],
+    deps = [
+        "//fb303:quantile_stat",
+    ],
+)
+
+cpp_unittest(
+    name = "quantile_stat_map_test",
+    srcs = [
+        "QuantileStatMapTest.cpp",
+    ],
+    deps = [
+        "//fb303/detail:quantile_stat_map",
+    ],
+)
+
+cpp_unittest(
+    name = "service_data_test",
+    srcs = [
+        "ServiceDataTest.cpp",
+    ],
+    deps = [
+        "//common/stats:service_data",
+    ],
+    external_deps = [
+        "gflags",
+    ],
+)
+
+cpp_unittest(
+    name = "simple_lru_map_test",
+    srcs = ["SimpleLRUMapTest.cpp"],
+    deps = [
+        "//common/base:stl_util",
+        "//common/datastruct:simple_lru_map",
+        "//common/time:time",
+        "//folly:conv",
+        "//folly:range",
+        "//folly:utility",
+    ],
+    external_deps = [
+        "glog",
+    ],
+)
+
+cpp_benchmark(
+    name = "thread_cached_service_data_bench",
+    srcs = ["ThreadCachedServiceDataBench.cpp"],
+    deps = [
+        "//fb303:thread_cached_service_data",
+        "//folly:benchmark",
+        "//folly/init:init",
+    ],
+)
+
+cpp_unittest(
+    name = "thread_local_stats_test",
+    srcs = [
+        "ThreadLocalStatsTest.cpp",
+    ],
+    deps = [
+        "//fb303:service_data",
+        "//fb303:thread_cached_service_data",
+        "//fb303:thread_local_stats",
+        "//folly:singleton",
+        "//folly/synchronization/test:barrier",
+        "//folly/test:test_utils",
+    ],
+    external_deps = [
+        "gflags",
+    ],
+)
+
+cpp_benchmark(
+    name = "thread_local_stats_benchmark",
+    srcs = ["ThreadLocalStatsBenchmark.cpp"],
+    deps = [
+        "//fb303:thread_local_stats",
+        "//folly:benchmark",
+        "//folly/init:init",
+    ],
+)
+
+cpp_unittest(
+    name = "timeseries_exporter_test",
+    srcs = [
+        "TimeseriesExporterTest.cpp",
+    ],
+    deps = [
+        "//fb303:timeseries_exporter",
+    ],
+)
+
+cpp_unittest(
+    name = "timeseries_histogram_test",
+    srcs = [
+        "TimeseriesHistogramTest.cpp",
+    ],
+    deps = [
+        "//fb303:timeseries_histogram",
+    ],
+)
+
+cpp_unittest(
+    name = "timeseries_test",
+    srcs = [
+        "TimeseriesTest.cpp",
+    ],
+    deps = [
+        "//fb303:timeseries",
+    ],
+)
+
+cpp_unittest(
+    name = "folly_logging_handler_test",
+    srcs = [
+        "FollyLoggingHandlerTest.cpp",
+    ],
+    deps = [
+        "//fb303:logging",
+        "//fb303:service_data",
+        "//folly/logging:logging",
+        "//folly/test:json_test_util",
+    ],
+)
