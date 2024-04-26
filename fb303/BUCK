@@ -1,0 +1,377 @@
+load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+
+oncall("thrift")
+
+cpp_library(
+    name = "base_service",
+    srcs = [
+        "BaseService.cpp",
+    ],
+    headers = [
+        "BaseService.h",
+        "LimitUtils.h",
+    ],
+    deps = [
+        "//thrift/lib/cpp2:flags",
+    ],
+    exported_deps = [
+        ":service_data",
+        "//fb303/thrift:fb303_core-cpp2-services",
+        "//folly:small_vector",
+        "//folly/executors:cpu_thread_pool_executor",
+        "//thrift/lib/cpp2/server:cpp2_conn_context",
+    ],
+)
+
+cpp_library(
+    name = "callback_values_map",
+    headers = [
+        "CallbackValuesMap.h",
+        "CallbackValuesMap-inl.h",
+    ],
+    modular_headers = True,
+    exported_deps = [
+        "//fb303/detail:regex_util",
+        "//folly:chrono",
+        "//folly:map_util",
+        "//folly:range",
+        "//folly:synchronized",
+        "//folly/synchronization:relaxed_atomic",
+    ],
+    exported_external_deps = [
+        "glog",
+    ],
+)
+
+cpp_library(
+    name = "dynamic_counters",
+    headers = ["DynamicCounters.h"],
+    modular_headers = True,
+    exported_deps = [
+        ":callback_values_map",
+    ],
+)
+
+cpp_library(
+    name = "export_type",
+    srcs = ["ExportType.cpp"],
+    headers = ["ExportType.h"],
+    modular_headers = True,
+    exported_deps = ["//folly/container:array"],
+)
+
+cpp_library(
+    name = "exported_stat_map",
+    srcs = ["ExportedStatMap.cpp"],
+    headers = ["ExportedStatMap.h"],
+    modular_headers = True,
+    deps = [
+        ":timeseries_exporter",
+    ],
+    exported_deps = [
+        ":export_type",
+        ":mutex_wrapper",
+        ":timeseries",
+        "//folly:synchronized",
+        "//folly/container:f14_hash",
+    ],
+)
+
+cpp_library(
+    name = "exported_stat_map_impl",
+    srcs = ["ExportedStatMapImpl.cpp"],
+    headers = ["ExportedStatMapImpl.h"],
+    modular_headers = True,
+    deps = [
+        ":timeseries_exporter",
+    ],
+    exported_deps = [
+        ":exported_stat_map",
+    ],
+)
+
+cpp_library(
+    name = "function_stat_handler",
+    srcs = ["TFunctionStatHandler.cpp"],
+    headers = ["TFunctionStatHandler.h"],
+    deps = [
+        ":legacy_clock",
+    ],
+    exported_deps = [
+        ":base_service",
+        "//folly/container:f14_hash",
+        "//folly/experimental:function_scheduler",
+        "//thrift/lib/cpp:event_handler_base",
+    ],
+)
+
+cpp_library(
+    name = "legacy_clock",
+    srcs = ["LegacyClock.cpp"],
+    headers = ["LegacyClock.h"],
+    modular_headers = True,
+    deps = [
+        "//folly/lang:exception",
+    ],
+)
+
+cpp_library(
+    name = "logging",
+    srcs = [
+        "FollyLoggingHandler.cpp",
+    ],
+    headers = [
+        "FollyLoggingHandler.h",
+    ],
+    modular_headers = True,
+    deps = [
+        ":service_data",
+        "//folly/json:dynamic",
+        "//folly/logging:init",
+        "//folly/logging:logging",
+    ],
+    exported_deps = [
+        "//folly:range",
+    ],
+)
+
+cpp_library(
+    name = "histogram_exporter",
+    srcs = [
+        "ExportedHistogramMap.cpp",
+        "ExportedHistogramMapImpl.cpp",
+        "HistogramExporter.cpp",
+    ],
+    headers = [
+        "ExportedHistogramMap.h",
+        "ExportedHistogramMapImpl.h",
+        "HistogramExporter.h",
+    ],
+    modular_headers = True,
+    deps = [
+        ":legacy_clock",
+        ":timeseries_exporter",
+        "//folly:format",
+        "//folly:optional",
+        "//folly:string",
+    ],
+    exported_deps = [
+        ":dynamic_counters",
+        ":export_type",
+        ":exported_stat_map_impl",
+        ":mutex_wrapper",
+        ":timeseries_histogram",
+        "//folly:map_util",
+        "//folly:small_vector",
+        "//folly:synchronized",
+        "//folly/container:f14_hash",
+    ],
+    external_deps = [
+        "glog",
+    ],
+)
+
+cpp_library(
+    name = "mutex_wrapper",
+    srcs = [],
+    headers = ["MutexWrapper.h"],
+    modular_headers = True,
+    exported_deps = [
+        "//folly:shared_mutex",
+        "//folly:synchronized",
+    ],
+)
+
+cpp_library(
+    name = "service_data",
+    srcs = ["ServiceData.cpp"],
+    modular_headers = True,
+    deps = [
+        ":legacy_clock",
+        "//fb303/detail:regex_util",
+        "//folly:conv",
+        "//folly:indestructible",
+        "//folly:map_util",
+        "//folly:string",
+    ],
+    exported_deps = [
+        ":dynamic_counters",
+        ":exported_stat_map_impl",
+        ":histogram_exporter",
+        "//fb303/detail:quantile_stat_map",
+        "//folly:chrono",
+        "//folly:optional",
+        "//folly:range",
+        "//folly:synchronized",
+        "//folly/container:f14_hash",
+        "//folly/synchronization:relaxed_atomic",
+    ],
+    external_deps = [
+        "gflags",
+        ("boost", None, "boost_regex"),
+    ],
+)
+
+cpp_library(
+    name = "simple_lru_map",
+    headers = ["SimpleLRUMap.h"],
+    modular_headers = True,
+    exported_external_deps = [
+        "glog",
+    ],
+)
+
+cpp_library(
+    name = "thread_cached_service_data",
+    srcs = ["ThreadCachedServiceData.cpp"],
+    headers = ["ThreadCachedServiceData.h"],
+    modular_headers = True,
+    deps = [
+        "//folly:indestructible",
+        "//folly:singleton",
+    ],
+    exported_deps = [
+        ":export_type",
+        ":simple_lru_map",
+        ":thread_local_stats_map",
+        "//folly:format",
+        "//folly:map_util",
+        "//folly:overload",
+        "//folly:range",
+        "//folly:synchronized",
+        "//folly:thread_local",
+        "//folly/container:f14_hash",
+        "//folly/experimental:function_scheduler",
+        "//folly/hash:hash",
+        "//folly/synchronization:call_once",
+    ],
+)
+
+cpp_library(
+    name = "thread_local_stats",
+    srcs = ["ThreadLocalStats.cpp"],
+    headers = [
+        "TLStatsLockTraits.h",
+        "ThreadLocalStats.h",
+        "ThreadLocalStats-inl.h",
+    ],
+    modular_headers = True,
+    exported_deps = [
+        ":export_type",
+        ":exported_stat_map_impl",
+        ":histogram_exporter",
+        ":legacy_clock",
+        ":service_data",
+        ":timeseries_exporter",
+        "//folly:conv",
+        "//folly:cpp_attributes",
+        "//folly:portability",
+        "//folly:range",
+        "//folly:scope_guard",
+        "//folly:shared_mutex",
+        "//folly/container:f14_hash",
+        "//folly/stats:histogram",
+        "//folly/synchronization:atomic_util",
+        "//folly/synchronization:distributed_mutex",
+    ],
+    external_deps = [
+        "gflags",
+    ],
+    exported_external_deps = [
+        "glog",
+    ],
+)
+
+cpp_library(
+    name = "thread_local_stats_map",
+    srcs = [
+        "ThreadLocalStatsMap.cpp",
+    ],
+    headers = [
+        "ThreadLocalStatsMap.h",
+        "ThreadLocalStatsMap-inl.h",
+    ],
+    modular_headers = True,
+    exported_deps = [
+        ":thread_local_stats",
+        "//folly:range",
+        "//folly:thread_local",
+        "//folly/container:f14_hash",
+        "//folly/hash:hash",
+    ],
+)
+
+cpp_library(
+    name = "timeseries",
+    srcs = ["Timeseries.cpp"],
+    headers = [
+        "Timeseries.h",
+        "Timeseries-inl.h",
+    ],
+    modular_headers = True,
+    exported_deps = [
+        "//folly/stats:bucketed_time_series",
+        "//folly/stats:multi_level_time_series",
+    ],
+)
+
+cpp_library(
+    name = "timeseries_exporter",
+    srcs = ["TimeseriesExporter.cpp"],
+    headers = ["TimeseriesExporter.h"],
+    modular_headers = True,
+    deps = [
+        ":dynamic_counters",
+        ":legacy_clock",
+        "//folly:small_vector",
+    ],
+    exported_deps = [
+        ":export_type",
+        ":mutex_wrapper",
+        ":timeseries",
+    ],
+    external_deps = [
+        "glog",
+    ],
+)
+
+cpp_library(
+    name = "timeseries_histogram",
+    headers = [
+        "TimeseriesHistogram.h",
+        "TimeseriesHistogram-inl.h",
+    ],
+    modular_headers = True,
+    exported_deps = [
+        "//fb303:timeseries",
+        "//folly/stats:histogram",
+        "//folly/stats:timeseries_histogram",
+    ],
+)
+
+cpp_library(
+    name = "tl_stats_async_aggregator",
+    srcs = ["TLStatsAsyncAggregator.cpp"],
+    headers = ["TLStatsAsyncAggregator.h"],
+    modular_headers = True,
+    exported_deps = [
+        ":thread_local_stats",
+        "//folly/io/async:async_base",
+    ],
+)
+
+cpp_library(
+    name = "quantile_stat",
+    srcs = [
+        "QuantileStat.cpp",
+    ],
+    headers = [
+        "QuantileStat.h",
+        "QuantileStat-inl.h",
+    ],
+    modular_headers = True,
+    exported_deps = [
+        "//folly/stats:quantile_estimator",
+        "//folly/stats:tdigest",
+    ],
+)
