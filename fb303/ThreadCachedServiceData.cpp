@@ -96,7 +96,7 @@ ThreadCachedServiceData::StatsThreadLocal&
 ThreadCachedServiceData::getStatsThreadLocal() {
   static folly::Indestructible<ThreadCachedServiceData::StatsThreadLocal>
       threadLocal{[]() {
-        return new ThreadCachedServiceData::ThreadLocalStatsMap{fbData.ptr()};
+        return ThreadCachedServiceData::ThreadLocalStatsMap{fbData.ptr()};
       }};
   return *threadLocal;
 }
