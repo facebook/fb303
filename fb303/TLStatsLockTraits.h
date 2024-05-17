@@ -219,33 +219,60 @@ class TLStatsThreadSafe {
    public:
     TimeSeriesType() = default;
     TimeSeriesType(T count, T sum) noexcept {
-      state_[side_].count = count;
-      state_[side_].sum = sum;
+      auto& state = states_[side()];
+      state.count = count;
+      state.sum = sum;
     }
 
     void addValue(T value, T count = 1) noexcept {
-      auto wasLocked = locked_.exchange(true, std::memory_order_seq_cst);
-      DCHECK(!wasLocked);
-      auto side = side_.load(std::memory_order_seq_cst);
-      state_[side].count =
-          folly::constexpr_add_overflow_clamped(state_[side].count, count);
-      state_[side].sum =
-          folly::constexpr_add_overflow_clamped(state_[side].sum, value);
-      locked_.store(false, std::memory_order_release);
+      // Replace writerState_ with kAddingValue so that reset() won't touch it.
+      auto writerState =
+          writerState_.exchange(kAddingValue, std::memory_order_acq_rel);
+      DCHECK_EQ(writerState & kAddingValue, 0)
+          << "Concurrent addValue() calls are not allowed";
+      auto& state = states_[writerState & kSideMask];
+      state.count = folly::constexpr_add_overflow_clamped(state.count, count);
+      state.sum = folly::constexpr_add_overflow_clamped(state.sum, value);
+      // reset() won't attempt modifying writerState_ while kAddingValue, so we
+      // have exclusive access and we don't need an atomic RMW to restore it.
+      writerState_.store(writerState | kDirty, std::memory_order_release);
     }
 
     /**
      * Reset the timeseries count + sum to 0 and return the previous value.
      */
     std::pair<T, T> reset() noexcept {
+      uint32_t writerState = writerState_.load(std::memory_order_relaxed);
+      if ((writerState & (kAddingValue | kDirty)) == 0) {
+        // No writes happened, we can avoid acquiring the lock.
+        return {};
+      }
+
       std::unique_lock lock(mutex_);
-      auto side = side_.fetch_xor(1, std::memory_order_seq_cst);
-      while (locked_.load(std::memory_order_seq_cst)) {
-        folly::asm_volatile_pause();
+
+      while (true) {
+        // Flip the side only when the writer is not running, so it is
+        // guaranteed that no writes can go to the old side.
+        // TODO(ott): This could be starved if addValue() is called in a tight
+        // loop. We rely on the fact that even if that happens it would
+        // eventually get preempted, but a better algorithm would be preferable.
+        while ((writerState & kAddingValue) != 0) {
+          writerState = writerState_.load(std::memory_order_relaxed);
+        }
+        // This also clears the dirty bit.
+        auto newWriterState = (writerState & kSideMask) ^ kSideMask;
+        if (writerState_.compare_exchange_weak(
+                writerState,
+                newWriterState,
+                std::memory_order_acq_rel,
+                std::memory_order_relaxed)) {
+          break;
+        }
       }
 
       // reset counters from side, nothing can be writing to them anymore.
-      auto [count, sum] = std::exchange(state_[side], {});
+      auto oldSide = writerState & kSideMask;
+      auto [count, sum] = std::exchange(states_[oldSide], {});
       return {count, sum};
     }
 
@@ -253,29 +280,30 @@ class TLStatsThreadSafe {
      * Unsafe to call concurrently with reset() or addValue(), only for testing
      */
     T count() const noexcept {
-      return state_[side_].count;
+      return states_[side()].count;
     }
 
     /**
      * Unsafe to call concurrently with reset() or addValue(), only for testing
      */
     T sum() const noexcept {
-      return state_[side_].sum;
+      return states_[side()].sum;
     }
 
    private:
     struct State {
       T count{0};
       T sum{0};
-    } state_[2];
+    } states_[2];
 
-    // makes stores to state_[side_] in reset() visible to addValue(), top bit
-    // is a lock
-    std::atomic<uint16_t> side_{0};
+    size_t side() const {
+      return writerState_.load(std::memory_order_acquire) & kSideMask;
+    }
 
-    // makes stores to state_[side_] in addValue() visible to reset()
-    // serves as a lightweight mutex between add and reset
-    std::atomic<bool> locked_{false};
+    constexpr static uint32_t kSideMask = 1;
+    constexpr static uint32_t kAddingValue = uint32_t(1) << 1;
+    constexpr static uint32_t kDirty = uint32_t(1) << 2;
+    std::atomic<uint32_t> writerState_{0};
 
     // Serialize calls to reset()
     mutable folly::SharedMutex mutex_;
