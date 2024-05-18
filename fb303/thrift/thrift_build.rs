@@ -29,6 +29,6 @@ fn main() {
     conf.types_crate("fb303_core__types");
     conf.clients_crate("fb303_core__clients");
     conf.options("deprecated_default_enum_min_i32,serde");
-    let srcs = &["fb303_core.thrift"];
+    let srcs: &[&str] = &["fb303_core.thrift"];
     conf.run(srcs).expect("Failed while running thrift compilation");
 }
