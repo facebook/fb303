@@ -408,7 +408,8 @@ class TLStatT {
    * If the space matters, we can buy a word by storing name_ in a
    * folly::fbstring.
    */
-  FOLLY_ATTR_NO_UNIQUE_ADDRESS mutable typename LockTraits::StatLock statLock_;
+  using StatLock = typename LockTraits::StatLock;
+  [[FOLLY_ATTR_NO_UNIQUE_ADDRESS]] mutable StatLock statLock_;
 
  private:
   /**

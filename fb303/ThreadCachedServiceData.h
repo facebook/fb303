@@ -454,7 +454,7 @@ struct CachedStorage {
 template <>
 struct CachedStorage<detail::Nothing> {
   const std::string* key;
-  FOLLY_ATTR_NO_UNIQUE_ADDRESS detail::Nothing cached;
+  [[FOLLY_ATTR_NO_UNIQUE_ADDRESS]] detail::Nothing cached;
 };
 
 } // namespace detail
