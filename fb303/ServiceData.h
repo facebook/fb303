@@ -588,8 +588,7 @@ class ServiceData {
   template <typename Mapped>
   struct MapWithKeyCache {
     std::map<std::string, Mapped, std::less<>> map;
-    mutable std::map<std::string, std::vector<std::string>, std::less<>>
-        regexCache;
+    mutable folly::F14FastMap<std::string, std::vector<std::string>> regexCache;
     mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
     mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
     mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{

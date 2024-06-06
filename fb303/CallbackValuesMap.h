@@ -23,6 +23,7 @@
 #include <folly/Chrono.h>
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
+#include <folly/container/F14Map.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
 namespace facebook {
@@ -106,9 +107,8 @@ class CallbackValuesMap {
   // match, cache is valid.
   template <typename Mapped>
   struct MapWithKeyCache {
-    std::map<std::string, Mapped, std::less<>> map;
-    mutable std::map<std::string, std::vector<std::string>, std::less<>>
-        regexCache;
+    folly::F14FastMap<std::string, Mapped> map;
+    mutable folly::F14FastMap<std::string, std::vector<std::string>> regexCache;
     mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
     mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
     mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{

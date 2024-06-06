@@ -36,6 +36,8 @@ cpp_library(
         "//folly:map_util",
         "//folly:range",
         "//folly:synchronized",
+        "//folly/container:f14_hash",
+        "//folly/container:reserve",
         "//folly/synchronization:relaxed_atomic",
     ],
     exported_external_deps = [

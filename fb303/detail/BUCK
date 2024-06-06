@@ -57,6 +57,7 @@ cpp_library(
     exported_deps = [
         "//folly:chrono",
         "//folly:map_util",
+        "//folly/container:f14_hash",
     ],
     external_deps = [
         ("boost", None, "boost_regex"),

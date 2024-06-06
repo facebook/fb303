@@ -130,8 +130,7 @@ class BasicQuantileStatMap {
     folly::F14NodeMap<std::string, Mapped> map;
     // The key to this map is the base of the stat name, e.g. MyStat.
     folly::F14NodeMap<std::string, StatMapEntry> bases;
-    mutable std::map<std::string, std::vector<std::string>, std::less<>>
-        regexCache;
+    mutable folly::F14FastMap<std::string, std::vector<std::string>> regexCache;
     mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
     mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
     mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{

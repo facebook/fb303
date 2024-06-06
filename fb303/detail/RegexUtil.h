@@ -18,12 +18,12 @@
 
 #include <chrono>
 #include <functional>
-#include <map>
 #include <string>
 #include <vector>
 
 #include <folly/Chrono.h>
 #include <folly/MapUtil.h>
+#include <folly/container/F14Map.h>
 
 namespace facebook::fb303::detail {
 
@@ -41,7 +41,7 @@ void filterRegexKeys(
 void cacheRegexKeys(
     std::vector<std::string>& keys, // keys will be invalidated
     const std::string& regex,
-    std::map<std::string, std::vector<std::string>, std::less<>>& regexCache);
+    folly::F14FastMap<std::string, std::vector<std::string>>& regexCache);
 
 // Generate list of extant keys that match the regex.
 // SyncMap is folly::Synchronized of struct containing map, regexCache, epochs

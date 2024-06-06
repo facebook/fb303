@@ -18,6 +18,7 @@
 
 #include <fb303/detail/RegexUtil.h>
 #include <folly/MapUtil.h>
+#include <folly/container/Reserve.h>
 #include <glog/logging.h>
 
 namespace facebook {
@@ -67,7 +68,7 @@ bool CallbackValuesMap<T>::contains(folly::StringPiece name) const {
 template <typename T>
 void CallbackValuesMap<T>::getKeys(std::vector<std::string>* keys) const {
   auto rlock = callbackMap_.rlock();
-  keys->reserve(keys->size() + rlock->map.size());
+  folly::grow_capacity_by(*keys, rlock->map.size());
   for (const auto& [key, _] : rlock->map) {
     keys->emplace_back(key);
   }

@@ -39,7 +39,7 @@ void filterRegexKeys(vector<string>& keys, const string& regex) {
 void cacheRegexKeys(
     vector<string>& keys,
     const string& regex,
-    std::map<string, vector<string>, std::less<>>& cache) {
+    folly::F14FastMap<string, vector<string>>& cache) {
   // If this becomes an issue, we can use an SHA-256 of the regex
   if (regex.size() > kRegexLengthLimit) {
     return;
