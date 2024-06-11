@@ -6,7 +6,7 @@ use std::path::Path;
 use thrift_compiler::Config;
 use thrift_compiler::GenContext;
 const CRATEMAP: &str = "\
-fb303_core crate //fb303/thrift:fb303_core-rust
+fb303/thrift/fb303_core.thrift crate //fb303/thrift:fb303_core-rust
 ";
 #[rustfmt::skip]
 fn main() {
