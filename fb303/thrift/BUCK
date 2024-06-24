@@ -8,12 +8,12 @@ load("//unicorn/thrift-plugins/subtract_from:subtract_from.bzl", "thrift_plugin_
 
 # The main thrift_library()
 #
-# This automatically generates language-specific rules name "fb303_core-cpp2",
+# This automatically generates language-specific rules name "fb303_core-cpp2-*",
 # "fb303_core-py", "fb303_core-php", etc.
 #
 # For example, if you depend on this from a cpp_binary(), you need to list the
-# dependency as "fb303_core-cpp2".  However, if you depend on it from another
-# thrift_library() call, you can just use "fb303_core".
+# dependency as "fb303_core-cpp2-services".  However, if you depend on it from
+# another thrift_library() call, you can just use "fb303_core".
 thrift_library(
     name = "fb303_core",
     java_swift_maven_coords = "com.facebook.thrift:fb303_core-thrift",
