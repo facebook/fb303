@@ -82,6 +82,7 @@ struct QuantileConsts {
   static constexpr const std::array<double, 1> kP95{{.95}};
   static constexpr const std::array<double, 1> kP99{{.99}};
   static constexpr const std::array<double, 1> kP999{{.999}};
+  static constexpr const std::array<double, 1> kP9999{{.9999}};
   static constexpr const std::array<double, 2> kP95_P99{{.95, .99}};
   static constexpr const std::array<double, 2> kP95_P999{{.95, .999}};
   static constexpr const std::array<double, 2> kP99_P999{{.99, .999}};
@@ -100,6 +101,8 @@ struct QuantileConsts {
       {.1, .5, .95, .99}};
   static constexpr const std::array<double, 5> kP5_P50_P95_P99_P100{
       {.05, .5, .95, .99, 1}};
+  static constexpr const std::array<double, 6> kP5_P50_P95_P99_P9999_P100{
+      {.05, .5, .95, .99, .9999, 1}};
   static constexpr const std::array<double, 5> kP10_P75_P95_P99_P100{
       {.1, .75, .95, .99, 1}};
   static constexpr const std::array<double, 5> kP50_P75_P90_P95_P99{
