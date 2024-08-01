@@ -576,11 +576,38 @@ class FormattedKeyHolder {
   // values in globalMap_.
   // (we use const string pointers instead of StringPieces because
   //  ThreadCachedServiceData::addStatValue() only accepts string references)
+  //
+  // There is also a last-found-item cache to accelerate lookups in practice.
+  // This is an optimization when any given lookup has sufficient, even if low,
+  // probability of being a consecutive lookup with the same key. I think this
+  // primarily optimizes the indirection through the first f14-hashtable chunk
+  // (and presumably any other chunks to be searched) and secondarily the other
+  // chunk-iteration calculations. The last-found-item cache has the last hash
+  // which is the first thing to check. To conserve space, it holds a pointer to
+  // the key with stable storage in the global map rather than holding the key
+  // itself, just as the local-map does. It also holds a pointer to the mapped
+  // value, which is not a problem even though the map type does not have any
+  // reference-stability because the whole last-found-item cache is updated on
+  // every insert and erase operation.
   using LocalMap = folly::F14FastMap<
       std::reference_wrapper<const SubkeyArray>,
       ValueType,
       SubkeyArrayHash,
       SubkeyArrayEqualTo>;
+  using LocalMapIterator = typename LocalMap::iterator;
+  struct LocalMapItemRef {
+    size_t hash{};
+    const SubkeyArray* key{}; // null at init and after erase
+    ValueType* value{};
+  };
+  static inline constexpr size_t LocalMapAndLastAlign =
+      folly::hardware_constructive_interference_size;
+  struct alignas(LocalMapAndLastAlign) LocalMapAndLast {
+    LocalMapItemRef last;
+    LocalMap map;
+  };
+  static_assert(sizeof(LocalMapAndLast) == LocalMapAndLastAlign); // both size
+  static_assert(alignof(LocalMapAndLast) == LocalMapAndLastAlign); // and align
 
   // Takes a key format which may have (e.g. "foo.{}") containing one or
   // more special placeholders "{}" that can be replaced with a subkey.
@@ -623,9 +650,11 @@ class FormattedKeyHolder {
         "Arguments must be strings or integers");
 
     auto decay = folly::overload(decay_<int64_t>{}, decay_<std::string_view>{});
-    // calling outline folly::get_default would be a small perf hit
-    auto& map = *localMap_; // so call map-find inline to avoid
-    map.erase(std::tuple{decay(subkeys)...});
+    auto& local = *localMap_;
+    local.map.erase(std::tuple{decay(subkeys)...});
+    // any update to the map structure invalidates all references, so we clear
+    // the references held in local.last
+    local.last = {};
   }
 
  private:
@@ -637,12 +666,26 @@ class FormattedKeyHolder {
         "Arguments must be strings or integers");
 
     auto decay = folly::overload(decay_<int64_t>{}, decay_<std::string_view>{});
-    // calling outline folly::get_default would be a small perf hit
-    auto& map = *localMap_; // so call map-find inline to avoid
-    auto it = map.find(std::tuple{decay(subkeys)...});
-    return FOLLY_LIKELY(it != map.end())
-        ? it->second
-        : getFormattedKeySlow(std::forward<Args>(subkeys)...);
+    auto& local = *localMap_;
+    auto const keytup = std::tuple{decay(subkeys)...};
+    auto const keyhash = local.map.hash_function()(keytup);
+    if (FOLLY_LIKELY(
+            local.last.key && keyhash == local.last.hash &&
+            local.map.key_eq()(*local.last.key, keytup))) {
+      return *local.last.value;
+    }
+    // calling outline folly::get_default would be a small perf hit, so call
+    auto it = local.map.find( // map-find inline to avoid it
+        local.map.prehash(keytup, keyhash),
+        keytup);
+    if (FOLLY_UNLIKELY(it == local.map.end())) {
+      it = getFormattedKeySlow(std::forward<Args>(subkeys)...);
+    }
+    // if the map was updated, existing references held in local.last would be
+    // invalid ... but we reset them all to the just-found item anyway, so
+    // we do not hold onto invalid references
+    local.last = {keyhash, &it->first.get(), &it->second};
+    return it->second;
   }
 
   template <typename T>
@@ -664,12 +707,12 @@ class FormattedKeyHolder {
    * corresponding formatted-key.
    */
   template <typename... Args>
-  ValueType& getFormattedKeySlow(Args&&... subkeys) {
+  LocalMapIterator getFormattedKeySlow(Args&&... subkeys) {
     auto mkvar = folly::overload(
         mkvar_<int64_t>{}, mkvar_<std::string_view, std::string>{});
+    auto& local = *localMap_;
     auto const& [k, v] = getFormattedKeyGlobal({mkvar(subkeys)...});
-    return localMap_->emplace(std::cref(k), ValueType{&v, CachedType{}})
-        .first->second;
+    return local.map.emplace(std::cref(k), ValueType{&v, CachedType{}}).first;
   }
 
   /**
@@ -730,7 +773,7 @@ class FormattedKeyHolder {
   std::string keyFormat_;
   std::function<void(const std::string& key)> prepareKey_;
   folly::Synchronized<GlobalMap> globalMap_;
-  folly::ThreadLocal<LocalMap> localMap_;
+  folly::ThreadLocal<LocalMapAndLast> localMap_;
 };
 
 } // namespace internal
