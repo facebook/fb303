@@ -30,6 +30,7 @@
 #include <fb303/ExportType.h>
 #include <fb303/SimpleLRUMap.h>
 #include <fb303/ThreadLocalStatsMap.h>
+#include <folly/ConcurrentLazy.h>
 #include <folly/Format.h>
 #include <folly/MapUtil.h>
 #include <folly/Overload.h>
@@ -1470,6 +1471,33 @@ class DynamicHistogramWrapper {
 
   internal::FormattedKeyHolder<N> key_;
   const internal::HistogramSpec spec_;
+};
+
+/**
+ * Lazily create a timeseries on the first call to add() & co.
+ *
+ * Register it when it's actually used to reduce fb303 / ODS footprint when the
+ * timeseries is not used in a subset of instances of a service.
+ *
+ * Thread Safe: only one thread will construct (and register) the timeseries.
+ */
+template <typename TimeseriesT = TimeseriesWrapper>
+class LazyTimeseries {
+ public:
+  template <typename... Args>
+  explicit LazyTimeseries(const Args&... args)
+      : t_([=] { return TimeseriesT(args...); }) {}
+
+  void add(int64_t value = 1) {
+    t_().add(value);
+  }
+
+  void addAggregated(int64_t sum, int64_t numSamples) {
+    t_().addAggregated(sum, numSamples);
+  }
+
+ private:
+  folly::ConcurrentLazy<folly::Function<TimeseriesT(void)>> t_;
 };
 
 } // namespace facebook::fb303
