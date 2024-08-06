@@ -81,9 +81,9 @@ class DynamicQuantileStatWrapper {
     std::vector<size_t> timeseriesLengths;
   };
   using StatPtr = std::shared_ptr<QuantileStat>;
-  using Cache = folly::F14FastMap<std::string const*, StatPtr>;
+  using Cache = folly::F14FastMap<std::string_view, StatPtr>;
 
-  internal::FormattedKeyHolder<N> key_;
+  internal::FormattedKeyHolder<N, StatPtr> key_;
   folly::ThreadLocal<Cache> cache_;
   Spec spec_;
 };

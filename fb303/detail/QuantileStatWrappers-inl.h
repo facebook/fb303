@@ -43,16 +43,16 @@ void DynamicQuantileStatWrapper<N>::addValue(
     double value,
     std::chrono::steady_clock::time_point now,
     Args&&... subkeys) {
-  auto const& key = key_.getFormattedKey(subkeys...);
-  auto& cache = *cache_;
-  auto ptr = folly::get_ptr(cache, &key);
-  if (!ptr) {
-    cache[&key] = ServiceData::get()->getQuantileStat(
-        key, spec_.stats, spec_.quantiles, spec_.timeseriesLengths);
-    ptr = &cache[&key];
+  auto key = key_.getFormattedKeyWithExtra(std::forward<Args>(subkeys)...);
+  if (key.second.get() == nullptr) {
+    auto& cache = *cache_;
+    auto ptr = folly::get_ptr(cache, key.first);
+    if (!ptr) {
+      key.second.get() = cache[key.first] = ServiceData::get()->getQuantileStat(
+          key.first, spec_.stats, spec_.quantiles, spec_.timeseriesLengths);
+    }
   }
-  auto& stat = *ptr;
-  stat->addValue(value, now);
+  key.second.get()->addValue(value, now);
 }
 
 template <size_t N>
