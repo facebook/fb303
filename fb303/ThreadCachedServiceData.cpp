@@ -59,6 +59,14 @@ namespace {
 folly::Singleton<PublisherManager> publisherManager;
 }
 
+ThreadCachedServiceData::TLTimeseries* TimeseriesWrapper::tcTimeseriesSlow() {
+  DCHECK(!tlTimeseries_.get());
+  auto& stats = ThreadCachedServiceData::getStatsThreadLocal();
+  auto timeseries = stats->getTimeseriesSafe(key_);
+  tlTimeseries_.reset(timeseries);
+  return timeseries.get();
+}
+
 // ExportedStatMap will utilize a default stat object,
 // MinuteTenMinuteHourTimeSeries, as a blueprint for creating new timeseries
 // if one is not explicitly specified.  So we define these here that are used

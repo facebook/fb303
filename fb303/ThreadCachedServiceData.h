@@ -886,20 +886,16 @@ class TimeseriesWrapper {
  private:
   std::string key_;
 
-  folly::ThreadLocal<std::shared_ptr<ThreadCachedServiceData::TLTimeseries>>
-      tlTimeseries_;
+  //  Holds pointers directly to TLTimeseries, and holds deleters which hold
+  //  copies of the owning shared_ptr objects.
+  folly::ThreadLocalPtr<ThreadCachedServiceData::TLTimeseries> tlTimeseries_;
 
-  inline ThreadCachedServiceData::TLTimeseries* tcTimeseries() {
-    ThreadCachedServiceData::TLTimeseries* cached = tlTimeseries_->get();
-    if (cached) {
-      return cached;
-    }
-
-    auto timeseries =
-        ThreadCachedServiceData::getStatsThreadLocal()->getTimeseriesSafe(key_);
-    *tlTimeseries_ = timeseries;
-    return timeseries.get();
+  FOLLY_ALWAYS_INLINE ThreadCachedServiceData::TLTimeseries* tcTimeseries() {
+    auto cached = tlTimeseries_.get();
+    return FOLLY_LIKELY(!!cached) ? cached : tcTimeseriesSlow();
   }
+
+  FOLLY_NOINLINE ThreadCachedServiceData::TLTimeseries* tcTimeseriesSlow();
 
   template <typename... Args>
   void exportStats(const ExportedStat* statPrototype, const Args&... args) {
