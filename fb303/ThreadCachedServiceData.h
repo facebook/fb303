@@ -490,10 +490,7 @@ class FormattedKeyHolder {
   };
 
   using int64_hasher = folly::hasher<int64_t>;
-  using string_view_hasher = folly::conditional_t<
-      folly::kIsGlibcxx && sizeof(void*) == 8,
-      string_view_hasher_murmur64,
-      folly::hasher<std::string_view>>;
+  using string_view_hasher = string_view_hasher_murmur64;
   static_assert(int64_hasher::folly_is_avalanching::value);
   static_assert(string_view_hasher::folly_is_avalanching::value);
 
