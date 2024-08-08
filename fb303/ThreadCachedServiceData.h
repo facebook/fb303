@@ -477,20 +477,33 @@ class FormattedKeyHolder {
       (std::is_convertible_v<T, folly::StringPiece> || std::is_integral_v<T>) &&
       !std::is_same_v<T, std::nullptr_t> && !std::is_same_v<T, bool>;
 
-  // Hash function
-  struct SubkeyHash //
-      : private folly::hasher<int64_t>,
-        private folly::hasher<std::string>,
-        private folly::hasher<std::string_view> {
-    using is_transparent = void;
-    using folly_is_avalanching = folly::Conjunction<
-        folly::hasher<int64_t>::folly_is_avalanching,
-        folly::hasher<std::string>::folly_is_avalanching,
-        folly::hasher<std::string_view>::folly_is_avalanching>;
+  struct string_view_hasher_murmur64 {
+    using folly_is_avalanching = std::true_type;
 
-    using folly::hasher<int64_t>::operator();
-    using folly::hasher<std::string>::operator();
-    using folly::hasher<std::string_view>::operator();
+    size_t operator()(std::string_view sv) const noexcept {
+      constexpr uint64_t kSeed = 0xc70f6907ULL; // seed used by libstdc++
+      return folly::hash::murmurHash64(sv.data(), sv.size(), kSeed);
+    }
+    size_t operator()(const std::string& s) const noexcept {
+      return operator()(std::string_view(s));
+    }
+  };
+
+  using int64_hasher = folly::hasher<int64_t>;
+  using string_view_hasher = folly::conditional_t<
+      folly::kIsGlibcxx && sizeof(void*) == 8,
+      string_view_hasher_murmur64,
+      folly::hasher<std::string_view>>;
+  static_assert(int64_hasher::folly_is_avalanching::value);
+  static_assert(string_view_hasher::folly_is_avalanching::value);
+
+  // Hash function
+  struct SubkeyHash : private int64_hasher, private string_view_hasher {
+    using is_transparent = void;
+    using folly_is_avalanching = std::true_type;
+
+    using int64_hasher::operator();
+    using string_view_hasher::operator();
 
     size_t operator()(const Subkey& v) const {
       return std::visit(*this, v);
