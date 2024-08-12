@@ -38,10 +38,10 @@ TEST(ExportedHistogram, ExportedStats) {
   ExportedHistogram defaultHistogram(10, 0, 10000);
   ExportedHistogramMapImpl histMap(&counters, &strings, defaultHistogram);
 
-  histMap.addHistogram("hist1");
+  histMap.addHistogram("hist1", defaultHistogram);
   histMap.exportPercentile("hist1", 50, 95, 99, 100);
   histMap.exportStat("hist1", COUNT, SUM, AVG, RATE);
-  histMap.addHistogram("hist2");
+  histMap.addHistogram("hist2", defaultHistogram);
   histMap.exportPercentile("hist2", 50, 95, 99, 100);
   histMap.exportStat("hist2", COUNT, SUM, AVG, RATE);
   // hist3 is similar to hist1 but has buckets 5x as wide

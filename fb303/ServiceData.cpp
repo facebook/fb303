@@ -160,7 +160,7 @@ void ServiceData::addStatExports(
             max,
             statPrototype != nullptr ? *statPrototype
                                      : histMap_.getDefaultStat());
-        histMap_.addHistogram(key, &hist);
+        histMap_.addHistogram(key, hist);
         addedHist = true;
       }
       exportHistogramPercentile(key, folly::to<int32_t>(stat));
@@ -202,7 +202,7 @@ bool ServiceData::addHistogram(
 }
 
 bool ServiceData::addHistogram(StringPiece key, const ExportedHistogram& hist) {
-  return histMap_.addHistogram(key, &hist);
+  return histMap_.addHistogram(key, hist);
 }
 
 void ServiceData::exportHistogramPercentile(StringPiece key, int pct) {
