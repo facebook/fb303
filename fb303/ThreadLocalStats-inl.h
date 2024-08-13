@@ -433,12 +433,13 @@ void TLHistogramT<LockTraits>::aggregate(std::chrono::seconds now) {
 template <class LockTraits>
 void TLHistogramT<LockTraits>::initGlobalStat(
     ThreadLocalStatsT<LockTraits>* stats) {
-  fb303::ExportedHistogram histToCopy(
-      simpleHistogram_.getBucketSize(),
-      simpleHistogram_.getMin(),
-      simpleHistogram_.getMax());
-  globalStat_ = stats->getHistogramMap()->getOrCreateLockableHistogram(
-      this->name(), &histToCopy);
+  globalStat_ =
+      stats->getHistogramMap()->getOrCreateLockableHistogram(this->name(), [&] {
+        return fb303::ExportedHistogram{
+            simpleHistogram_.getBucketSize(),
+            simpleHistogram_.getMin(),
+            simpleHistogram_.getMax()};
+      });
 }
 
 template <class LockTraits>
