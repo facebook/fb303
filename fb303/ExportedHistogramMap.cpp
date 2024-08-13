@@ -89,17 +89,13 @@ ExportedHistogramMap::HistogramPtr ExportedHistogramMap::getOrCreateUnlocked(
 
 bool ExportedHistogramMap::addHistogram(
     StringPiece name,
-    const ExportedHistogram* copyMe) {
+    const ExportedHistogram& copyMe) {
   // Call getOrCreateUnlocked() to do all of the work.
   bool created;
-  auto item = getOrCreateUnlocked(name, copyMe, &created);
-  if (!created && copyMe) {
+  auto item = getOrCreateUnlocked(name, &copyMe, &created);
+  if (!created) {
     checkAdd(
-        name,
-        item,
-        copyMe->getBucketSize(),
-        copyMe->getMin(),
-        copyMe->getMax());
+        name, item, copyMe.getBucketSize(), copyMe.getMin(), copyMe.getMax());
   }
   return created;
 }

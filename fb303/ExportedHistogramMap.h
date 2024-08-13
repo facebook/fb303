@@ -171,9 +171,7 @@ class ExportedHistogramMap {
    * Then, all of the histogram's levels are all exported to DynamicStrings
    * with keys of the form:   <histogram_name>.hist.<level_duration>
    */
-  bool addHistogram(
-      folly::StringPiece name,
-      const ExportedHistogram* copyMe = nullptr);
+  bool addHistogram(folly::StringPiece name, const ExportedHistogram& copyMe);
 
   bool addHistogram(
       folly::StringPiece name,
