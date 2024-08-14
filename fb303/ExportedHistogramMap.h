@@ -163,17 +163,12 @@ class ExportedHistogramMap {
    * this name already existed.  Logs an error if a histogram already existed
    * with this name but had different parameters.
    *
-   * If 'copyMe' is provided, the new histogram is copy-constructed from
-   * 'copyMe' and then cleared.  Otherwise, the histogram is constructed in the
-   * same way from the 'copyMe' argument provided to the ExportedHistogramMap
-   * constructor.
+   * The new histogram is copy-constructed from 'copyMe' and then cleared.
    *
    * Then, all of the histogram's levels are all exported to DynamicStrings
    * with keys of the form:   <histogram_name>.hist.<level_duration>
    */
-  bool addHistogram(
-      folly::StringPiece name,
-      const ExportedHistogram* copyMe = nullptr);
+  bool addHistogram(folly::StringPiece name, const ExportedHistogram& copyMe);
 
   bool addHistogram(
       folly::StringPiece name,
