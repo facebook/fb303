@@ -196,9 +196,8 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
    */
   LockableHistogram getOrCreateLockableHistogram(
       folly::StringPiece name,
-      const ExportedHistogram* copyMe,
-      bool* createdPtr = nullptr) {
-    return LockableHistogram(getOrCreateUnlocked(name, copyMe, createdPtr));
+      MakeExportedHistogram makeExportedHistogram) {
+    return LockableHistogram(getOrCreateUnlocked(name, makeExportedHistogram));
   }
 
   using ExportedHistogramMap::addValue;

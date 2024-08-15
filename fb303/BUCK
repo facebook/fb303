@@ -163,6 +163,7 @@ cpp_library(
         ":exported_stat_map_impl",
         ":mutex_wrapper",
         ":timeseries_histogram",
+        "//folly:function",
         "//folly:map_util",
         "//folly:small_vector",
         "//folly:synchronized",

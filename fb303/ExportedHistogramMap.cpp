@@ -45,21 +45,16 @@ ExportedHistogramMap::ExportedHistogramMap(
 
 ExportedHistogramMap::HistogramPtr ExportedHistogramMap::getOrCreateUnlocked(
     StringPiece name,
-    const ExportedHistogram* copyMe,
-    bool* createdPtr) {
-  if (createdPtr) {
-    *createdPtr = false;
-  }
+    bool& wasCreated,
+    MakeExportedHistogram makeExportedHistogram) {
+  wasCreated = false;
 
   auto hist = getHistogramUnlocked(name);
   if (hist != nullptr) {
     return hist;
   }
 
-  auto value = std::make_shared<SyncHistogram>(**defaultHist_.rlock());
-  if (copyMe) {
-    *value = *copyMe;
-  }
+  auto value = std::make_shared<SyncHistogram>(makeExportedHistogram());
 
   bool inserted;
   {
@@ -74,15 +69,9 @@ ExportedHistogramMap::HistogramPtr ExportedHistogramMap::getOrCreateUnlocked(
   }
 
   if (inserted) {
-    if (copyMe) {
-      hist->lock()->clear();
-    }
     HistogramExporter::exportBuckets(hist, name, dynamicStrings_);
   }
-
-  if (createdPtr) {
-    *createdPtr = inserted;
-  }
+  wasCreated = inserted;
 
   return hist;
 }
@@ -91,8 +80,12 @@ bool ExportedHistogramMap::addHistogram(
     StringPiece name,
     const ExportedHistogram& copyMe) {
   // Call getOrCreateUnlocked() to do all of the work.
-  bool created;
-  auto item = getOrCreateUnlocked(name, &copyMe, &created);
+  bool created = false;
+  auto item = getOrCreateUnlocked(name, created, [&] {
+    ExportedHistogram res = copyMe;
+    res.clear();
+    return res;
+  });
   if (!created) {
     checkAdd(
         name, item, copyMe.getBucketSize(), copyMe.getMin(), copyMe.getMax());

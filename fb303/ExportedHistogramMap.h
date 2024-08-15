@@ -20,6 +20,7 @@
 #include <fb303/ExportType.h>
 #include <fb303/MutexWrapper.h>
 #include <fb303/TimeseriesHistogram.h>
+#include <folly/Function.h>
 #include <folly/MapUtil.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
@@ -63,6 +64,7 @@ class ExportedHistogramMap {
   using HistogramPtr = std::shared_ptr<SyncHistogram>;
   using LockedHistogramPtr = SyncHistogram::LockedPtr;
   using HistMap = folly::F14NodeMap<std::string, HistogramPtr>;
+  using MakeExportedHistogram = folly::FunctionRef<ExportedHistogram()>;
 
   /**
    * Creates an ExportedHistogramMap and hooks it up to the given
@@ -153,8 +155,15 @@ class ExportedHistogramMap {
    */
   HistogramPtr getOrCreateUnlocked(
       folly::StringPiece name,
-      const ExportedHistogram* copyMe,
-      bool* createdPtr = nullptr);
+      MakeExportedHistogram makeExportedHistogram) {
+    bool wasCreated = false;
+    return getOrCreateUnlocked(name, wasCreated, makeExportedHistogram);
+  }
+
+  HistogramPtr getOrCreateUnlocked(
+      folly::StringPiece name,
+      bool& wasCreated,
+      MakeExportedHistogram makeExportedHistogram);
 
   /**
    * Creates a new histogram with the given name.
@@ -323,9 +332,16 @@ class ExportedHistogramMap {
       std::chrono::seconds now,
       const folly::Histogram<CounterType>& values,
       const ExportedHistogram* hist,
-      folly::small_vector<int> percentiles) {
-    bool created;
-    getOrCreateUnlocked(name, hist, &created);
+      const folly::small_vector<int>& percentiles) {
+    bool created = false;
+    getOrCreateUnlocked(name, created, [&] {
+      if (hist) {
+        auto res = *hist;
+        res.clear();
+        return res;
+      }
+      return **defaultHist_.rlock();
+    });
     if (created) {
       for (auto percentile : percentiles) {
         exportPercentile(name, percentile);
