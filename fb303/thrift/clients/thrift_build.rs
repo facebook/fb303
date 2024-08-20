@@ -7,6 +7,9 @@ use thrift_compiler::Config;
 use thrift_compiler::GenContext;
 const CRATEMAP: &str = "\
 fb303/thrift/fb303_core.thrift crate //fb303/thrift:fb303_core-rust
+thrift/annotation/cpp.thrift cpp //thrift/annotation:cpp-rust
+thrift/annotation/scope.thrift cpp->scope //thrift/annotation:scope-rust
+thrift/annotation/thrift.thrift cpp->thrift //thrift/annotation:thrift-rust
 ";
 #[rustfmt::skip]
 fn main() {
