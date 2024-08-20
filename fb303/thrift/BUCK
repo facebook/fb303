@@ -31,6 +31,9 @@ thrift_library(
         "py-asyncio",
         "rust",
     ],
+    no_plugin_deps = [
+        "//thrift/annotation:cpp",
+    ],
     plugins = [
         thrift_plugin_allocated,
         thrift_plugin_automock,
