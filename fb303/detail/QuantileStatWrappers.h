@@ -91,3 +91,46 @@ class DynamicQuantileStatWrapper {
 } // namespace facebook::fb303::detail
 
 #include <fb303/detail/QuantileStatWrappers-inl.h>
+
+/*
+ * Stats are registered and exported via ServiceData. These macros allow you to
+ * declare and define specific stat instances.
+ *
+ * Example usage:
+ *
+ * using namespace facebook::fb303;
+ * DEFINE_quantile_stat(
+ *    my_stat,
+ *    ExportTypeConsts::kAvg,
+ *    QuantileConsts::kP95_P99,
+ *    SlidingWindowPeriodConsts::kOneMinTenMinHour);
+ *
+ * void foo() {
+ *   STATS_my_stat.addValue(1);
+ * }
+ *
+ * In this example, we are registering a stat with the name "my_stat", which is
+ * tracking aggregations for average (mean), p95, and p99, across minute, ten
+ * minute, and hour long sliding windows. If your binary is a thrift service,
+ * the aggregated counters are exported via fb303::getCounters. Otherwise, you
+ * can access them through the global ServiceData object (see ServiceData::get).
+ */
+
+#define DECLARE_quantile_stat(varname) \
+  extern ::facebook::fb303::detail::QuantileStatWrapper STATS_##varname
+
+#define DEFINE_quantile_stat(varname, ...)                        \
+  ::facebook::fb303::detail::QuantileStatWrapper STATS_##varname( \
+      #varname, ##__VA_ARGS__)
+
+#define DECLARE_dynamic_quantile_stat(varname, keyNumArgs)                 \
+  extern ::facebook::fb303::detail::DynamicQuantileStatWrapper<keyNumArgs> \
+      STATS_##varname
+
+#define DEFINE_dynamic_quantile_stat(varname, keyformat, ...)            \
+  static_assert(                                                         \
+      countPlaceholders(keyformat) > 0,                                  \
+      "Must have at least one placeholder.");                            \
+  facebook::fb303::detail::DynamicQuantileStatWrapper<countPlaceholders( \
+      keyformat)>                                                        \
+      STATS_##varname(keyformat, ##__VA_ARGS__)
