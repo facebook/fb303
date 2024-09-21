@@ -54,7 +54,7 @@ fb303 is licensed under Apache 2.0 as found in the LICENSE file.
 
 fb303 is a dependency of many other projects at Facebook which expose
 Thrift interfaces; some which have been open-sourced. Examples include
-[edenfs](https://github.com/facebookexperimental/eden),
+[edenfs](https://github.com/facebook/sapling),
 [proxygen](https://github.com/facebook/proxygen), and
 [fboss](https://github.com/facebook/fboss).
 
