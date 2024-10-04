@@ -1,5 +1,7 @@
 load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
 
+oncall("thrift")
+
 cpp_library(
     name = "quantile_stat_map",
     srcs = [
