@@ -24,6 +24,7 @@
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
+#include <folly/container/RegexMatchCache.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
 namespace facebook {
@@ -57,7 +58,14 @@ class CallbackValuesMap {
 
   /* Returns the keys in the map that matches regex pattern */
   void getRegexKeys(std::vector<std::string>& keys, const std::string& regex)
-      const;
+      const {
+    const auto now = folly::RegexMatchCache::clock::now();
+    getRegexKeys(keys, regex, now);
+  }
+  void getRegexKeys(
+      std::vector<std::string>& keys,
+      const std::string& regex,
+      const folly::RegexMatchCache::time_point now) const;
 
   /** Returns the number of keys present in the map */
   size_t getNumKeys() const;
@@ -83,6 +91,10 @@ class CallbackValuesMap {
    */
   void clear();
 
+  void trimRegexCache(folly::RegexMatchCache::time_point expiry) {
+    callbackMap_.wlock()->matches.purge(expiry);
+  }
+
   class CallbackEntry {
    public:
     explicit CallbackEntry(const Callback& callback);
@@ -107,12 +119,8 @@ class CallbackValuesMap {
   // match, cache is valid.
   template <typename Mapped>
   struct MapWithKeyCache {
-    folly::F14FastMap<std::string, Mapped> map;
-    mutable folly::F14FastMap<std::string, std::vector<std::string>> regexCache;
-    mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
-    mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
-    mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{
-        std::chrono::seconds(0)};
+    folly::F14NodeMap<std::string, Mapped> map;
+    folly::RegexMatchCache matches; // requires map to have reference stability
   };
 
   using CallbackMap = MapWithKeyCache<std::shared_ptr<CallbackEntry>>;

@@ -26,6 +26,7 @@
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
+#include <folly/container/RegexMatchCache.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
 #include <atomic>
@@ -473,6 +474,7 @@ class ServiceData {
       const std::string& regex) const;
   std::map<std::string, int64_t> getRegexCountersOptimized(
       const std::string& regex) const;
+  void trimRegexCache(std::chrono::seconds maxstale);
   /*** Returns true if a counter exists with the specified name */
   bool hasCounter(folly::StringPiece key) const;
 
@@ -570,7 +572,8 @@ class ServiceData {
 
  private:
   struct Counter : std::atomic<int64_t> {
-    Counter() : std::atomic<int64_t>{0} {}
+    Counter() noexcept : std::atomic<int64_t>{0} {}
+    explicit Counter(int64_t v) noexcept : std::atomic<int64_t>{v} {}
     Counter(Counter&& other) noexcept
         : std::atomic<int64_t>{other.load(std::memory_order_relaxed)} {}
   };
@@ -588,11 +591,7 @@ class ServiceData {
   template <typename Mapped>
   struct MapWithKeyCache {
     std::map<std::string, Mapped, std::less<>> map;
-    mutable folly::F14FastMap<std::string, std::vector<std::string>> regexCache;
-    mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
-    mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
-    mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{
-        std::chrono::seconds(0)};
+    folly::RegexMatchCache matches; // requires map to have reference stability
   };
   folly::Synchronized<MapWithKeyCache<Counter>> counters_;
 

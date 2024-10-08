@@ -77,8 +77,9 @@ void CallbackValuesMap<T>::getKeys(std::vector<std::string>* keys) const {
 template <typename T>
 void CallbackValuesMap<T>::getRegexKeys(
     std::vector<std::string>& keys,
-    const std::string& regex) const {
-  detail::getRegexKeysImpl(keys, regex, callbackMap_);
+    const std::string& regex,
+    const folly::RegexMatchCache::time_point now) const {
+  detail::cachedFindMatches(keys, callbackMap_, regex, now);
 }
 
 template <typename T>
@@ -91,11 +92,9 @@ void CallbackValuesMap<T>::registerCallback(
     folly::StringPiece name,
     const Callback& cob) {
   auto wlock = callbackMap_.wlock();
-  wlock->map[std::string(name)] = std::make_shared<CallbackEntry>(cob);
+  auto iter = detail::cachedAddString(*wlock, name, nullptr);
 
-  // avoid fetch_add() to avoid extra fences, since we hold the lock already
-  uint64_t epoch = wlock->mapEpoch.load();
-  wlock->mapEpoch.store(epoch + 1);
+  iter->second = std::make_shared<CallbackEntry>(cob);
 }
 
 template <typename T>
@@ -107,11 +106,7 @@ bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
   }
   auto callbackCopy = std::move(entry->second);
 
-  // avoid fetch_add() to avoid extra fences, since we hold the lock already
-  uint64_t epoch = wlock->mapEpoch.load();
-  wlock->mapEpoch.store(epoch + 1);
-
-  wlock->map.erase(entry);
+  detail::cachedEraseString(*wlock, entry);
   VLOG(5) << "Unregistered  callback: " << name;
 
   // clear the callback after releasing the lock
@@ -126,10 +121,7 @@ void CallbackValuesMap<T>::clear() {
   for (auto& entry : wlock->map) {
     entry.second->clear();
   }
-  // avoid fetch_add() to avoid extra fences, since we hold the lock already
-  uint64_t epoch = wlock->mapEpoch.load();
-  wlock->mapEpoch.store(epoch + 1);
-  wlock->map.clear();
+  detail::cachedClearStrings(*wlock);
 }
 
 template <typename T>

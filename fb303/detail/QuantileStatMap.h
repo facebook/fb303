@@ -29,10 +29,12 @@
 #include <folly/Optional.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
+#include <folly/container/RegexMatchCache.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
 #include <fb303/ExportType.h>
 #include <fb303/QuantileStat.h>
+#include <fb303/detail/RegexUtil.h>
 
 /**
  * Allow services to switch back to the old implementation for RATE. Eventually
@@ -75,7 +77,14 @@ class BasicQuantileStatMap {
 
   /* Returns the keys in the map that matches regex pattern */
   void getRegexKeys(std::vector<std::string>& keys, const std::string& regex)
-      const;
+      const {
+    const auto now = folly::RegexMatchCache::clock::now();
+    getRegexKeys(keys, regex, now);
+  }
+  void getRegexKeys(
+      std::vector<std::string>& keys,
+      const std::string& regex,
+      const folly::RegexMatchCache::time_point now) const;
 
   size_t getNumKeys() const;
 
@@ -102,12 +111,12 @@ class BasicQuantileStatMap {
 
   void forgetAll() {
     auto countersWLock = counters_.wlock();
-    countersWLock->map.clear();
+    detail::cachedClearStrings(*countersWLock);
     countersWLock->bases.clear();
+  }
 
-    // avoid fetch_add() to avoid extra fences, since we hold the lock already
-    uint64_t epoch = countersWLock->mapEpoch.load();
-    countersWLock->mapEpoch.store(epoch + 1);
+  void trimRegexCache(folly::RegexMatchCache::time_point expiry) {
+    counters_.wlock()->matches.purge(expiry);
   }
 
  private:
@@ -130,11 +139,7 @@ class BasicQuantileStatMap {
     folly::F14NodeMap<std::string, Mapped> map;
     // The key to this map is the base of the stat name, e.g. MyStat.
     folly::F14NodeMap<std::string, StatMapEntry> bases;
-    mutable folly::F14FastMap<std::string, std::vector<std::string>> regexCache;
-    mutable folly::relaxed_atomic_uint64_t mapEpoch{0};
-    mutable folly::relaxed_atomic_uint64_t cacheEpoch{0};
-    mutable folly::chrono::coarse_system_clock::time_point cacheClearTime{
-        std::chrono::seconds(0)};
+    folly::RegexMatchCache matches; // requires map to have reference stability
   };
   folly::Synchronized<MapWithKeyCache<CounterMapEntry>> counters_;
 

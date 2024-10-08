@@ -37,6 +37,7 @@ cpp_library(
         "//folly:range",
         "//folly:synchronized",
         "//folly/container:f14_hash",
+        "//folly/container:regex_match_cache",
         "//folly/container:reserve",
         "//folly/synchronization:relaxed_atomic",
     ],
@@ -196,6 +197,7 @@ cpp_library(
         "//folly:indestructible",
         "//folly:map_util",
         "//folly:string",
+        "//folly/container:reserve",
     ],
     exported_deps = [
         ":dynamic_counters",
@@ -207,6 +209,7 @@ cpp_library(
         "//folly:range",
         "//folly:synchronized",
         "//folly/container:f14_hash",
+        "//folly/container:regex_match_cache",
         "//folly/synchronization:relaxed_atomic",
     ],
     external_deps = [

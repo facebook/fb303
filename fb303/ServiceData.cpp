@@ -25,6 +25,7 @@
 #include <folly/Indestructible.h>
 #include <folly/MapUtil.h>
 #include <folly/String.h>
+#include <folly/container/Reserve.h>
 #include <gflags/gflags.h>
 
 using folly::StringPiece;
@@ -76,14 +77,7 @@ void ServiceData::flushAllData() {
 
 void ServiceData::resetAllData() {
   options_.wlock()->clear();
-  {
-    auto countersWLock = counters_.wlock();
-    countersWLock->map.clear();
-
-    // avoid fetch_add() to avoid extra fences, since we hold the lock already
-    uint64_t epoch = countersWLock->mapEpoch.load();
-    countersWLock->mapEpoch.store(epoch + 1);
-  }
+  detail::cachedClearStrings(*counters_.wlock());
   exportedValues_.wlock()->clear();
 
   statsMap_.forgetAllStats();
@@ -317,11 +311,7 @@ int64_t ServiceData::incrementCounter(StringPiece key, int64_t amount) {
 
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
-  auto& ref = (countersWLock->map)[std::string(key)];
-
-  // avoid fetch_add() to avoid extra fences, since we hold the lock already
-  uint64_t epoch = countersWLock->mapEpoch.load();
-  countersWLock->mapEpoch.store(epoch + 1);
+  auto& ref = detail::cachedAddString(*countersWLock, key, 0)->second;
 
   return ref.fetch_add(amount, std::memory_order_relaxed) + amount;
 }
@@ -340,11 +330,7 @@ int64_t ServiceData::setCounter(StringPiece key, int64_t value) {
 
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
-  auto& ref = (countersWLock->map)[std::string(key)];
-
-  // avoid fetch_add() to avoid extra fences, since we hold the lock already
-  uint64_t epoch = countersWLock->mapEpoch.load();
-  countersWLock->mapEpoch.store(epoch + 1);
+  auto& ref = detail::cachedAddString(*countersWLock, key, 0)->second;
 
   ref.store(value, std::memory_order_relaxed);
   return value;
@@ -352,12 +338,8 @@ int64_t ServiceData::setCounter(StringPiece key, int64_t value) {
 
 void ServiceData::clearCounter(StringPiece key) {
   auto countersWLock = counters_.wlock();
-  auto it = countersWLock->map.find(key);
-  if (it != countersWLock->map.end()) {
-    // avoid fetch_add() to avoid extra fences, since we hold the lock already
-    uint64_t epoch = countersWLock->mapEpoch.load();
-    countersWLock->mapEpoch.store(epoch + 1);
-    countersWLock->map.erase(it);
+  if (auto it = countersWLock->map.find(key); it != countersWLock->map.end()) {
+    detail::cachedEraseString(*countersWLock, it);
   }
 }
 
@@ -494,10 +476,11 @@ void ServiceData::getRegexCounters(
 void ServiceData::getRegexCountersOptimized(
     map<string, int64_t>& output,
     const string& regex) const {
+  const auto now = folly::RegexMatchCache::clock::now();
   std::vector<std::string> keys;
-  detail::getRegexKeysImpl(keys, regex, counters_);
-  quantileMap_.getRegexKeys(keys, regex);
-  dynamicCounters_.getRegexKeys(keys, regex);
+  detail::cachedFindMatches(keys, counters_, regex, now);
+  quantileMap_.getRegexKeys(keys, regex, now);
+  dynamicCounters_.getRegexKeys(keys, regex, now);
   getSelectedCounters(output, keys);
 }
 
@@ -512,6 +495,14 @@ map<string, int64_t> ServiceData::getRegexCountersOptimized(
   map<string, int64_t> output;
   getRegexCountersOptimized(output, regex);
   return output;
+}
+
+void ServiceData::trimRegexCache(const std::chrono::seconds maxstale) {
+  const auto now = folly::RegexMatchCache::clock::now();
+  const auto expiry = now - maxstale;
+  counters_.wlock()->matches.purge(expiry);
+  quantileMap_.trimRegexCache(expiry);
+  dynamicCounters_.trimRegexCache(expiry);
 }
 
 bool ServiceData::hasCounter(StringPiece key) const {

@@ -179,8 +179,9 @@ void BasicQuantileStatMap<ClockT>::getKeys(
 template <typename ClockT>
 void BasicQuantileStatMap<ClockT>::getRegexKeys(
     std::vector<std::string>& keys,
-    const std::string& regex) const {
-  getRegexKeysImpl(keys, regex, counters_);
+    const std::string& regex,
+    const folly::RegexMatchCache::time_point now) const {
+  detail::cachedFindMatches(keys, counters_, regex, now);
 }
 
 template <typename ClockT>
@@ -221,19 +222,16 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
     CounterMapEntry entry;
     entry.stat = stat;
     entry.statDef = statDef;
-    countersWLock->map.emplace(makeKey(name, statDef, folly::none), entry);
+    detail::cachedAddString(
+        *countersWLock, makeKey(name, statDef, folly::none), entry);
 
     auto slidingWindowLengths = stat->getSlidingWindowLengths();
 
     for (auto slidingWindowLength : slidingWindowLengths) {
       entry.slidingWindowLength = slidingWindowLength;
-      countersWLock->map.emplace(
-          makeKey(name, statDef, slidingWindowLength), entry);
+      detail::cachedAddString(
+          *countersWLock, makeKey(name, statDef, slidingWindowLength), entry);
     }
-
-    // avoid fetch_add() to avoid extra fences, since we hold the lock already
-    uint64_t epoch = countersWLock->mapEpoch.load();
-    countersWLock->mapEpoch.store(epoch + 1);
   }
   StatMapEntry statMapEntry;
   statMapEntry.stat = stat;

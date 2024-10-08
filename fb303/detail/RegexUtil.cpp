@@ -20,46 +20,16 @@
 
 namespace facebook::fb303::detail {
 
-using std::string;
-using std::vector;
-
-const size_t kRegexCacheLimit = 20000;
-const size_t kRegexLengthLimit = 1024 * 1024;
-
-void filterRegexKeys(vector<string>& keys, const string& regex) {
-  const boost::regex regexObject(regex); // compile regex
-  keys.erase(
-      std::remove_if(
-          keys.begin(),
-          keys.end(),
-          [&](const string& key) { return !regex_match(key, regexObject); }),
-      keys.end());
-}
-
-void cacheRegexKeys(
-    vector<string>& keys,
-    const string& regex,
-    folly::F14FastMap<string, vector<string>>& cache) {
-  // If this becomes an issue, we can use an SHA-256 of the regex
-  if (regex.size() > kRegexLengthLimit) {
-    return;
+void cachedFindMatchesCopyUnderSharedLock(
+    std::vector<std::string>& out,
+    folly::RegexMatchCache const& cache,
+    std::string_view const regex,
+    folly::RegexMatchCache::time_point const now) {
+  auto const matches = cache.findMatchesUnsafe(regex, now);
+  folly::grow_capacity_by(out, matches.size());
+  for (auto const match : matches) {
+    out.emplace_back(*match);
   }
-
-  size_t regexCacheSize = 0;
-  for (const auto& [key, vec] : cache) {
-    regexCacheSize += vec.size();
-  }
-  if ((regexCacheSize + keys.size()) > kRegexCacheLimit) {
-    // Size limit for cache - not expected to reach this limit unless
-    // there is an anomaly, in which case it reverts to original behavior for
-    // other keys.  Anything like "".*" regex pattern is expected to
-    // match all keys and is likely to overflow this memory allotment and will
-    // not get cached.
-    return;
-  }
-
-  auto& vec = cache[regex];
-  vec.swap(keys); // !!! transfer contents
 }
 
 } // namespace facebook::fb303::detail

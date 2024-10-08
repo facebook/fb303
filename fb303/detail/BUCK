@@ -22,6 +22,7 @@ cpp_library(
         "//folly:optional",
         "//folly:synchronized",
         "//folly/container:f14_hash",
+        "//folly/container:regex_match_cache",
         "//folly/synchronization:relaxed_atomic",
     ],
     exported_external_deps = [
@@ -60,6 +61,8 @@ cpp_library(
         "//folly:chrono",
         "//folly:map_util",
         "//folly/container:f14_hash",
+        "//folly/container:regex_match_cache",
+        "//folly/container:reserve",
     ],
     external_deps = [
         ("boost", None, "boost_regex"),

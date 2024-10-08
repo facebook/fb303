@@ -19,11 +19,16 @@
 #include <folly/Indestructible.h>
 #include <folly/Singleton.h>
 
+using namespace std::literals;
+
 using std::chrono::milliseconds;
 
 namespace {
 static const std::string kFunctionId =
     "ThreadCachedStatsMap::aggregateAcrossAllThreads";
+static const std::string kPurgeFunctionId = "ServiceData::trimRegexCache";
+static const auto kPurgeInterval = 600s;
+static const auto kPurgeMaxStale = 3600s;
 } // namespace
 
 namespace facebook::fb303 {
@@ -41,6 +46,14 @@ class PublisherManager {
           [] { ThreadCachedServiceData::getInternal().publishStats(); },
           ThreadCachedServiceData::getInternal().getPublisherInterval(),
           kFunctionId);
+      fs_.addFunction(
+          [] {
+            ThreadCachedServiceData::getInternal()
+                .getServiceData()
+                ->trimRegexCache(kPurgeMaxStale);
+          },
+          kPurgeInterval,
+          kPurgeFunctionId);
       fs_.setThreadName("servicedata-pub");
       fs_.start();
     }
