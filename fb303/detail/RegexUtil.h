@@ -65,14 +65,14 @@ void cachedClearStrings(Map& map) {
 void cachedFindMatchesCopyUnderSharedLock(
     std::vector<std::string>& out,
     folly::RegexMatchCache const& cache,
-    std::string_view regex,
+    folly::RegexMatchCacheKeyAndView const& regex,
     folly::RegexMatchCache::time_point now);
 
 template <typename SyncMap>
 void cachedFindMatches(
     std::vector<std::string>& out,
     SyncMap& map,
-    std::string_view const regex,
+    folly::RegexMatchCacheKeyAndView const& regex,
     folly::RegexMatchCache::time_point const now) {
   auto r = map.rlock();
   if (!r->matches.isReadyToFindMatches(regex)) {

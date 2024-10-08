@@ -23,7 +23,7 @@ namespace facebook::fb303::detail {
 void cachedFindMatchesCopyUnderSharedLock(
     std::vector<std::string>& out,
     folly::RegexMatchCache const& cache,
-    std::string_view const regex,
+    folly::RegexMatchCacheKeyAndView const& regex,
     folly::RegexMatchCache::time_point const now) {
   auto const matches = cache.findMatchesUnsafe(regex, now);
   folly::grow_capacity_by(out, matches.size());

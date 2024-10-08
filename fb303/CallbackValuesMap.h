@@ -59,12 +59,13 @@ class CallbackValuesMap {
   /* Returns the keys in the map that matches regex pattern */
   void getRegexKeys(std::vector<std::string>& keys, const std::string& regex)
       const {
+    const auto key = folly::RegexMatchCache::regex_key_and_view(regex);
     const auto now = folly::RegexMatchCache::clock::now();
-    getRegexKeys(keys, regex, now);
+    getRegexKeys(keys, key, now);
   }
   void getRegexKeys(
       std::vector<std::string>& keys,
-      const std::string& regex,
+      const folly::RegexMatchCache::regex_key_and_view& regex,
       const folly::RegexMatchCache::time_point now) const;
 
   /** Returns the number of keys present in the map */

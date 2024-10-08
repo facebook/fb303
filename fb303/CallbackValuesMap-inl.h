@@ -77,7 +77,7 @@ void CallbackValuesMap<T>::getKeys(std::vector<std::string>* keys) const {
 template <typename T>
 void CallbackValuesMap<T>::getRegexKeys(
     std::vector<std::string>& keys,
-    const std::string& regex,
+    const folly::RegexMatchCache::regex_key_and_view& regex,
     const folly::RegexMatchCache::time_point now) const {
   detail::cachedFindMatches(keys, callbackMap_, regex, now);
 }
