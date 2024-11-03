@@ -28,8 +28,6 @@ namespace facebook {
 namespace fb303 {
 
 constexpr std::string_view kCountersLimitHeader{"fb303_counters_read_limit"};
-constexpr std::string_view kEnableRegexCachedHeader{
-    "fb303_server_side_regex_enable_caching"};
 
 enum ThriftFuncAction {
   FIRST_ACTION = 0,
@@ -71,10 +69,6 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   }
   ~BaseService() override;
 
-  static bool isThreadRegexCacheEnabled() {
-    return useRegexCacheTL_;
-  }
-
  public:
   using cpp2::BaseServiceSvIf::ServerInterface::getName;
   void getName(std::string& _return) override {
@@ -98,11 +92,7 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   virtual void getRegexCounters(
       std::map<std::string, int64_t>& _return,
       std::unique_ptr<std::string> regex) {
-    if (isThreadRegexCacheEnabled()) {
-      ServiceData::get()->getRegexCountersOptimized(_return, *regex);
-    } else {
-      ServiceData::get()->getRegexCounters(_return, *regex);
-    }
+    ServiceData::get()->getRegexCounters(_return, *regex);
   }
 
   /*** Returns a list of counter values */
@@ -274,13 +264,7 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
         std::optional<size_t> limit =
             readThriftHeader(reqCtx, kCountersLimitHeader);
         std::map<std::string, int64_t> res;
-        std::optional<size_t> enable_regex_caching =
-            readThriftHeader(reqCtx, kEnableRegexCachedHeader);
-        // save and restore thread-local used for out-of-band behavior flag
-        bool save =
-            std::exchange(useRegexCacheTL_, enable_regex_caching.has_value());
         getRegexCounters(res, std::move(regex_));
-        useRegexCacheTL_ = save;
         if (limit) {
           size_t numAvailable = res.size();
           /*** Get first limit counters from map ***/
@@ -348,8 +332,6 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
       2,
       std::make_shared<folly::NamedThreadFactory>("GetCountersCPU")};
   std::optional<std::chrono::milliseconds> getCountersExpiration_;
-
-  static thread_local bool useRegexCacheTL_;
 };
 
 } // namespace fb303
