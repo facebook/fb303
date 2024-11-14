@@ -20,8 +20,6 @@
 #include <fb303/LegacyClock.h>
 #include <fb303/TimeseriesExporter.h>
 #include <folly/Format.h>
-#include <folly/Optional.h>
-#include <folly/String.h>
 #include <folly/small_vector.h>
 #include <glog/logging.h>
 #include <functional>

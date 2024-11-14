@@ -64,7 +64,4 @@ cpp_library(
         "//folly/container:regex_match_cache",
         "//folly/container:reserve",
     ],
-    external_deps = [
-        ("boost", None, "boost_regex"),
-    ],
 )
