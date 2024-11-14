@@ -291,6 +291,17 @@ cpp_unittest(
 )
 
 cpp_unittest(
+    name = "tl_stats_async_aggregator_test",
+    srcs = [
+        "TLStatsAsyncAggregatorTest.cpp",
+    ],
+    deps = [
+        "//fb303:tl_stats_async_aggregator",
+        "//folly/io/async:async_base",
+    ],
+)
+
+cpp_unittest(
     name = "timeseries_histogram_test",
     srcs = [
         "TimeseriesHistogramTest.cpp",
