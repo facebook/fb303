@@ -41,6 +41,9 @@ void TLStatsAsyncAggregator::scheduleAggregation(
   attachEventBase(eventBase, folly::AsyncTimeout::InternalEnum::INTERNAL);
   intervalMS_ = intervalMS;
 
+  scheduleAggregationTimeout();
+}
+void TLStatsAsyncAggregator::scheduleAggregationTimeout() {
   // Pass in nullptr for RequestContext so it is not persisted.
   // These counters are global and should not carry request specific
   // context.
@@ -49,7 +52,8 @@ void TLStatsAsyncAggregator::scheduleAggregation(
 
 void TLStatsAsyncAggregator::timeoutExpired() noexcept {
   stats_->aggregate();
-  scheduleTimeout(intervalMS_, nullptr);
+
+  scheduleAggregationTimeout();
 }
 
 } // namespace facebook::fb303

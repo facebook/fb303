@@ -42,5 +42,6 @@ TEST(TLStatsAsyncAggregatorTest, NoRequestContextLeak) {
   // Since we are not carrying request context anymore,
   // the RequestContext gets cleared up by guard,
   // and no other reference is alive, so nullptr is expected.
-  EXPECT_EQ(weakContext.lock(), nullptr);
+
+  EXPECT_TRUE(weakContext.expired());
 }
