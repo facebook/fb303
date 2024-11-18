@@ -16,8 +16,6 @@
 
 #include <fb303/detail/RegexUtil.h>
 
-#include <boost/regex.hpp>
-
 namespace facebook::fb303::detail {
 
 void cachedFindMatchesCopyUnderSharedLock(

@@ -24,8 +24,6 @@
 #include <fb303/test/gen-cpp2/TestService.h>
 #include <folly/Benchmark.h>
 #include <folly/Optional.h>
-#include <folly/Random.h>
-#include <folly/String.h>
 #include <folly/init/Init.h>
 #include <folly/json/DynamicConverter.h>
 #include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>

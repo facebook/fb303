@@ -15,7 +15,6 @@
  */
 
 #include <fb303/ExportedStatMapImpl.h>
-#include <folly/String.h>
 #include "common/stats/ServiceData.h"
 
 #include <gtest/gtest.h>

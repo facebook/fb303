@@ -52,8 +52,6 @@ cpp_benchmark(
         "//fb303:base_service",
         "//folly:benchmark",
         "//folly:optional",
-        "//folly:random",
-        "//folly:string",
         "//folly/init:init",
         "//folly/json:dynamic",
         "//thrift/lib/cpp2/util:util",
@@ -158,7 +156,6 @@ cpp_unittest(
     deps = [
         "//common/stats:service_data",
         "//fb303:exported_stat_map_impl",
-        "//folly:string",
     ],
 )
 

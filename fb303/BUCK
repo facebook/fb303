@@ -155,8 +155,6 @@ cpp_library(
         ":legacy_clock",
         ":timeseries_exporter",
         "//folly:format",
-        "//folly:optional",
-        "//folly:string",
     ],
     exported_deps = [
         ":dynamic_counters",
