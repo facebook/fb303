@@ -73,6 +73,10 @@ class TLStatsAsyncAggregator : private folly::AsyncTimeout {
   // AsyncTimeout methods
   void timeoutExpired() noexcept override;
 
+  // Wrapper around AsyncTimeout::scheduleTimeout to ensure properly handling
+  // of timeout scheduling.
+  void scheduleAggregationTimeout();
+
   uint32_t intervalMS_;
   ThreadLocalStats* stats_;
 };
