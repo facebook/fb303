@@ -6,6 +6,8 @@ load("//unicorn/thrift-plugins/merge_into:merge_into.bzl", "thrift_plugin_merge_
 load("//unicorn/thrift-plugins/privacy_proxy:privacy_proxy.bzl", "thrift_plugin_privacy_proxy")
 load("//unicorn/thrift-plugins/subtract_from:subtract_from.bzl", "thrift_plugin_subtract_from")
 
+oncall("thrift")
+
 # The main thrift_library()
 #
 # This automatically generates language-specific rules name "fb303_core-cpp2-*",
