@@ -1572,8 +1572,3 @@ constexpr int countPlaceholders(folly::StringPiece keyformat) {
       "Must have at least one placeholder.");                              \
   ::facebook::fb303::DynamicHistogramWrapper<countPlaceholders(keyformat)> \
       STATS_##varname(keyformat, bucketWidth, min, max, __VA_ARGS__)
-
-#define DECLARE_DYNAMIC_INSTANCE(timeseries, var, ...)     \
-  const std::string key##var =                             \
-      STATS_##timeseries.prepareFormattedKey(__VA_ARGS__); \
-  auto& var = *STATS_##timeseries.getDynamicCounter(key##var);
