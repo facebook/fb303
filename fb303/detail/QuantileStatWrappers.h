@@ -127,10 +127,10 @@ class DynamicQuantileStatWrapper {
   extern ::facebook::fb303::detail::DynamicQuantileStatWrapper<keyNumArgs> \
       STATS_##varname
 
-#define DEFINE_dynamic_quantile_stat(varname, keyformat, ...)            \
-  static_assert(                                                         \
-      countPlaceholders(keyformat) > 0,                                  \
-      "Must have at least one placeholder.");                            \
-  facebook::fb303::detail::DynamicQuantileStatWrapper<countPlaceholders( \
-      keyformat)>                                                        \
+#define DEFINE_dynamic_quantile_stat(varname, keyformat, ...)       \
+  static_assert(                                                    \
+      ::facebook::fb303::detail::count_placeholders(keyformat) > 0, \
+      "Must have at least one placeholder.");                       \
+  facebook::fb303::detail::DynamicQuantileStatWrapper<              \
+      ::facebook::fb303::detail::count_placeholders(keyformat)>     \
       STATS_##varname(keyformat, ##__VA_ARGS__)
