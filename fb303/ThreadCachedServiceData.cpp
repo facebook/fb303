@@ -113,6 +113,19 @@ SubminuteMinuteOnlyTimeseriesWrapper::templateExportedStat() {
   return *obj.get();
 }
 
+FOLLY_NOINLINE void HistogramWrapper::doApplySpecLocked() {
+  std::exchange(spec_, {})->apply(key_, ServiceData::get());
+}
+
+FOLLY_NOINLINE ThreadCachedServiceData::TLHistogram*
+HistogramWrapper::tcHistogramSlow() {
+  folly::call_once(once_, &HistogramWrapper::doApplySpecLocked, this);
+  auto& local = ThreadCachedServiceData::getStatsThreadLocal();
+  auto const histogram = local->getHistogramSafe(key_);
+  tlHistogram_.reset(histogram);
+  return histogram.get();
+}
+
 ThreadCachedServiceData::StatsThreadLocal&
 ThreadCachedServiceData::getStatsThreadLocal() {
   static folly::Indestructible<ThreadCachedServiceData::StatsThreadLocal>

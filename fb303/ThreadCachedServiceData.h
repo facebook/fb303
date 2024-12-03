@@ -1204,39 +1204,30 @@ class HistogramWrapper {
       int64_t min,
       int64_t max,
       const Args&... args)
-      : key_(key), spec_(bucketWidth, min, max, args...) {}
+      : key_(key),
+        spec_(std::make_unique<internal::HistogramSpec>(
+            bucketWidth,
+            min,
+            max,
+            args...)) {}
 
   void add(int64_t value = 1) {
-    ensureApplySpec();
     tcHistogram()->addValue(value);
   }
 
  protected:
-  void doApplySpecLocked() {
-    spec_.apply(key_, ThreadCachedServiceData::get());
-  }
-  FOLLY_ALWAYS_INLINE void ensureApplySpec() {
-    // minimize inline slow path size by passing the callback this way
-    folly::call_once(once_, &HistogramWrapper::doApplySpecLocked, this);
-  }
+  void doApplySpecLocked();
 
-  inline ThreadCachedServiceData::TLHistogram* tcHistogram() {
-    ThreadCachedServiceData::TLHistogram* cached = tlHistogram_->get();
-    if (cached) {
-      return cached;
-    }
-
-    auto histogram =
-        ThreadCachedServiceData::getStatsThreadLocal()->getHistogramSafe(key_);
-    *tlHistogram_ = histogram;
-    return histogram.get();
+  FOLLY_ALWAYS_INLINE ThreadCachedServiceData::TLHistogram* tcHistogram() {
+    ThreadCachedServiceData::TLHistogram* cached = tlHistogram_.get();
+    return FOLLY_LIKELY(!!cached) ? cached : tcHistogramSlow();
   }
+  ThreadCachedServiceData::TLHistogram* tcHistogramSlow();
 
   folly::once_flag once_;
   std::string key_;
-  internal::HistogramSpec spec_;
-  folly::ThreadLocal<std::shared_ptr<ThreadCachedServiceData::TLHistogram>>
-      tlHistogram_;
+  std::unique_ptr<internal::HistogramSpec> spec_; // ptr for memory-size
+  folly::ThreadLocalPtr<ThreadCachedServiceData::TLHistogram> tlHistogram_;
 };
 
 class MinuteOnlyHistogram : public HistogramWrapper {
