@@ -816,24 +816,23 @@ class StatWrapperBase {
 
   // Accessor does not guarantee underlying stat object has been initialized.
   TLStatT* getTcStatUnsafe() const {
-    return tlStat_->get();
+    return tlStat_.get();
   }
 
  protected:
   std::string key_;
 
-  folly::ThreadLocal<std::shared_ptr<TLStatT>> tlStat_;
+  folly::ThreadLocalPtr<TLStatT> tlStat_;
 
   virtual std::shared_ptr<TLStatT> getStatSafe(const std::string& key) = 0;
 
-  TLStatT* tcStat() {
-    TLStatT* cached = tlStat_->get();
-    if (cached) {
-      return cached;
-    }
-
-    auto tlStat = getStatSafe(key_);
-    *tlStat_ = tlStat;
+  FOLLY_ALWAYS_INLINE TLStatT* tcStat() {
+    TLStatT* cached = tlStat_.get();
+    return FOLLY_LIKELY(!!cached) ? cached : tcStatSlow();
+  }
+  FOLLY_NOINLINE TLStatT* tcStatSlow() {
+    auto const tlStat = getStatSafe(key_);
+    tlStat_.reset(tlStat);
     return tlStat.get();
   }
 };
