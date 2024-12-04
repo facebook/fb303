@@ -511,7 +511,7 @@ map<string, int64_t> ServiceData::getRegexCountersOptimized(
 void ServiceData::trimRegexCache(const std::chrono::seconds maxstale) {
   const auto now = folly::RegexMatchCache::clock::now();
   const auto expiry = now - maxstale;
-  counters_.wlock()->matches.purge(expiry);
+  detail::cachedTrimStale(counters_, expiry);
   quantileMap_.trimRegexCache(expiry);
   dynamicCounters_.trimRegexCache(expiry);
 }

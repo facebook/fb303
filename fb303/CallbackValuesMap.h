@@ -92,9 +92,7 @@ class CallbackValuesMap {
    */
   void clear();
 
-  void trimRegexCache(folly::RegexMatchCache::time_point expiry) {
-    callbackMap_.wlock()->matches.purge(expiry);
-  }
+  void trimRegexCache(folly::RegexMatchCache::time_point expiry);
 
   class CallbackEntry {
    public:

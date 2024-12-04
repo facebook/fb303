@@ -84,4 +84,13 @@ void cachedFindMatches(
   cachedFindMatchesCopyUnderSharedLock(out, r->matches, regex, now);
 }
 
+template <typename SyncMap>
+void cachedTrimStale(
+    SyncMap& map,
+    folly::RegexMatchCache::time_point const expiry) {
+  if (auto ulock = map.ulock(); ulock->matches.hasItemsToPurge(expiry)) {
+    ulock.moveFromUpgradeToWrite()->matches.purge(expiry);
+  }
+}
+
 } // namespace facebook::fb303::detail

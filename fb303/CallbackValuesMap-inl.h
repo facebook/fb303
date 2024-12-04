@@ -125,6 +125,12 @@ void CallbackValuesMap<T>::clear() {
 }
 
 template <typename T>
+void CallbackValuesMap<T>::trimRegexCache(
+    const folly::RegexMatchCache::time_point expiry) {
+  detail::cachedTrimStale(callbackMap_, expiry);
+}
+
+template <typename T>
 std::shared_ptr<typename CallbackValuesMap<T>::CallbackEntry>
 CallbackValuesMap<T>::getCallback(folly::StringPiece name) {
   return folly::get_default(callbackMap_.rlock()->map, name);
