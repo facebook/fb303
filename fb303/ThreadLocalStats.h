@@ -289,7 +289,7 @@ class ThreadLocalStatsT {
    * link_->mutex protects access to tlStats_ (when LockTraits actually
    * provides thread-safety guarantees).
    */
-  folly::F14FastSet<TLStat*> tlStats_;
+  folly::F14VectorSet<TLStat*> tlStats_;
 
   friend class TLStatT<LockTraits>;
   friend class detail::TLStatLink<LockTraits>;
