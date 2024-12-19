@@ -46,11 +46,6 @@ thrift_library(
     thrift_cpp2_options = "frozen2,reflection",
     thrift_java_swift_options = ["deprecated_allow_leagcy_reflection_client"],
     thrift_js_options = ["node"],
-    # DO_BEFORE(aristidis, 20250130): Remove experimental flags after launch.
-    thrift_python_options = [
-        "experimental_generate_mutable_types",
-        "experimental_generate_abstract_types",
-    ],
     thrift_rust_options = [
         "deprecated_default_enum_min_i32",
         "serde",
