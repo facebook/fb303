@@ -264,26 +264,22 @@ void TLTimeseriesT<LockTraits>::exportStat(fb303::ExportType exportType) {
 template <class LockTraits>
 void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
   auto [currentCount, currentSum] = value_.reset();
-  if (currentCount == 0) {
-    if (!this->shouldUpdateGlobalStatsOnRead()) {
-      // We must call update() here so that the stat decays properly
-      // if no samples were added.
-      auto lockedStatPtr = globalStat_.lock();
-      lockedStatPtr->update(now.count());
-    }
+  auto update = !this->shouldUpdateGlobalStatsOnRead();
+  if (currentCount == 0 && !update) {
     return;
   }
-
-  // Note that we record all of the data points since the last call to
-  // aggregate() in the same second.  If aggregate is called once a second this
-  // is no problem.  If it is called less than once a second, some values might
-  // end up in the wrong bucket, making the buckets slightly uneven.
   auto lockedStatPtr = globalStat_.lock();
-  lockedStatPtr->addValueAggregated(now, currentSum, currentCount);
-
-  if (!this->shouldUpdateGlobalStatsOnRead()) {
-    // We must call update() after aggregation at least once
-    // so that subsequent reads see it.
+  if (currentCount != 0) {
+    // Note that we record all of the data points since the last call to
+    // aggregate() in the same second.  If aggregate is called once a second
+    // this is no problem.  If it is called less than once a second, some values
+    // might end up in the wrong bucket, making the buckets slightly uneven.
+    lockedStatPtr->addValueAggregated(now, currentSum, currentCount);
+  }
+  if (update) {
+    // We must call update() after aggregation at least once so that subsequent
+    // reads see it, and so that the stat decays properly even if no samples
+    // were added.
     lockedStatPtr->update(now.count());
   }
 }
