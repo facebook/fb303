@@ -27,6 +27,8 @@
 #include <utility>
 #include <variant>
 
+#include <fmt/format.h>
+
 #include <fb303/ExportType.h>
 #include <fb303/SimpleLRUMap.h>
 #include <fb303/ThreadLocalStatsMap.h>
@@ -770,7 +772,8 @@ class FormattedKeyHolder {
           [](int64_t v) { return std::to_string(v); },
           [](std::string const& v) { return v; });
     }
-    auto formattedKey = folly::svformat(keyFormat_, subkeyStrings);
+    auto formattedKey = doFormatKeyGlobal(
+        keyFormat_, subkeyStrings, std::make_index_sequence<N>{});
     if (prepareKey_) {
       prepareKey_(formattedKey);
     }
@@ -778,6 +781,14 @@ class FormattedKeyHolder {
     auto writePtr = upgradePtr.moveFromUpgradeToWrite();
     iter = writePtr->emplace(subkeyArray, std::move(formattedKey)).first;
     return ReturnType(iter->first, iter->second);
+  }
+
+  template <size_t... Idx>
+  static std::string doFormatKeyGlobal(
+      std::string_view keyFormat,
+      std::array<std::string, N> subkeyStrings,
+      std::index_sequence<Idx...>) {
+    return fmt::format(fmt::runtime(keyFormat), subkeyStrings[Idx]...);
   }
 
  private:

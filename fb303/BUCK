@@ -235,6 +235,7 @@ cpp_library(
         "//folly:singleton",
     ],
     exported_deps = [
+        "fbsource//third-party/fmt:fmt",
         ":export_type",
         ":simple_lru_map",
         ":thread_local_stats_map",
