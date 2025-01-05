@@ -642,9 +642,13 @@ class FormattedKeyHolder {
   /**
    * Given a subkey (e.g. "bar"), returns the full stat key (e.g. "foo.bar")
    * and registers the stats export types if not registered already.
+   *
+   * Key is returned as a reference v.s. as a string_view since callers need it
+   * only in the cold path. This allows passing the return value in registers
+   * v.s. via the stack and defers the dereference operation to the cold path.
    */
   template <typename... Args>
-  std::pair<std::string_view, std::reference_wrapper<CachedType>>
+  std::pair<const std::string&, std::reference_wrapper<CachedType>>
   getFormattedKeyWithExtra(Args&&... subkeys) {
     auto& v = getFormattedEntry(std::forward<Args>(subkeys)...);
     return {*v.key, v.cached};
