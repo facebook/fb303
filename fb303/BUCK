@@ -279,6 +279,7 @@ cpp_library(
         "//folly/stats:histogram",
         "//folly/synchronization:atomic_util",
         "//folly/synchronization:distributed_mutex",
+        "//folly/synchronization:relaxed_atomic",
     ],
     external_deps = [
         "gflags",

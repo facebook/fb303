@@ -21,6 +21,7 @@
 #include <folly/container/F14Set.h>
 #include <folly/stats/Histogram.h>
 #include <folly/synchronization/AtomicUtil.h>
+#include <folly/synchronization/RelaxedAtomic.h>
 
 #include <fb303/ExportType.h>
 #include <fb303/ExportedHistogramMapImpl.h>
@@ -271,6 +272,9 @@ class ThreadLocalStatsT {
   // ServiceData performs its own synchronization to allow it to be accessed
   // from multiple threads.
   ServiceData* const serviceData_;
+
+  // Used to optimize the empty-container case in aggregate().
+  folly::relaxed_atomic<bool> tlStatsEmpty_{true};
 
   // See detail::shouldUpdateGlobalStatsOnRead().
   bool updateGlobalStatsOnRead_;

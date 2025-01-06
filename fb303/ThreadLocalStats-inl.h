@@ -86,6 +86,9 @@ void TLStatT<LockTraits>::link() {
                         .second; // May throw, so do this first.
     CHECK(inserted) << "attempted to register a stat twice: " << name() << "("
                     << link_->container_->tlStats_.size() << " registered)";
+    if (link_->container_->tlStats_.size() == 1) {
+      link_->container_->tlStatsEmpty_ = false;
+    }
   }
   link_.linked_ = true;
 }
@@ -107,6 +110,9 @@ void TLStatT<LockTraits>::unlink() {
     CHECK(erased) << "attempted to unregister a stat that was not registered: "
                   << name() << " (" << link_->container_->tlStats_.size()
                   << " registered)";
+    if (link_->container_->tlStats_.size() == 0) {
+      link_->container_->tlStatsEmpty_ = true;
+    }
   }
   link_.linked_ = false;
 }
@@ -522,15 +528,30 @@ ThreadLocalStatsT<LockTraits>::~ThreadLocalStatsT() {
     VLOG(1) << " - " << stat->name();
   }
   tlStats_.clear();
+  tlStatsEmpty_ = true;
 }
 
 template <class LockTraits>
 uint64_t ThreadLocalStatsT<LockTraits>::aggregate() {
-  auto guard = link_->lock();
-
-  if (tlStats_.empty()) {
+  // There are cases of applications with many threads, of which a large subset
+  // have initialized the per-thread container but which threads no longer have
+  // any per-thread stats linked into the container.
+  //
+  // In such cases - i.e., when this container is empty - we can skip acquiring
+  // the mutex lock and fetching the current time. Each of these operations can
+  // be costly in the aggregate, so we skip them when we can.
+  //
+  // Note that this check is done outside of the lock so it is approximate. The
+  // check can miss concurrent calls to link() and unlink(). But it would catch
+  // any calls to link() and unlink() which are not concurrent with the current
+  // call to aggregate(), ie, which are ordered with it under happen-before. So
+  // results can differ as compared with a similar check which is done strictly
+  // under the lock.
+  if (FOLLY_LIKELY(tlStatsEmpty_)) {
     return 0;
   }
+
+  auto guard = link_->lock();
 
   // TODO: In the future it would be nice if the stats code used a
   // std::chrono::time_point instead of just a std::chrono::duration
