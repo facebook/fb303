@@ -34,11 +34,6 @@ using std::string;
 using std::string_view;
 using std::vector;
 
-DEFINE_bool(
-    fb303_service_data_skip_regex_match_cache,
-    false,
-    "If true, getRegexCounters() will not query the regex match cache.");
-
 namespace facebook::fb303 {
 
 template <typename T>
@@ -464,23 +459,7 @@ map<string, int64_t> ServiceData::getSelectedCounters(
 void ServiceData::getRegexCounters(
     map<string, int64_t>& _return,
     const string& regex) const {
-  if (!FLAGS_fb303_service_data_skip_regex_match_cache) {
-    getRegexCountersOptimized(_return, regex);
-    return;
-  }
-
-  const boost::regex regexObject(regex);
-  auto keys = getCounterKeys();
-  keys.erase(
-      std::remove_if(
-          keys.begin(),
-          keys.end(),
-          [&](const std::string& key) {
-            return !regex_match(key, regexObject);
-          }),
-      keys.end());
-
-  getSelectedCounters(_return, keys);
+  getRegexCountersOptimized(_return, regex);
 }
 
 void ServiceData::getRegexCountersOptimized(
