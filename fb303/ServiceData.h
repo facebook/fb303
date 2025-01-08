@@ -467,13 +467,6 @@ class ServiceData {
   std::map<std::string, int64_t> getRegexCounters(
       const std::string& regex) const;
 
-  /*** Optimized version of getRegexCounters,
-   which caches the matching keys for subsequent calls ***/
-  void getRegexCountersOptimized(
-      std::map<std::string, int64_t>& _return,
-      const std::string& regex) const;
-  std::map<std::string, int64_t> getRegexCountersOptimized(
-      const std::string& regex) const;
   void trimRegexCache(std::chrono::seconds maxstale);
   /*** Returns true if a counter exists with the specified name */
   bool hasCounter(folly::StringPiece key) const;

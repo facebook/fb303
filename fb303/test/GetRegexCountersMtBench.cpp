@@ -65,7 +65,6 @@ DEFINE_uint32(batch, 32, "Number of operations per batch");
 DEFINE_uint32(batches, 1024, "Number of batches per run");
 DEFINE_uint32(counters, 20000, "Number of unique counters");
 DEFINE_string(prefix, "sso_spills_over_counter_", "Prefix of counter names");
-DEFINE_bool(opt, true, "Use getRegexCountersOptimized()");
 
 namespace {
 
@@ -106,12 +105,7 @@ void doWork(
       // 20% get counters by regex and check them
       else if (dice < 21) {
         const string& regex = (dice & 1) ? kRegex1 : kRegex0;
-        std::map<string, int64_t> got;
-        if (FLAGS_opt) {
-          serviceData.getRegexCountersOptimized(got, regex);
-        } else {
-          serviceData.getRegexCounters(got, regex);
-        }
+        auto got = serviceData.getRegexCounters(regex);
         if (got.size() == 0) {
           ++errors;
         } else {

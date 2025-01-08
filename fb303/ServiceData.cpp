@@ -459,32 +459,19 @@ map<string, int64_t> ServiceData::getSelectedCounters(
 void ServiceData::getRegexCounters(
     map<string, int64_t>& _return,
     const string& regex) const {
-  getRegexCountersOptimized(_return, regex);
-}
-
-void ServiceData::getRegexCountersOptimized(
-    map<string, int64_t>& output,
-    const string& regex) const {
   const auto key = folly::RegexMatchCache::regex_key_and_view(regex);
   const auto now = folly::RegexMatchCache::clock::now();
   std::vector<std::string> keys;
   detail::cachedFindMatches(keys, counters_, key, now);
   quantileMap_.getRegexKeys(keys, key, now);
   dynamicCounters_.getRegexKeys(keys, key, now);
-  getSelectedCounters(output, keys);
+  getSelectedCounters(_return, keys);
 }
 
 map<string, int64_t> ServiceData::getRegexCounters(const string& regex) const {
   map<string, int64_t> _return;
   getRegexCounters(_return, regex);
   return _return;
-}
-
-map<string, int64_t> ServiceData::getRegexCountersOptimized(
-    const string& regex) const {
-  map<string, int64_t> output;
-  getRegexCountersOptimized(output, regex);
-  return output;
 }
 
 void ServiceData::trimRegexCache(const std::chrono::seconds maxstale) {

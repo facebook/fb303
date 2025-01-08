@@ -49,7 +49,7 @@ BENCHMARK(GetRegexCountersBenchmarkSubset, iters) {
   startup.dismiss();
   for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters =
-        fb303Data.getRegexCountersOptimized("matching.*");
+        fb303Data.getRegexCounters("matching.*");
   }
 }
 
@@ -60,7 +60,7 @@ BENCHMARK(GetRegexCountersBenchmarkOne, iters) {
   startup.dismiss();
   for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters =
-        fb303Data.getRegexCountersOptimized("matchingCounter1");
+        fb303Data.getRegexCounters("matchingCounter1");
   }
 }
 
@@ -70,8 +70,7 @@ BENCHMARK(GetRegexCountersBenchmarkAll, iters) {
   prepareData();
   startup.dismiss();
   for (int iter = 0; iter < iters; iter++) {
-    std::map<std::string, int64_t> counters =
-        fb303Data.getRegexCountersOptimized(".*");
+    std::map<std::string, int64_t> counters = fb303Data.getRegexCounters(".*");
   }
 }
 
