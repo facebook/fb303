@@ -132,6 +132,7 @@ struct QuantileConsts {
 
 struct SlidingWindowPeriodConsts {
   static constexpr const std::array<size_t, 1> kOneMin{{60}};
+  static constexpr const std::array<size_t, 1> kTenMin{{600}};
   static constexpr const std::array<size_t, 2> kOneMinTenMin{{60, 600}};
   static constexpr const std::array<size_t, 3> kOneMinTenMinHour{
       {60, 600, 3600}};
