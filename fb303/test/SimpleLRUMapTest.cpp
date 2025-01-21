@@ -677,29 +677,29 @@ TEST(SimpleLRUMap, MapGet) {
 TEST(SimpleLRUMap, MapGetPtr) {
   lru_map lru(2);
 
-  auto out = stl::mapGetPtr(as_const(lru), 0);
+  auto out = folly::get_ptr(as_const(lru), 0);
   EXPECT_EQ(nullptr, out);
   checkContents(lru, {});
 
   lru.set(0, "0");
   checkContents(lru, {{0, "0"}});
-  out = stl::mapGetPtr(as_const(lru), 0);
+  out = folly::get_ptr(as_const(lru), 0);
   EXPECT_NE(nullptr, out);
   EXPECT_EQ("0", *out);
   checkContents(lru, {{0, "0"}});
 
   lru.set(1, "1");
   checkContents(lru, {{1, "1"}, {0, "0"}});
-  out = stl::mapGetPtr(as_const(lru), 1);
+  out = folly::get_ptr(as_const(lru), 1);
   EXPECT_NE(nullptr, out);
   EXPECT_EQ("1", *out);
   checkContents(lru, {{1, "1"}, {0, "0"}});
-  out = stl::mapGetPtr(as_const(lru), 0);
+  out = folly::get_ptr(as_const(lru), 0);
   EXPECT_NE(nullptr, out);
   EXPECT_EQ("0", *out);
   checkContents(lru, {{1, "1"}, {0, "0"}});
 
-  out = stl::mapGetPtr(as_const(lru), 9);
+  out = folly::get_ptr(as_const(lru), 9);
   EXPECT_EQ(nullptr, out);
   checkContents(lru, {{1, "1"}, {0, "0"}});
 }
@@ -707,22 +707,22 @@ TEST(SimpleLRUMap, MapGetPtr) {
 TEST(SimpleLRUMap, MapGetDefault) {
   lru_map lru(2);
 
-  EXPECT_EQ("x", stl::mapGetDefault(lru, 0, "x"));
+  EXPECT_EQ("x", folly::get_default(lru, 0, "x"));
   checkContents(lru, {});
 
   lru.set(0, "0");
   checkContents(lru, {{0, "0"}});
-  EXPECT_EQ("0", stl::mapGetDefault(lru, 0, "x"));
+  EXPECT_EQ("0", folly::get_default(lru, 0, "x"));
   checkContents(lru, {{0, "0"}});
 
   lru.set(1, "1");
   checkContents(lru, {{1, "1"}, {0, "0"}});
-  EXPECT_EQ("1", stl::mapGetDefault(lru, 1, "x"));
+  EXPECT_EQ("1", folly::get_default(lru, 1, "x"));
   checkContents(lru, {{1, "1"}, {0, "0"}});
-  EXPECT_EQ("0", stl::mapGetDefault(lru, 0, "x"));
+  EXPECT_EQ("0", folly::get_default(lru, 0, "x"));
   checkContents(lru, {{1, "1"}, {0, "0"}});
 
-  EXPECT_EQ("x", stl::mapGetDefault(lru, 9, "x"));
+  EXPECT_EQ("x", folly::get_default(lru, 9, "x"));
   checkContents(lru, {{1, "1"}, {0, "0"}});
 }
 
@@ -730,22 +730,22 @@ TEST(SimpleLRUMap, MapGetRefDefault) {
   lru_map lru(2);
 
   const std::string x = "x";
-  EXPECT_EQ("x", stl::mapGetRefDefault(lru, 0, x));
+  EXPECT_EQ("x", folly::get_ref_default(lru, 0, x));
   checkContents(lru, {});
 
   lru.set(0, "0");
   checkContents(lru, {{0, "0"}});
-  EXPECT_EQ("0", stl::mapGetRefDefault(lru, 0, x));
+  EXPECT_EQ("0", folly::get_ref_default(lru, 0, x));
   checkContents(lru, {{0, "0"}});
 
   lru.set(1, "1");
   checkContents(lru, {{1, "1"}, {0, "0"}});
-  EXPECT_EQ("1", stl::mapGetRefDefault(lru, 1, x));
+  EXPECT_EQ("1", folly::get_ref_default(lru, 1, x));
   checkContents(lru, {{1, "1"}, {0, "0"}});
-  EXPECT_EQ("0", stl::mapGetRefDefault(lru, 0, x));
+  EXPECT_EQ("0", folly::get_ref_default(lru, 0, x));
   checkContents(lru, {{1, "1"}, {0, "0"}});
 
-  EXPECT_EQ("x", stl::mapGetRefDefault(lru, 9, x));
+  EXPECT_EQ("x", folly::get_ref_default(lru, 9, x));
   checkContents(lru, {{1, "1"}, {0, "0"}});
 }
 
