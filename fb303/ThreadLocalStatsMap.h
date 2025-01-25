@@ -65,6 +65,10 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
       int64_t sum,
       int64_t numSamples);
 
+  void
+  addStatValue(folly::StringPiece name, int64_t value, ExportType exportType);
+  void clearStat(folly::StringPiece name, ExportType exportType);
+
   /**
    * Add a value to the histogram with the specified name.
    *
@@ -124,7 +128,13 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
   using NamedMapLock = typename TLStatsNoLocking::RegistryLock;
 
   template <class StatType>
-  using StatMap = folly::F14FastMap<std::string, std::shared_ptr<StatType>>;
+  struct StatPtr {
+    std::shared_ptr<StatType> ptr;
+    uintptr_t exports{};
+  };
+
+  template <class StatType>
+  using StatMap = folly::F14FastMap<std::string, StatPtr<StatType>>;
 
   struct State;
 
@@ -136,6 +146,10 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
    * Never returns NULL.
    */
   TLTimeseries* getTimeseriesLocked(State& state, folly::StringPiece name);
+  TLTimeseries* getTimeseriesLocked(
+      State& state,
+      folly::StringPiece name,
+      ExportType exportType);
 
   /*
    * Get the TLHistogram with the given name.

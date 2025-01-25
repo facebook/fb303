@@ -135,28 +135,6 @@ class ThreadCachedServiceData {
     getThreadStats()->addStatValue(key, value);
   }
 
-  /** Small LRU lookup set class, for exported keys. */
-  struct ExportKeyCache
-      : public SimpleLRUMap<std::string, bool, folly::F14FastMap> {
-    /**
-     * It would be best if this can be overridden by gflag; but it's often the
-     * case that the stats classes are used pre-startup / post-shutdown and thus
-     * trying to access gflags might stir up an initialization/shutdown order
-     * fiasco.  So this constant is hardcoded here.
-     */
-    static constexpr size_t kLRUMaxSize = 1000;
-
-    ExportKeyCache() : SimpleLRUMap(kLRUMaxSize) {}
-
-    void add(folly::StringPiece key) {
-      set(key, true);
-    }
-
-    bool has(folly::StringPiece key) {
-      return find(key, /*moveToFront*/ true) != end();
-    }
-  };
-
   void
   addStatValue(folly::StringPiece key, int64_t value, ExportType exportType);
   void clearStat(folly::StringPiece key, ExportType exportType);
@@ -361,9 +339,6 @@ class ThreadCachedServiceData {
 
   ServiceData* serviceData_;
   StatsThreadLocal* threadLocalStats_;
-  using KeyCacheTable =
-      std::array<ExportKeyCache, ExportTypeMeta::kNumExportTypes>;
-  folly::ThreadLocal<KeyCacheTable> keyCacheTable_;
 
   std::atomic<std::chrono::milliseconds> interval_{
       std::chrono::milliseconds(0)};

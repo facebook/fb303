@@ -259,22 +259,13 @@ void ThreadCachedServiceData::addHistAndStatValues(
 void ThreadCachedServiceData::clearStat(
     folly::StringPiece key,
     ExportType exportType) {
-  (*keyCacheTable_)[exportType].erase(key);
-  ServiceData::get()->addStatExportType(key, exportType, nullptr);
+  getThreadStats()->clearStat(key, exportType);
 }
 
 void ThreadCachedServiceData::addStatValue(
     folly::StringPiece key,
     int64_t value,
     ExportType exportType) {
-  if (UNLIKELY(!(*keyCacheTable_)[exportType].has(key))) {
-    // This is not present in the threadlocal export set; possible it was
-    // not yet registered with the underlying ServiceData impl.
-    // This time around, pass it to the ServiceData so the type is exported
-    getServiceData()->addStatExportType(key, exportType);
-    (*keyCacheTable_)[exportType].add(key);
-  }
-  // now we know the export was done; finally bump the counter
-  addStatValue(key, value);
+  getThreadStats()->addStatValue(key, value, exportType);
 }
 } // namespace facebook::fb303
