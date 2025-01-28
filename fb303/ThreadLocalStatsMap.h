@@ -128,10 +128,114 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
   using NamedMapLock = typename TLStatsNoLocking::RegistryLock;
 
   template <class StatType>
-  struct StatPtr {
-    std::shared_ptr<StatType> ptr;
-    uintptr_t exports{};
+  class StatPtrBase {
+   protected:
+    static inline constexpr size_t nbits = sizeof(uintptr_t) * 8;
+    static inline constexpr size_t ntypes = ExportTypeMeta::kNumExportTypes;
+    static inline constexpr uintptr_t types_mask = ~uintptr_t(0)
+        << (nbits - ntypes);
+
+    static constexpr uintptr_t mask_(ExportType key) noexcept {
+      assert(size_t(key) < ntypes);
+      return uintptr_t(1) << (nbits - ntypes + size_t(key));
+    }
   };
+
+  /// Stores the export-type list alongside the stat-ptr.
+  template <class StatType>
+  class StatPtrFallback : private StatPtrBase<StatType> {
+   private:
+    std::shared_ptr<StatType> ptr_;
+    uintptr_t exports_{};
+
+    using StatPtrBase<StatType>::mask_;
+
+   public:
+    explicit operator bool() const noexcept {
+      return !!ptr_;
+    }
+    std::shared_ptr<StatType> ptr() const noexcept {
+      return ptr_;
+    }
+    void ptr(std::shared_ptr<StatType>&& val) noexcept {
+      ptr_ = std::move(val);
+    }
+    StatType* raw() const noexcept {
+      return ptr_.get();
+    }
+    bool type(ExportType key) const noexcept {
+      return exports_ & mask_(key);
+    }
+    void type(ExportType key, bool val) noexcept {
+      exports_ = val ? exports_ | mask_(key) : exports_ & ~mask_(key);
+    }
+  };
+
+  /// Embeds the export-type list into the stat-ptr control-block-pointer.
+  ///
+  /// The export-type list uses the high 5 bits of the control-block pointer.
+  /// This assumption is valid on most platforms under most configurations.
+  template <class StatType>
+  class StatPtrCompress : private StatPtrBase<StatType> {
+   private:
+    using Sp = std::shared_ptr<StatType>;
+    /// The layout of std::shared_ptr in all major library implementations.
+    struct SpLayout {
+      StatType* raw{};
+      uintptr_t ctl{};
+    };
+
+    SpLayout rep_;
+
+    using StatPtrBase<StatType>::mask_;
+    using StatPtrBase<StatType>::types_mask;
+
+    static Sp& cast(SpLayout& rep) noexcept {
+      FOLLY_PUSH_WARNING
+      FOLLY_GCC_DISABLE_WARNING("-Wstrict-aliasing")
+      return reinterpret_cast<Sp&>(rep);
+      FOLLY_POP_WARNING
+    }
+
+   public:
+    StatPtrCompress() = default;
+    ~StatPtrCompress() {
+      rep_.ctl &= ~types_mask;
+      cast(rep_).~Sp();
+    }
+    StatPtrCompress(StatPtrCompress&& that) noexcept
+        : rep_{std::exchange(that.rep_, {})} {}
+    StatPtrCompress(StatPtrCompress const& that) = delete;
+    void operator=(StatPtrCompress&& that) = delete;
+    void operator=(StatPtrCompress const& that) = delete;
+    explicit operator bool() const noexcept {
+      return !!rep_.raw;
+    }
+    std::shared_ptr<StatType> ptr() const noexcept {
+      auto rep = rep_;
+      rep.ctl &= ~types_mask;
+      return cast(rep);
+    }
+    void ptr(std::shared_ptr<StatType>&& val) noexcept {
+      rep_.ctl &= ~types_mask;
+      cast(rep_) = std::move(val);
+    }
+    StatType* raw() const noexcept {
+      return rep_.raw;
+    }
+    bool type(ExportType key) const noexcept {
+      return rep_.ctl & mask_(key);
+    }
+    void type(ExportType key, bool val) noexcept {
+      rep_.ctl = val ? rep_.ctl | mask_(key) : rep_.ctl & ~mask_(key);
+    }
+  };
+
+  template <class StatType>
+  using StatPtr = folly::conditional_t<
+      folly::kIsArchAmd64 || folly::kIsArchAArch64,
+      StatPtrCompress<StatType>,
+      StatPtrFallback<StatType>>;
 
   template <class StatType>
   using StatMap = folly::F14FastMap<std::string, StatPtr<StatType>>;
