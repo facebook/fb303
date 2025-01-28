@@ -233,7 +233,7 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
           }
           addCountersAvailableToResponse(reqCtx, numAvailable);
         }
-        callback_->result(res);
+        callback_->result(std::move(res));
       } catch (...) {
         callback_->exception(std::current_exception());
       }
@@ -273,7 +273,7 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
           }
           addCountersAvailableToResponse(reqCtx, numAvailable);
         }
-        callback_->result(res);
+        callback_->result(std::move(res));
       } catch (...) {
         callback_->exception(std::current_exception());
       }
@@ -313,7 +313,7 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
           }
           addCountersAvailableToResponse(reqCtx, numAvailable);
         }
-        callback_->result(res);
+        callback_->result(std::move(res));
       } catch (...) {
         callback_->exception(std::current_exception());
       }
