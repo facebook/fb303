@@ -96,10 +96,8 @@ ExportedStatMap::StatPtr ExportedStatMap::getStatPtrNoExport(
     return iter->second;
   }
 
-  auto value = std::make_shared<SyncStat>(**defaultStat_.rlock());
-  if (copyMe) {
-    *value = *copyMe;
-  }
+  auto value =
+      std::make_shared<SyncStat>(copyMe ? *copyMe : **defaultStat_.rlock());
 
   if (createdPtr) {
     *createdPtr = true;
