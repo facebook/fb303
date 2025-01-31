@@ -54,8 +54,9 @@ void ThreadLocalStatsMapT<LockTraits>::clearStat(
     folly::StringPiece name,
     ExportType exportType) {
   auto state = state_.lock();
-  if (auto ptr = folly::get_ptr(state->namedTimeseries_, name)) {
-    ptr->type(exportType, false);
+  auto& set = state->namedTimeseries_;
+  if (auto it = set.find(name); it != set.end()) {
+    it->type(exportType, false);
   }
   this->getServiceData()->addStatExportType(name, exportType, nullptr);
 }
@@ -82,11 +83,9 @@ void ThreadLocalStatsMapT<LockTraits>::incrementCounter(
 template <class LockTraits>
 std::shared_ptr<typename ThreadLocalStatsMapT<LockTraits>::TLTimeseries>
 ThreadLocalStatsMapT<LockTraits>::getTimeseriesSafe(folly::StringPiece name) {
-  auto state = state_.lock();
-  auto& entry = state->namedTimeseries_[name];
-  if (!entry) {
-    entry.ptr(std::make_shared<TLTimeseries>(this, name));
-  }
+  auto& entry = tryInsertLocked(state_.lock()->namedTimeseries_, name, [&] {
+    return std::shared_ptr<TLTimeseries>{new TLTimeseries(this, name)};
+  });
   return entry.ptr();
 }
 
@@ -97,22 +96,19 @@ ThreadLocalStatsMapT<LockTraits>::getTimeseriesSafe(
     size_t numBuckets,
     size_t numLevels,
     const int levelDurations[]) {
-  auto state = state_.lock();
-  auto& entry = state->namedTimeseries_[name];
-  if (!entry) {
-    entry.ptr(std::make_shared<TLTimeseries>(
-        this, name, numBuckets, numLevels, levelDurations));
-  }
+  auto& entry = tryInsertLocked(state_.lock()->namedTimeseries_, name, [&] {
+    return std::shared_ptr<TLTimeseries>{
+        new TLTimeseries(this, name, numBuckets, numLevels, levelDurations)};
+  });
   return entry.ptr();
 }
 
 template <class LockTraits>
 typename ThreadLocalStatsMapT<LockTraits>::TLTimeseries* ThreadLocalStatsMapT<
     LockTraits>::getTimeseriesLocked(State& state, folly::StringPiece name) {
-  auto& entry = state.namedTimeseries_[name];
-  if (!entry) {
-    entry.ptr(std::make_shared<TLTimeseries>(this, name));
-  }
+  auto& entry = tryInsertLocked(state.namedTimeseries_, name, [&] {
+    return std::shared_ptr<TLTimeseries>{new TLTimeseries(this, name)};
+  });
   return entry.raw();
 }
 
@@ -122,10 +118,9 @@ ThreadLocalStatsMapT<LockTraits>::getTimeseriesLocked(
     State& state,
     folly::StringPiece name,
     ExportType exportType) {
-  auto& entry = state.namedTimeseries_[name];
-  if (!entry) {
-    entry.ptr(std::make_shared<TLTimeseries>(this, name));
-  }
+  auto& entry = tryInsertLocked(state.namedTimeseries_, name, [&] {
+    return std::shared_ptr<TLTimeseries>{new TLTimeseries(this, name)};
+  });
   if (!entry.type(exportType)) {
     this->getServiceData()->addStatExportType(name, exportType);
     entry.type(exportType, true);
@@ -149,11 +144,9 @@ ThreadLocalStatsMapT<LockTraits>::getHistogramSafe(folly::StringPiece name) {
 template <class LockTraits>
 typename ThreadLocalStatsMapT<LockTraits>::TLHistogram* ThreadLocalStatsMapT<
     LockTraits>::getHistogramLockedPtr(State& state, folly::StringPiece name) {
-  auto& entry = state.namedHistograms_[name];
-  if (!entry) {
-    entry.ptr(this->createHistogramLocked(state, name));
-  }
-
+  auto& entry = tryInsertLocked(state.namedHistograms_, name, [&] {
+    return this->createHistogramLocked(state, name);
+  });
   return entry.raw();
 }
 
@@ -182,32 +175,27 @@ std::shared_ptr<typename ThreadLocalStatsMapT<LockTraits>::TLHistogram>
 ThreadLocalStatsMapT<LockTraits>::getHistogramLocked(
     State& state,
     folly::StringPiece name) {
-  auto& entry = state.namedHistograms_[name];
-  if (!entry) {
-    entry.ptr(this->createHistogramLocked(state, name));
-  }
-
+  auto& entry = tryInsertLocked(state.namedHistograms_, name, [&] {
+    return this->createHistogramLocked(state, name);
+  });
   return entry.ptr();
 }
 
 template <class LockTraits>
 std::shared_ptr<typename ThreadLocalStatsMapT<LockTraits>::TLCounter>
 ThreadLocalStatsMapT<LockTraits>::getCounterSafe(folly::StringPiece name) {
-  auto state = state_.lock();
-  auto& entry = state->namedCounters_[name];
-  if (!entry) {
-    entry.ptr(std::make_shared<TLCounter>(this, name));
-  }
+  auto& entry = tryInsertLocked(state_.lock()->namedCounters_, name, [&] {
+    return std::shared_ptr<TLCounter>{new TLCounter(this, name)};
+  });
   return entry.ptr();
 }
 
 template <class LockTraits>
 typename ThreadLocalStatsMapT<LockTraits>::TLCounter* ThreadLocalStatsMapT<
     LockTraits>::getCounterLocked(State& state, folly::StringPiece name) {
-  auto& entry = state.namedCounters_[name];
-  if (!entry) {
-    entry.ptr(std::make_shared<TLCounter>(this, name));
-  }
+  auto& entry = tryInsertLocked(state.namedCounters_, name, [&] {
+    return std::shared_ptr<TLCounter>{new TLCounter(this, name)};
+  });
   return entry.raw();
 }
 
@@ -217,6 +205,26 @@ void ThreadLocalStatsMapT<LockTraits>::resetAllData() {
   state->namedCounters_.clear();
   state->namedHistograms_.clear();
   state->namedTimeseries_.clear();
+}
+
+template <class LockTraits>
+template <typename StatType, typename Make>
+typename ThreadLocalStatsMapT<LockTraits>::template StatPtr<StatType> const&
+ThreadLocalStatsMapT<LockTraits>::tryInsertLocked(
+    StatMap<StatType>& map,
+    folly::StringPiece name,
+    Make make) {
+  auto const hash = map.prehash(name);
+  if (auto const iter = map.find(hash, name); iter != map.end()) {
+    return *iter;
+  }
+  if (auto ptr = make()) {
+    StatPtr<StatType> entry;
+    entry.ptr(std::move(ptr));
+    return *map.emplace_token(hash, std::move(entry)).first;
+  }
+  static auto const& empty = *new StatPtr<StatType>();
+  return empty;
 }
 
 } // namespace fb303

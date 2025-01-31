@@ -26,6 +26,7 @@
 #include <gtest/gtest.h>
 #include <limits>
 #include <memory>
+#include <random>
 #include <string>
 #include <thread>
 
@@ -590,4 +591,32 @@ TEST_F(ThreadCachedServiceDataTest, SaturateTimeseries) {
   tcsd.addStatValue(key, 1);
   tcsd.publishStats();
   EXPECT_EQ(lim::max(), tcsd.getCounter(key + ".sum"));
+}
+
+TEST_F(ThreadCachedServiceDataTest, AddHistogramValueNotExported) {
+  std::random_device rng;
+  std::random_device::result_type nums[8];
+  std::generate(std::begin(nums), std::end(nums), std::ref(rng));
+  auto const key = "key:" +
+      folly::hexlify<std::string>(folly::ByteRange(
+          reinterpret_cast<uint8_t const*>(std::begin(nums)),
+          reinterpret_cast<uint8_t const*>(std::end(nums))));
+  auto& sd = *ServiceData::get();
+  auto& tcsd = *ThreadCachedServiceData::get();
+  auto& map = *sd.getHistogramMap();
+  auto& stats = *tcsd.getThreadStats();
+
+  // sanity
+  EXPECT_TRUE(map.getLockableHistogram(key).isNull());
+  EXPECT_FALSE(stats.getHistogramSafe(key));
+
+  // not exported
+  tcsd.addHistogramValue(key, 1); // should not crash
+  EXPECT_TRUE(map.getLockableHistogram(key).isNull());
+  EXPECT_FALSE(stats.getHistogramSafe(key));
+
+  // exported - sanity
+  ServiceData::get()->addHistogram(key, 1, 0, 4);
+  EXPECT_FALSE(map.getLockableHistogram(key).isNull());
+  EXPECT_TRUE(stats.getHistogramSafe(key));
 }

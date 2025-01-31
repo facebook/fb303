@@ -23,6 +23,7 @@
 #include <folly/ThreadLocal.h>
 #include <folly/container/F14Map.h>
 #include <folly/hash/Hash.h>
+#include <folly/memory/SanitizeLeak.h>
 
 namespace facebook::fb303 {
 
@@ -146,7 +147,7 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
   class StatPtrFallback : private StatPtrBase<StatType> {
    private:
     std::shared_ptr<StatType> ptr_;
-    uintptr_t exports_{};
+    mutable uintptr_t exports_{};
 
     using StatPtrBase<StatType>::mask_;
 
@@ -166,7 +167,7 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
     bool type(ExportType key) const noexcept {
       return exports_ & mask_(key);
     }
-    void type(ExportType key, bool val) noexcept {
+    void type(ExportType key, bool val) const noexcept {
       exports_ = val ? exports_ | mask_(key) : exports_ & ~mask_(key);
     }
   };
@@ -182,7 +183,7 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
     /// The layout of std::shared_ptr in all major library implementations.
     struct SpLayout {
       StatType* raw{};
-      uintptr_t ctl{};
+      mutable uintptr_t ctl{};
     };
 
     SpLayout rep_;
@@ -201,6 +202,7 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
     StatPtrCompress() = default;
     ~StatPtrCompress() {
       rep_.ctl &= ~types_mask;
+      folly::annotate_object_collected(reinterpret_cast<void*>(rep_.ctl));
       cast(rep_).~Sp();
     }
     StatPtrCompress(StatPtrCompress&& that) noexcept
@@ -218,7 +220,9 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
     }
     void ptr(std::shared_ptr<StatType>&& val) noexcept {
       rep_.ctl &= ~types_mask;
+      folly::annotate_object_collected(reinterpret_cast<void*>(rep_.ctl));
       cast(rep_) = std::move(val);
+      folly::annotate_object_leaked(reinterpret_cast<void*>(rep_.ctl));
     }
     StatType* raw() const noexcept {
       return rep_.raw;
@@ -226,7 +230,7 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
     bool type(ExportType key) const noexcept {
       return rep_.ctl & mask_(key);
     }
-    void type(ExportType key, bool val) noexcept {
+    void type(ExportType key, bool val) const noexcept {
       rep_.ctl = val ? rep_.ctl | mask_(key) : rep_.ctl & ~mask_(key);
     }
   };
@@ -238,7 +242,34 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
       StatPtrFallback<StatType>>;
 
   template <class StatType>
-  using StatMap = folly::F14FastMap<std::string, StatPtr<StatType>>;
+  struct StatPtrHash : std::hash<std::string_view> {
+    using is_transparent = void;
+    using std::hash<std::string_view>::operator();
+    size_t operator()(StatPtr<StatType> const& stat) const noexcept {
+      return (*this)(!stat ? std::string_view{} : stat.raw()->name());
+    }
+  };
+
+  template <class StatType>
+  struct StatPtrKeyEqual {
+    using is_transparent = void;
+    template <typename A, typename B>
+    bool operator()(A const& a, B const& b) const noexcept {
+      return cast(a) == cast(b);
+    }
+    static std::string_view cast(std::string_view const name) noexcept {
+      return name;
+    }
+    static std::string_view cast(StatPtr<StatType> const& stat) noexcept {
+      return !stat ? std::string_view{} : stat.raw()->name();
+    }
+  };
+
+  template <class StatType>
+  using StatMap = folly::F14FastSet<
+      StatPtr<StatType>,
+      StatPtrHash<StatType>,
+      StatPtrKeyEqual<StatType>>;
 
   struct State;
 
@@ -281,6 +312,12 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
    * Never returns NULL.
    */
   TLCounter* getCounterLocked(State& state, folly::StringPiece name);
+
+  template <typename StatType, typename Make>
+  StatPtr<StatType> const& tryInsertLocked( //
+      StatMap<StatType>& map,
+      folly::StringPiece name,
+      Make make);
 
   struct State {
     StatMap<TLTimeseries> namedTimeseries_;
