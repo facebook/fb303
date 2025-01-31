@@ -73,6 +73,14 @@ bool shouldUpdateGlobalStatOnRead();
 
 } // namespace detail
 
+class TLStatNameSet {
+ private:
+  class Impl;
+
+ public:
+  static std::shared_ptr<const std::string> get(const std::string_view name);
+};
+
 /*
  * A ThreadLocalStats object stores per-thread copies of a group of statistics.
  *
@@ -310,7 +318,6 @@ class TLStatT {
   using Container = ThreadLocalStatsT<LockTraits>;
 
   TLStatT(const Container* stats, folly::StringPiece name);
-  TLStatT(const Container* stats, std::shared_ptr<const std::string> namePtr);
   virtual ~TLStatT();
 
   const std::string& name() const {
@@ -526,7 +533,7 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
   explicit TLTimeseriesT(
       ThreadLocalStatsT<LockTraits>* stats,
       const TLTimeseriesT& other)
-      : TLStatT<LockTraits>(stats, other.namePtr()),
+      : TLStatT<LockTraits>(stats, other.name()),
         globalStat_(other.globalStat_) {
     DCHECK(!globalStat_.isNull());
     this->postInit();

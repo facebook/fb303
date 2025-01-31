@@ -31,15 +31,9 @@ namespace fb303 {
  */
 
 template <class LockTraits>
-TLStatT<LockTraits>::TLStatT(
-    const Container* stats,
-    std::shared_ptr<const std::string> namePtr)
-    : link_{typename detail::TLStatLinkPtr<LockTraits>::FromOther{}, stats->link_},
-      name_(std::move(namePtr)) {}
-
-template <class LockTraits>
 TLStatT<LockTraits>::TLStatT(const Container* stats, folly::StringPiece name)
-    : TLStatT(stats, std::make_shared<std::string>(name.str())) {}
+    : link_{typename detail::TLStatLinkPtr<LockTraits>::FromOther{}, stats->link_},
+      name_(TLStatNameSet::get(name)) {}
 
 template <class LockTraits>
 TLStatT<LockTraits>::~TLStatT() {
