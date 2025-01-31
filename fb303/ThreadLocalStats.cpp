@@ -74,7 +74,37 @@ class TLStatNameSet::Impl {
     }
   };
 
-  using Set = folly::F14FastMap<std::string, Wp>;
+  /// typical layout of std::shared_ptr and std::weak_ptr
+  /// need controlled access to address of object even from weak_ptr
+  ///
+  /// layout consistent with libstdc++, libc++, microsoft-stl
+  template <typename T>
+  struct WpLayout {
+    T* const object{};
+    void const* const control{};
+
+    explicit WpLayout(std::weak_ptr<T> const& wp) noexcept
+        : WpLayout(reinterpret_cast<WpLayout const&>(wp)) {}
+  };
+
+  struct Key {
+    Wp weak;
+    /* implicit */ operator std::string_view() const noexcept {
+      return *WpLayout(weak).object; // assume lockable - not-null, still-alive
+    }
+  };
+
+  struct KeyHash : std::hash<std::string_view> {
+    using is_transparent = void;
+    using std::hash<std::string_view>::operator();
+  };
+
+  struct KeyEqual : std::equal_to<std::string_view> {
+    using is_transparent = void;
+    using std::equal_to<std::string_view>::operator();
+  };
+
+  using Set = folly::F14FastSet<Key, KeyHash, KeyEqual>;
 
   /// split to reduce potential lock contention at startup for threads looking
   /// up distinct names
@@ -94,7 +124,8 @@ class TLStatNameSet::Impl {
   void clean(std::string const& name) {
     auto const wlock = set(name).wlock();
     if (auto const it = wlock->find(name); it != wlock->end()) {
-      if (!it->second.lock()) {
+      if (WpLayout(it->weak).object == &name) {
+        assert(!it->weak.lock());
         wlock->erase(it);
       }
     }
@@ -103,19 +134,20 @@ class TLStatNameSet::Impl {
   Sp getSlow(std::string_view const name) {
     auto const wlock = set(name).wlock();
     if (auto const it = wlock->find(name); it != wlock->end()) {
-      if (auto sp = it->second.lock()) {
+      if (auto sp = it->weak.lock()) {
         return sp;
       }
+      wlock->erase(it); // in case this call races with corresponding clean()
     }
     auto sp = Sp{new std::string(name), SpDeleter{}};
-    (*wlock)[std::string(name)] = sp;
+    wlock->insert(Key{sp});
     return sp;
   }
 
   Sp getFast(std::string_view const name) {
     auto const rlock = set(name).rlock();
     if (auto const it = rlock->find(name); it != rlock->end()) {
-      if (auto sp = it->second.lock()) {
+      if (auto sp = it->weak.lock()) {
         return sp;
       }
     }
