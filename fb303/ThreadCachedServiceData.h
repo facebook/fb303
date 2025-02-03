@@ -1174,6 +1174,54 @@ struct SubminuteMinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
   static const ExportedStat& templateExportedStat();
 };
 
+/**
+ * MultiLevelTimeseriesWrapper is a class template that provides a
+ * wrapper for creating and managing multi-level timeseries statistics
+ * with custom durations.
+ *
+ * @tparam LevelDurations A parameter pack representing the durations for
+ * each level in seconds. The durations must be strictly increasing.
+ * Furthermore a special level can be provided with a duration of '0' --
+ * this will be an "all-time" level.
+ */
+template <int... LevelDurations>
+class MultiLevelTimeseriesWrapper : public TimeseriesWrapperBase {
+ private:
+  static constexpr int kDurations[] = {LevelDurations...};
+  static_assert(
+      std::is_sorted(std::begin(kDurations), std::end(kDurations)) &&
+          std::adjacent_find(std::begin(kDurations), std::end(kDurations)) ==
+              std::end(kDurations),
+      "LevelDurations must be in strictly increasing order");
+
+ public:
+  template <typename... Args>
+  explicit MultiLevelTimeseriesWrapper(std::string key, const Args&... args)
+      : TimeseriesWrapperBase(std::move(key)) {
+    exportStats(args...);
+  }
+
+ protected:
+  std::shared_ptr<ThreadCachedServiceData::TLTimeseries> getStatSafe(
+      const std::string& key) override {
+    return ThreadCachedServiceData::getStatsThreadLocal()->getTimeseriesSafe(
+        key, 60, sizeof...(LevelDurations), kDurations);
+  }
+
+ private:
+  template <typename... Args>
+  void exportStats(const Args&... args) {
+    // Created counters will export with durations specified in the template
+    (ServiceData::get()->addStatExportType(key_, args, &templateExportedStat()),
+     ...);
+  }
+  static const ExportedStat& templateExportedStat() {
+    static const folly::Indestructible<MultiLevelTimeSeries<CounterType>> obj(
+        sizeof...(LevelDurations), 60, kDurations);
+    return *obj.get();
+  }
+};
+
 class HistogramWrapper {
  public:
   template <typename... Args>
