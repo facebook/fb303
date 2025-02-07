@@ -51,6 +51,10 @@ thrift_library(
         "serde",
     ],
     thrift_srcs = {"fb303_core.thrift": ["BaseService"]},
+    deps = [
+        "//thrift/annotation:cpp",
+        "//thrift/annotation:thrift",
+    ],
 )
 
 export_file(
