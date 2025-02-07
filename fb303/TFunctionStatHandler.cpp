@@ -571,11 +571,6 @@ class StandardStatHandler : public TFunctionStatHandler {
 
 } // namespace
 
-std::shared_ptr<TFunctionStatHandler> createDefaultStatHandler(
-    const char* serviceName) {
-  return std::make_shared<StandardStatHandler>(serviceName);
-}
-
 std::shared_ptr<TFunctionStatHandler> addThriftFunctionStatHandler(
     const char* serviceName) {
   auto handler = std::make_shared<StandardStatHandler>(serviceName);
