@@ -25,7 +25,7 @@ thrift_library(
         "javadeprecated",
         "java-swift",
         "py-deprecated",
-        "py3",
+        "py3-deprecated",
         "python",
         "go",
         "hs2",
