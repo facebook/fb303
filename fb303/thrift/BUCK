@@ -30,7 +30,7 @@ thrift_library(
         "go",
         "hs2",
         "js",
-        "py-asyncio",
+        "py-deprecated-asyncio",
         "rust",
     ],
     plugins = [
