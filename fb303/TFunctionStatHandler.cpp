@@ -134,7 +134,7 @@ void TStatsPerThread::StatsPerThreadHist::set(
       std::make_unique<folly::Histogram<CounterType>>(bucketSize, min, max);
   hist->clear();
 
-  // Everything beloew is noexcept.
+  // Everything below is noexcept.
   percentiles_ = std::move(percentiles);
   bucketSize_ = bucketSize;
   min_ = min;
@@ -331,21 +331,22 @@ int32_t TFunctionStatHandler::consolidateStats(
     statMapSum_.addValue(prefix + ".num_calls", now, spt.calls_);
     // called hook is here - https://fburl.com/code/5ztnw92a (postRead(2))
     // number of calls to read
-    // read means reads from request channle (deserialization)
+    // read means reads from request channel (deserialization)
     statMapSum_.addValue(prefix + ".num_reads", now, spt.readData_.count);
     // called hook is here - https://fburl.com/code/f19kbzg5 (postWrite(1))
     // number of calls to write
-    // write means writes to response channel (seralization)
+    // write means writes to response channel (serialization)
     statMapSum_.addValue(prefix + ".num_writes", now, spt.writeData_.count);
-    // number of calls that are actually got processed
+    // number of calls that actually got processed
     statMapSum_.addValue(prefix + ".num_processed", now, spt.processed_);
-    // userExceptions is Thrift name for all exceptions escaped from the handler
-    // counter is named differently to better represent what it actually means
+    // userExceptions is the Thrift name for all exceptions escaped from the
+    // handler counter is named differently to better represent what it actually
+    // means
     statMapSum_.addValue(
         prefix + ".num_all_exceptions", now, spt.userExceptions_);
     // this counter only includes exceptions not declared in the Thrift schema
     statMapSum_.addValue(prefix + ".num_exceptions", now, spt.exceptions_);
-    // num of samples collected
+    // number of samples collected
     statMapSum_.addValue(prefix + ".num_samples", now, spt.samples_);
     // number of bytes read from request channel (deserialization)
     statMapSum_.addValue(prefix + ".bytes_read", now, spt.readData_.sum);
