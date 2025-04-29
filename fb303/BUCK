@@ -99,6 +99,7 @@ cpp_library(
     headers = ["TFunctionStatHandler.h"],
     deps = [
         ":legacy_clock",
+        ":service_data",
     ],
     exported_deps = [
         ":base_service",

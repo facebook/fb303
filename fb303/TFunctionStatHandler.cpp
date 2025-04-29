@@ -14,11 +14,17 @@
  * limitations under the License.
  */
 
+#include <fb303/ServiceData.h>
 #include <fb303/TFunctionStatHandler.h>
 
 #include <mutex>
 
 #include <fb303/LegacyClock.h>
+
+DEFINE_bool(
+    fb303_export_function_quantile_stats,
+    true,
+    "If set, will use quantile stats for function stats.");
 
 namespace {
 int64_t count_usec(std::chrono::steady_clock::duration d) {
@@ -143,6 +149,14 @@ void TStatsPerThread::StatsPerThreadHist::set(
   hist_ = std::move(hist);
 }
 
+void TStatsPerThread::setQuantileStats(SharedQuantileStats& stats) {
+  readTime_.quantileStat = stats.readTime_;
+  writeTime_.quantileStat = stats.writeTime_;
+  processTime_.quantileStat = stats.processTime_;
+  readData_.quantileStat = stats.readData_;
+  writeData_.quantileStat = stats.writeData_;
+}
+
 void TStatsPerThread::logContextData(const TStatsRequestContext& context) {
   std::unique_lock lock(mutex_);
   calls_++;
@@ -264,6 +278,39 @@ void TFunctionStatHandler::userExceptionWrapped(
   }
 }
 
+SharedQuantileStats TFunctionStatHandler::getSharedQuantileStats(
+    const std::string& fnName) {
+  SharedQuantileStats quantileStats;
+  if (FLAGS_fb303_export_function_quantile_stats) {
+    quantileStats.readTime_ = fbData->getQuantileStat(
+        fmt::format("{}{}.time_read_us", counterNamePrefix_, fnName),
+        ExportTypeConsts::kAvg,
+        QuantileConsts::kP10_P50_P90_P95_P99_P100,
+        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+    quantileStats.writeTime_ = fbData->getQuantileStat(
+        fmt::format("{}{}.time_write_us", counterNamePrefix_, fnName),
+        ExportTypeConsts::kAvg,
+        QuantileConsts::kP10_P50_P90_P95_P99_P100,
+        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+    quantileStats.processTime_ = fbData->getQuantileStat(
+        fmt::format("{}{}.time_process_us", counterNamePrefix_, fnName),
+        ExportTypeConsts::kAvg,
+        QuantileConsts::kP10_P50_P90_P95_P99_P100,
+        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+    quantileStats.readData_ = fbData->getQuantileStat(
+        fmt::format("{}{}.bytes_read", counterNamePrefix_, fnName),
+        ExportTypeConsts::kAvg,
+        QuantileConsts::kP10_P50_P90_P95_P99_P100,
+        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+    quantileStats.writeData_ = fbData->getQuantileStat(
+        fmt::format("{}{}.bytes_written", counterNamePrefix_, fnName),
+        ExportTypeConsts::kAvg,
+        QuantileConsts::kP10_P50_P90_P95_P99_P100,
+        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+  }
+  return quantileStats;
+}
+
 void TFunctionStatHandler::postConstruct() {
   using namespace std::chrono;
   scheduler_.addFunction(
@@ -340,8 +387,8 @@ int32_t TFunctionStatHandler::consolidateStats(
     // number of calls that actually got processed
     statMapSum_.addValue(prefix + ".num_processed", now, spt.processed_);
     // userExceptions is the Thrift name for all exceptions escaped from the
-    // handler counter is named differently to better represent what it actually
-    // means
+    // handler counter is named differently to better represent what it
+    // actually means
     statMapSum_.addValue(
         prefix + ".num_all_exceptions", now, spt.userExceptions_);
     // this counter only includes exceptions not declared in the Thrift schema
@@ -502,6 +549,14 @@ std::string TFunctionStatHandler::getHistParamsMapKey(
   return key;
 }
 
+std::shared_ptr<TStatsPerThread> TFunctionStatHandler::createStatsPerThreadImpl(
+    const char* fnName) {
+  auto stats = createStatsPerThread(fnName);
+  auto sharedQuantileStats = getSharedQuantileStats(fnName);
+  stats->setQuantileStats(sharedQuantileStats);
+  return stats;
+}
+
 TStatsPerThread* TFunctionStatHandler::getStats(const char* fnName) {
   auto mapPtr = tlFunctionMap_.get();
   if (mapPtr == nullptr) {
@@ -527,10 +582,13 @@ TStatsPerThread* TFunctionStatHandler::getStats(const char* fnName) {
   auto& map = *mapPtr;
   auto it = map.find(fnName);
   if (it == map.end()) {
+    auto stats = createStatsPerThread(fnName);
+    auto sharedQuantileStats = getSharedQuantileStats(fnName);
+    stats->setQuantileStats(sharedQuantileStats);
+    setThriftHistParams(stats.get(), fnName);
+
     // we're going to be writing the map, so lock out stat aggregation ftm
     std::unique_lock lock(statMutex_);
-    auto stats = createStatsPerThread(fnName);
-    setThriftHistParams(stats.get(), fnName);
     map[fnName] = stats;
     return stats.get();
   }

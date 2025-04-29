@@ -21,6 +21,8 @@
 #include <folly/experimental/FunctionScheduler.h>
 #include <thrift/lib/cpp/TProcessor.h>
 
+DECLARE_bool(fb303_export_function_quantile_stats);
+
 namespace facebook::fb303 {
 
 struct TStatsRequestContext {
@@ -79,6 +81,19 @@ struct TStatsRequestContext {
   void userExceptionThrown() {
     userException = true;
   }
+};
+
+/**
+ * The quantile stats are owned by TFunctionStatHandler, and shared by each of
+ * the TStatsPerThread objects. QuantileStat::addValue() is thread safe and has
+ * its own internal logic to support this.
+ */
+struct SharedQuantileStats {
+  std::shared_ptr<QuantileStat> readTime_;
+  std::shared_ptr<QuantileStat> writeTime_;
+  std::shared_ptr<QuantileStat> processTime_;
+  std::shared_ptr<QuantileStat> readData_;
+  std::shared_ptr<QuantileStat> writeData_;
 };
 
 /**
@@ -144,6 +159,11 @@ class TStatsPerThread {
     uint32_t count = 0;
     uint64_t sum = 0;
     StatsPerThreadHist hist;
+    // TODO(ispulber): For the stats that actually do use histograms - once
+    // fully migrated, there is no need for this struct, just use the quantile
+    // stats directly. The count and sum can be retrieved directly from the
+    // quantile stats.
+    std::shared_ptr<QuantileStat> quantileStat;
 
     void addValue(int64_t value) {
       count++;
@@ -151,6 +171,15 @@ class TStatsPerThread {
       auto h = hist.getHistogram();
       if (h) {
         h->addValue(value);
+      } else {
+        // We ONLY use the quantile stats if the folly::Histogram is NOT in use.
+        // This avoids the name conflicts for the counters.
+        // TODO(ispulber): Once the quantile stats are fully rolled out, make
+        // this the default, remove the histogram and the opting-in logic.
+
+        if (quantileStat) {
+          quantileStat->addValue(value);
+        }
       }
     }
 
@@ -188,6 +217,8 @@ class TStatsPerThread {
   TimeSeries processTime_;
   TimeSeries totalCpuTime_;
   TimeSeries totalWorkedTime_;
+
+  void setQuantileStats(SharedQuantileStats& stats);
 
   // fraction (<=1.0) of calls to be sampled for timing
   double sampleRate_ = 1.0;
@@ -233,6 +264,8 @@ class TFunctionStatHandler
       std::string funcName,
       ThriftFuncAction action);
 
+  std::shared_ptr<TStatsPerThread> createStatsPerThreadImpl(const char* fnName);
+
  protected:
   std::recursive_mutex statMutex_; // mutex guarding thread-local function maps
 
@@ -247,6 +280,13 @@ class TFunctionStatHandler
   ExportedHistogramMapImpl histogramMap_; // histogram
 
   static const std::string kDefaultCounterNamePrefix;
+
+  /**
+   * Returns a shared quantile stats struct with all the individual quantile
+   * stats for a given thrift function. If the shared quantile stats do not
+   * exist, they are created.
+   */
+  SharedQuantileStats getSharedQuantileStats(const std::string& fnName);
 
   /*
    * Work to be done after the construction of TFunctionStatHandler, from the
