@@ -286,27 +286,27 @@ SharedQuantileStats TFunctionStatHandler::getSharedQuantileStats(
         fmt::format("{}{}.time_read_us", counterNamePrefix_, fnName),
         ExportTypeConsts::kAvg,
         QuantileConsts::kP10_P50_P90_P95_P99_P100,
-        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+        SlidingWindowPeriodConsts::kOneMin);
     quantileStats.writeTime_ = fbData->getQuantileStat(
         fmt::format("{}{}.time_write_us", counterNamePrefix_, fnName),
         ExportTypeConsts::kAvg,
         QuantileConsts::kP10_P50_P90_P95_P99_P100,
-        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+        SlidingWindowPeriodConsts::kOneMin);
     quantileStats.processTime_ = fbData->getQuantileStat(
         fmt::format("{}{}.time_process_us", counterNamePrefix_, fnName),
         ExportTypeConsts::kAvg,
         QuantileConsts::kP10_P50_P90_P95_P99_P100,
-        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+        SlidingWindowPeriodConsts::kOneMin);
     quantileStats.readData_ = fbData->getQuantileStat(
         fmt::format("{}{}.bytes_read", counterNamePrefix_, fnName),
         ExportTypeConsts::kAvg,
         QuantileConsts::kP10_P50_P90_P95_P99_P100,
-        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+        SlidingWindowPeriodConsts::kOneMin);
     quantileStats.writeData_ = fbData->getQuantileStat(
         fmt::format("{}{}.bytes_written", counterNamePrefix_, fnName),
         ExportTypeConsts::kAvg,
         QuantileConsts::kP10_P50_P90_P95_P99_P100,
-        SlidingWindowPeriodConsts::kOneMinTenMinHour);
+        SlidingWindowPeriodConsts::kOneMin);
   }
   return quantileStats;
 }
