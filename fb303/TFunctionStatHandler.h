@@ -87,13 +87,10 @@ struct TStatsRequestContext {
  * The quantile stats are owned by TFunctionStatHandler, and shared by each of
  * the TStatsPerThread objects. QuantileStat::addValue() is thread safe and has
  * its own internal logic to support this.
+ * For now, only time_process_us is tracked with quantiles.
  */
 struct SharedQuantileStats {
-  std::shared_ptr<QuantileStat> readTime_;
-  std::shared_ptr<QuantileStat> writeTime_;
   std::shared_ptr<QuantileStat> processTime_;
-  std::shared_ptr<QuantileStat> readData_;
-  std::shared_ptr<QuantileStat> writeData_;
 };
 
 /**
