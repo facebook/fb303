@@ -450,9 +450,6 @@ class TFunctionStatHandler
       const folly::exception_wrapper& ew_) final;
 };
 
-std::shared_ptr<TFunctionStatHandler> createDefaultStatHandler(
-    const char* serviceName);
-
 /**
  * Enable Thrift handler call counters
  */
