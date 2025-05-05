@@ -21,6 +21,8 @@
 #include <folly/experimental/FunctionScheduler.h>
 #include <thrift/lib/cpp/TProcessor.h>
 
+#include <string_view>
+
 DECLARE_bool(fb303_export_function_quantile_stats);
 
 namespace facebook::fb303 {
@@ -258,10 +260,11 @@ class TFunctionStatHandler
   folly::ThreadLocalPtr<TStatsAggregator, Tag> tlFunctionMap_;
 
   std::string getHistParamsMapKey(
-      std::string funcName,
+      std::string_view funcName,
       ThriftFuncAction action);
 
-  std::shared_ptr<TStatsPerThread> createStatsPerThreadImpl(const char* fnName);
+  std::shared_ptr<TStatsPerThread> createStatsPerThreadImpl(
+      std::string_view fnName);
 
  protected:
   std::recursive_mutex statMutex_; // mutex guarding thread-local function maps
@@ -283,7 +286,7 @@ class TFunctionStatHandler
    * stats for a given thrift function. If the shared quantile stats do not
    * exist, they are created.
    */
-  SharedQuantileStats getSharedQuantileStats(const std::string& fnName);
+  SharedQuantileStats getSharedQuantileStats(std::string_view fnName);
 
   /*
    * Work to be done after the construction of TFunctionStatHandler, from the
@@ -305,7 +308,7 @@ class TFunctionStatHandler
    * This function looks for a TStatsAggregator within the current thread's
    * thread-specific memory associated with key_, creating it if necessary.
    */
-  TStatsPerThread* getStats(const char* fnName);
+  TStatsPerThread* getStats(std::string_view fnName);
 
   /**
    * Merge stats from a given thread
@@ -343,7 +346,7 @@ class TFunctionStatHandler
    * Construct an instance of TStatsPerThread.
    */
   virtual std::shared_ptr<TStatsPerThread> createStatsPerThread(
-      const char* fnName) = 0;
+      std::string_view fnName) = 0;
 
   /**
    * Calls setDefaultStat on all ExportedStatMapImpl members of this handler.
@@ -371,7 +374,7 @@ class TFunctionStatHandler
    *          cast into a void*.
    */
   void* getContext(
-      const char* fnName,
+      std::string_view fnName,
       apache::thrift::server::TConnectionContext* /*serverContext*/ =
           nullptr) override {
     auto stats = getStats(fnName);
@@ -391,7 +394,7 @@ class TFunctionStatHandler
   }
 
   ThriftFuncHistParams* getThriftFuncHistParams(
-      const char* fn_name,
+      std::string_view fn_name,
       ThriftFuncAction action) {
     std::string key = getHistParamsMapKey(std::string(fn_name), action);
     auto it = histParamsMap_.find(key);
@@ -401,48 +404,48 @@ class TFunctionStatHandler
     return &(it->second);
   }
 
-  void setThriftHistParams(TStatsPerThread* stats, const char* fn_name);
+  void setThriftHistParams(TStatsPerThread* stats, std::string_view fn_name);
 
   /**
    * Free resources associated with a context.
    */
-  void freeContext(void* ctx, const char* fn_name) override;
+  void freeContext(void* ctx, std::string_view fn_name) override;
 
   /**
    * Called before reading arguments.
    */
-  void preRead(void* ctx, const char*) override;
+  void preRead(void* ctx, std::string_view) override;
 
   /**
    * Called between reading arguments and calling the handler.
    */
   void postRead(
       void* ctx,
-      const char*,
+      std::string_view,
       apache::thrift::transport::THeader*,
       uint32_t bytes) override;
 
   /**
    * Called between calling the handler and writing the response.
    */
-  void preWrite(void* ctx, const char*) override;
+  void preWrite(void* ctx, std::string_view) override;
 
   /**
    * Called after writing the response.
    */
-  void postWrite(void* ctx, const char*, uint32_t bytes) override;
+  void postWrite(void* ctx, std::string_view, uint32_t bytes) override;
 
   /**
    * Called if the handler throws an undeclared exception.
    */
-  void handlerError(void* ctx, const char*) override;
+  void handlerError(void* ctx, std::string_view) override;
 
   /**
    * Called if the handler throws any exception.
    */
   void userExceptionWrapped(
       void* ctx,
-      const char* fn_name,
+      std::string_view fn_name,
       bool declared,
       const folly::exception_wrapper& ew_) final;
 };

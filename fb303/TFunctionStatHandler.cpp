@@ -180,7 +180,7 @@ void TStatsPerThread::logContextData(const TStatsRequestContext& context) {
 
 void TFunctionStatHandler::setThriftHistParams(
     TStatsPerThread* stats,
-    const char* fn_name) {
+    std::string_view fn_name) {
   ThriftFuncHistParams* params = nullptr;
   for (int action = ThriftFuncAction::FIRST_ACTION;
        action != ThriftFuncAction::LAST_ACTION;
@@ -222,7 +222,7 @@ TFunctionStatHandler::TFunctionStatHandler(
   assert(desiredSamplesPerPeriod_ > 0);
 }
 
-void TFunctionStatHandler::freeContext(void* ctx, const char* fn_name) {
+void TFunctionStatHandler::freeContext(void* ctx, std::string_view fn_name) {
   if (ctx != nullptr) {
     auto context = static_cast<TStatsRequestContext*>(ctx);
     getStats(fn_name)->logContextData(*context);
@@ -230,7 +230,7 @@ void TFunctionStatHandler::freeContext(void* ctx, const char* fn_name) {
   }
 }
 
-void TFunctionStatHandler::preRead(void* ctx, const char*) {
+void TFunctionStatHandler::preRead(void* ctx, std::string_view) {
   if (ctx != nullptr) {
     static_cast<TStatsRequestContext*>(ctx)->readBegin();
   }
@@ -238,7 +238,7 @@ void TFunctionStatHandler::preRead(void* ctx, const char*) {
 
 void TFunctionStatHandler::postRead(
     void* ctx,
-    const char*,
+    std::string_view,
     apache::thrift::transport::THeader*,
     uint32_t bytes) {
   if (ctx != nullptr) {
@@ -246,19 +246,22 @@ void TFunctionStatHandler::postRead(
   }
 }
 
-void TFunctionStatHandler::preWrite(void* ctx, const char*) {
+void TFunctionStatHandler::preWrite(void* ctx, std::string_view) {
   if (ctx != nullptr) {
     static_cast<TStatsRequestContext*>(ctx)->writeBegin();
   }
 }
 
-void TFunctionStatHandler::postWrite(void* ctx, const char*, uint32_t bytes) {
+void TFunctionStatHandler::postWrite(
+    void* ctx,
+    std::string_view,
+    uint32_t bytes) {
   if (ctx != nullptr) {
     static_cast<TStatsRequestContext*>(ctx)->writeEnd(bytes);
   }
 }
 
-void TFunctionStatHandler::handlerError(void* ctx, const char*) {
+void TFunctionStatHandler::handlerError(void* ctx, std::string_view) {
   if (ctx != nullptr) {
     static_cast<TStatsRequestContext*>(ctx)->exceptionThrown();
   }
@@ -266,7 +269,7 @@ void TFunctionStatHandler::handlerError(void* ctx, const char*) {
 
 void TFunctionStatHandler::userExceptionWrapped(
     void* ctx,
-    const char* /*fn_name*/,
+    std::string_view /*fn_name*/,
     bool /*declared*/,
     const folly::exception_wrapper& /*ew_*/) {
   if (ctx != nullptr) {
@@ -275,7 +278,7 @@ void TFunctionStatHandler::userExceptionWrapped(
 }
 
 SharedQuantileStats TFunctionStatHandler::getSharedQuantileStats(
-    const std::string& fnName) {
+    std::string_view fnName) {
   SharedQuantileStats quantileStats;
   if (FLAGS_fb303_export_function_quantile_stats) {
     quantileStats.processTime_ = fbData->getQuantileStat(
@@ -499,9 +502,9 @@ int32_t TFunctionStatHandler::consolidateStats(
 }
 
 std::string TFunctionStatHandler::getHistParamsMapKey(
-    std::string funcName,
+    std::string_view funcName,
     ThriftFuncAction action) {
-  std::string key = funcName;
+  std::string key = std::string(funcName);
   switch (action) {
     case ThriftFuncAction::READ:
       key += ".READ";
@@ -526,14 +529,14 @@ std::string TFunctionStatHandler::getHistParamsMapKey(
 }
 
 std::shared_ptr<TStatsPerThread> TFunctionStatHandler::createStatsPerThreadImpl(
-    const char* fnName) {
+    std::string_view fnName) {
   auto stats = createStatsPerThread(fnName);
   auto sharedQuantileStats = getSharedQuantileStats(fnName);
   stats->setQuantileStats(sharedQuantileStats);
   return stats;
 }
 
-TStatsPerThread* TFunctionStatHandler::getStats(const char* fnName) {
+TStatsPerThread* TFunctionStatHandler::getStats(std::string_view fnName) {
   auto mapPtr = tlFunctionMap_.get();
   if (mapPtr == nullptr) {
     mapPtr = new TStatsAggregator();
@@ -599,7 +602,8 @@ class StandardStatHandler : public TFunctionStatHandler {
     preDestroy();
   }
 
-  std::shared_ptr<TStatsPerThread> createStatsPerThread(const char*) override {
+  std::shared_ptr<TStatsPerThread> createStatsPerThread(
+      std::string_view) override {
     return std::make_shared<StandardStatsPerThread>();
   }
 };
