@@ -221,7 +221,7 @@ std::shared_ptr<QuantileStat> ServiceData::getQuantileStat(
     return stat;
   }
 
-  std::vector<QuantileStat::SlidingWindow> slidingWindowDefs;
+  std::vector<std::pair<std::chrono::seconds, size_t>> slidingWindowDefs;
   slidingWindowDefs.reserve(slidingWindowPeriods.size());
   for (const auto& slidingWindowLength : slidingWindowPeriods) {
     if (slidingWindowLength >= 60) {

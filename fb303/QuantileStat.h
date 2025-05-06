@@ -28,17 +28,14 @@ namespace facebook::fb303 {
 template <typename ClockT>
 class BasicQuantileStat {
  public:
-  struct SlidingWindow;
   using TimePoint = typename ClockT::time_point;
 
-  explicit BasicQuantileStat(std::vector<SlidingWindow> defs);
   explicit BasicQuantileStat(
       const std::vector<std::pair<std::chrono::seconds, size_t>>& defs);
 
   void addValue(double value, TimePoint now = ClockT::now());
 
   struct SlidingWindowEstimate {
-   public:
     SlidingWindowEstimate() = delete;
     SlidingWindowEstimate(
         folly::QuantileEstimates&& e,
@@ -56,7 +53,6 @@ class BasicQuantileStat {
   };
 
   struct Estimates {
-   public:
     folly::QuantileEstimates allTimeEstimate;
     std::vector<SlidingWindowEstimate> slidingWindows;
   };
@@ -72,25 +68,6 @@ class BasicQuantileStat {
   // QuantileEstimator buffers values added to it for buffer duration.
   // This method can be force buffer flush and digest rebuild.
   void flush();
-
-  struct SlidingWindow {
-   public:
-    SlidingWindow(std::chrono::seconds wl, size_t n)
-        : estimator(wl, n), windowLength(wl), nWindows(n) {}
-    SlidingWindow(const SlidingWindow&) = delete;
-    SlidingWindow(SlidingWindow&& o) noexcept
-        : estimator(o.windowLength, o.nWindows),
-          windowLength(o.windowLength),
-          nWindows(o.nWindows) {}
-
-    folly::SlidingWindowQuantileEstimator<ClockT> estimator;
-    std::chrono::seconds windowLength;
-    size_t nWindows;
-
-    std::chrono::seconds slidingWindowLength() const {
-      return windowLength * nWindows;
-    }
-  };
 
   struct SlidingWindowSnapshot {
     folly::TDigest digest;
@@ -112,6 +89,24 @@ class BasicQuantileStat {
   Snapshot getSnapshot(TimePoint now = ClockT::now());
 
  private:
+  struct SlidingWindow {
+    SlidingWindow(std::chrono::seconds wl, size_t n)
+        : estimator(wl, n), windowLength(wl), nWindows(n) {}
+    SlidingWindow(const SlidingWindow&) = delete;
+    SlidingWindow(SlidingWindow&& o) noexcept
+        : estimator(o.windowLength, o.nWindows),
+          windowLength(o.windowLength),
+          nWindows(o.nWindows) {}
+
+    folly::SlidingWindowQuantileEstimator<ClockT> estimator;
+    std::chrono::seconds windowLength;
+    size_t nWindows;
+
+    std::chrono::seconds slidingWindowLength() const {
+      return windowLength * nWindows;
+    }
+  };
+
   folly::SimpleQuantileEstimator<ClockT> allTimeEstimator_;
   std::vector<SlidingWindow> slidingWindowVec_;
   const TimePoint creationTime_;

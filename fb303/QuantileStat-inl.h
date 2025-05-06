@@ -21,11 +21,6 @@ namespace fb303 {
 
 template <typename ClockT>
 BasicQuantileStat<ClockT>::BasicQuantileStat(
-    std::vector<BasicQuantileStat<ClockT>::SlidingWindow> defs)
-    : slidingWindowVec_(std::move(defs)), creationTime_(ClockT::now()) {}
-
-template <typename ClockT>
-BasicQuantileStat<ClockT>::BasicQuantileStat(
     const std::vector<std::pair<std::chrono::seconds, size_t>>& defs)
     : creationTime_(ClockT::now()) {
   for (const auto& def : defs) {
