@@ -91,14 +91,8 @@ class BasicQuantileStat {
  private:
   struct SlidingWindow {
     SlidingWindow(std::chrono::seconds wl, size_t n)
-        : estimator(wl, n), windowLength(wl), nWindows(n) {}
-    SlidingWindow(const SlidingWindow&) = delete;
-    SlidingWindow(SlidingWindow&& o) noexcept
-        : estimator(o.windowLength, o.nWindows),
-          windowLength(o.windowLength),
-          nWindows(o.nWindows) {}
+        : windowLength(wl), nWindows(n) {}
 
-    folly::SlidingWindowQuantileEstimator<ClockT> estimator;
     std::chrono::seconds windowLength;
     size_t nWindows;
 
@@ -107,8 +101,8 @@ class BasicQuantileStat {
     }
   };
 
-  folly::SimpleQuantileEstimator<ClockT> allTimeEstimator_;
   std::vector<SlidingWindow> slidingWindowVec_;
+  folly::MultiSlidingWindowQuantileEstimator<ClockT> estimator_;
   const TimePoint creationTime_;
 };
 

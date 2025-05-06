@@ -22,7 +22,7 @@ namespace fb303 {
 template <typename ClockT>
 BasicQuantileStat<ClockT>::BasicQuantileStat(
     const std::vector<std::pair<std::chrono::seconds, size_t>>& defs)
-    : creationTime_(ClockT::now()) {
+    : estimator_(defs), creationTime_(ClockT::now()) {
   for (const auto& def : defs) {
     slidingWindowVec_.emplace_back(def.first, def.second);
   }
@@ -30,18 +30,12 @@ BasicQuantileStat<ClockT>::BasicQuantileStat(
 
 template <typename ClockT>
 void BasicQuantileStat<ClockT>::addValue(double value, TimePoint now) {
-  allTimeEstimator_.addValue(value, now);
-  for (auto& slidingWindow : slidingWindowVec_) {
-    slidingWindow.estimator.addValue(value, now);
-  }
+  estimator_.addValue(value, now);
 }
 
 template <typename ClockT>
 void BasicQuantileStat<ClockT>::flush() {
-  allTimeEstimator_.flush();
-  for (auto& slidingWindow : slidingWindowVec_) {
-    slidingWindow.estimator.flush();
-  }
+  estimator_.flush();
 }
 
 template <typename ClockT>
@@ -49,19 +43,18 @@ typename BasicQuantileStat<ClockT>::Estimates
 BasicQuantileStat<ClockT>::getEstimates(
     folly::Range<const double*> quantiles,
     TimePoint now) {
-  Estimates estimates;
+  auto estimates = estimator_.estimateQuantiles(quantiles, now);
 
-  estimates.allTimeEstimate =
-      allTimeEstimator_.estimateQuantiles(quantiles, now);
-
-  estimates.slidingWindows.reserve(slidingWindowVec_.size());
-  for (auto& slidingWindow : slidingWindowVec_) {
-    estimates.slidingWindows.emplace_back(
-        slidingWindow.estimator.estimateQuantiles(quantiles, now),
-        slidingWindow.windowLength,
-        slidingWindow.nWindows);
+  Estimates result;
+  result.allTimeEstimate = std::move(estimates.allTime);
+  result.slidingWindows.reserve(slidingWindowVec_.size());
+  for (size_t i = 0; i < slidingWindowVec_.size(); ++i) {
+    result.slidingWindows.emplace_back(
+        std::move(estimates.windows[i]),
+        slidingWindowVec_[i].windowLength,
+        slidingWindowVec_[i].nWindows);
   }
-  return estimates;
+  return result;
 }
 
 template <typename ClockT>
@@ -84,18 +77,19 @@ BasicQuantileStat<ClockT>::creationTime() const {
 template <typename ClockT>
 typename BasicQuantileStat<ClockT>::Snapshot
 BasicQuantileStat<ClockT>::getSnapshot(TimePoint now) {
+  auto digests = estimator_.getDigests(now);
+
   Snapshot snapshot;
   snapshot.now = now;
   snapshot.creationTime = creationTime_;
-  snapshot.allTimeDigest = allTimeEstimator_.getDigest(now);
+  snapshot.allTimeDigest = std::move(digests.allTime);
 
   snapshot.slidingWindowSnapshot.reserve(slidingWindowVec_.size());
-  for (auto& slidingWindow : slidingWindowVec_) {
-    SlidingWindowSnapshot snap;
-    snap.windowLength = slidingWindow.windowLength;
-    snap.nWindows = slidingWindow.nWindows;
-    snap.digest = slidingWindow.estimator.getDigest(now);
-    snapshot.slidingWindowSnapshot.push_back(std::move(snap));
+  for (size_t i = 0; i < slidingWindowVec_.size(); ++i) {
+    auto& snap = snapshot.slidingWindowSnapshot.emplace_back();
+    snap.windowLength = slidingWindowVec_[i].windowLength;
+    snap.nWindows = slidingWindowVec_[i].nWindows;
+    snap.digest = std::move(digests.windows[i]);
   }
   return snapshot;
 }
