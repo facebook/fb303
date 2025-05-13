@@ -23,8 +23,6 @@
 
 #include <string_view>
 
-DECLARE_bool(fb303_export_function_quantile_stats);
-
 namespace facebook::fb303 {
 
 struct TStatsRequestContext {
@@ -157,7 +155,6 @@ class TStatsPerThread {
   struct TimeSeries {
     uint32_t count = 0;
     uint64_t sum = 0;
-    StatsPerThreadHist hist;
     // TODO(ispulber): For the stats that actually do use histograms - once
     // fully migrated, there is no need for this struct, just use the quantile
     // stats directly. The count and sum can be retrieved directly from the
@@ -167,18 +164,9 @@ class TStatsPerThread {
     void addValue(int64_t value) {
       count++;
       sum += value;
-      auto h = hist.getHistogram();
-      if (h) {
-        h->addValue(value);
-      } else {
-        // We ONLY use the quantile stats if the folly::Histogram is NOT in use.
-        // This avoids the name conflicts for the counters.
-        // TODO(ispulber): Once the quantile stats are fully rolled out, make
-        // this the default, remove the histogram and the opting-in logic.
 
-        if (quantileStat) {
-          quantileStat->addValue(value);
-        }
+      if (quantileStat) {
+        quantileStat->addValue(value);
       }
     }
 

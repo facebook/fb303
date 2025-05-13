@@ -21,11 +21,6 @@
 
 #include <fb303/LegacyClock.h>
 
-DEFINE_bool(
-    fb303_export_function_quantile_stats,
-    true,
-    "If set, will use quantile stats for function stats.");
-
 namespace {
 int64_t count_usec(std::chrono::steady_clock::duration d) {
   return std::chrono::duration_cast<std::chrono::microseconds>(d).count();
@@ -93,31 +88,6 @@ void TStatsPerThread::clear() {
 void TStatsPerThread::enableThriftFuncHist(ThriftFuncHistParams* params) {
   if (params == nullptr) {
     return;
-  }
-
-  switch (params->action) {
-    case ThriftFuncAction::READ:
-      readTime_.hist.setParameters(
-          params->percentiles, params->bucketSize, params->min, params->max);
-      break;
-    case ThriftFuncAction::WRITE:
-      writeTime_.hist.setParameters(
-          params->percentiles, params->bucketSize, params->min, params->max);
-      break;
-    case ThriftFuncAction::PROCESS:
-      processTime_.hist.setParameters(
-          params->percentiles, params->bucketSize, params->min, params->max);
-      break;
-    case ThriftFuncAction::BYTES_READ:
-      readData_.hist.setParameters(
-          params->percentiles, params->bucketSize, params->min, params->max);
-      break;
-    case ThriftFuncAction::BYTES_WRITTEN:
-      writeData_.hist.setParameters(
-          params->percentiles, params->bucketSize, params->min, params->max);
-      break;
-    default:
-      break;
   }
 }
 
@@ -280,13 +250,11 @@ void TFunctionStatHandler::userExceptionWrapped(
 SharedQuantileStats TFunctionStatHandler::getSharedQuantileStats(
     std::string_view fnName) {
   SharedQuantileStats quantileStats;
-  if (FLAGS_fb303_export_function_quantile_stats) {
-    quantileStats.processTime_ = fbData->getQuantileStat(
-        fmt::format("{}{}.time_process_us", counterNamePrefix_, fnName),
-        ExportTypeConsts::kAvg,
-        QuantileConsts::kP10_P50_P90_P95_P99_P100,
-        SlidingWindowPeriodConsts::kOneMin);
-  }
+  quantileStats.processTime_ = fbData->getQuantileStat(
+      fmt::format("{}{}.time_process_us", counterNamePrefix_, fnName),
+      ExportTypeConsts::kAvg,
+      QuantileConsts::kP10_P50_P90_P95_P99_P100,
+      SlidingWindowPeriodConsts::kOneMin);
   return quantileStats;
 }
 
@@ -440,51 +408,6 @@ int32_t TFunctionStatHandler::consolidateStats(
         now,
         spt.totalWorkedTime_.sum,
         spt.totalWorkedTime_.count);
-
-    // update histogram
-
-    if (spt.readTime_.hist.isEnabled()) {
-      histogramMap_.addValues(
-          prefix + ".time_read_us",
-          now,
-          *spt.readTime_.hist.getHistogram(),
-          spt.readTime_.hist.getExportedHistogram(),
-          spt.readTime_.hist.getPercentiles());
-    }
-
-    if (spt.writeTime_.hist.isEnabled()) {
-      histogramMap_.addValues(
-          prefix + ".time_write_us",
-          now,
-          *spt.writeTime_.hist.getHistogram(),
-          spt.writeTime_.hist.getExportedHistogram(),
-          spt.writeTime_.hist.getPercentiles());
-    }
-
-    if (spt.processTime_.hist.isEnabled()) {
-      histogramMap_.addValues(
-          prefix + ".time_process_us",
-          now,
-          *spt.processTime_.hist.getHistogram(),
-          spt.processTime_.hist.getExportedHistogram(),
-          spt.processTime_.hist.getPercentiles());
-    }
-    if (spt.readData_.hist.isEnabled()) {
-      histogramMap_.addValues(
-          prefix + ".bytes_read",
-          now,
-          *spt.readData_.hist.getHistogram(),
-          spt.readData_.hist.getExportedHistogram(),
-          spt.readData_.hist.getPercentiles());
-    }
-    if (spt.writeData_.hist.isEnabled()) {
-      histogramMap_.addValues(
-          prefix + ".bytes_written",
-          now,
-          *spt.writeData_.hist.getHistogram(),
-          spt.writeData_.hist.getExportedHistogram(),
-          spt.writeData_.hist.getPercentiles());
-    }
   };
 
   addAllValues(counterNamePrefix_ + fnName);
