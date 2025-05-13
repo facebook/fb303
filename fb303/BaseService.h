@@ -155,45 +155,6 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
     return ServiceData::get()->getAliveSince().count();
   }
 
-  /**
-   * Add an automatically sampled and consolidated  histogram stat for a
-   * thrift function. It adds histogram stats like
-   * thrift.SERVICE.FUNCTION.PXX.INTERVAL to fb303.
-   *
-   * @param funcName    full function name, like SERVICE.FUNCTION
-   * @param action      time for READ/WRITE/PROCESS
-   * @param percentiles  define pxx
-   * @param bucketSize  size of each bucket
-   * @param min         min value of the histogram
-   * @param max         max value of the histogram
-   */
-  void exportThriftFuncHist(
-      const std::string& funcName,
-      ThriftFuncAction action,
-      folly::small_vector<int> percentiles,
-      int64_t bucketSize,
-      int64_t min,
-      int64_t max) {
-    thriftFuncHistParams_.emplace_back(
-        funcName, action, percentiles, bucketSize, min, max);
-  }
-
-  void exportThriftFuncHist(
-      const std::string& funcName,
-      ThriftFuncAction action,
-      int percentile,
-      int64_t bucketSize,
-      int64_t min,
-      int64_t max) {
-    exportThriftFuncHist(
-        funcName,
-        action,
-        folly::small_vector<int>({percentile}),
-        bucketSize,
-        min,
-        max);
-  }
-
   const std::vector<ThriftFuncHistParams>& getExportedThriftFuncHist() const {
     return thriftFuncHistParams_;
   }
