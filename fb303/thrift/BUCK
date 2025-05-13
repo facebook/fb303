@@ -18,6 +18,7 @@ oncall("thrift")
 # another thrift_library() call, you can just use "fb303_core".
 thrift_library(
     name = "fb303_core",
+    erlang_native_maps = False,
     java_swift_maven_coords = "com.facebook.thrift:fb303_core-thrift",
     javadeprecated_maven_coords = "com.facebook:fb303-thrift-fb303_core-java",
     languages = [
@@ -32,6 +33,7 @@ thrift_library(
         "js",
         "py-deprecated-asyncio",
         "rust",
+        "erlang",
     ],
     plugins = [
         thrift_plugin_allocated,
