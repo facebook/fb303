@@ -97,38 +97,11 @@ void TStatsPerThread::clear() {
   writeTime_.clear();
 }
 
-void TStatsPerThread::enableThriftFuncHist(ThriftFuncHistParams* params) {
-  if (params == nullptr) {
-    return;
-  }
-}
-
 void TStatsPerThread::setSampleRate(double rate) {
   if (rate > 1.0 || rate < 0.0) {
     rate = 1.0;
   }
   sampleRate_ = rate;
-}
-
-void TStatsPerThread::StatsPerThreadHist::set(
-    folly::small_vector<int> percentiles,
-    CounterType bucketSize,
-    CounterType min,
-    CounterType max) {
-  // Allocate these first to make this function exception-atomic.
-  auto exportedHist = std::make_unique<ExportedHistogram>(bucketSize, min, max);
-  exportedHist->clear();
-  auto hist =
-      std::make_unique<folly::Histogram<CounterType>>(bucketSize, min, max);
-  hist->clear();
-
-  // Everything below is noexcept.
-  percentiles_ = std::move(percentiles);
-  bucketSize_ = bucketSize;
-  min_ = min;
-  max_ = max;
-  exportedHist_ = std::move(exportedHist);
-  hist_ = std::move(hist);
 }
 
 void TStatsPerThread::setQuantileStats(SharedQuantileStats& stats) {
@@ -160,20 +133,6 @@ void TStatsPerThread::logContextData(const TStatsRequestContext& context) {
   logContextDataProcessed(context);
 }
 
-void TFunctionStatHandler::setThriftHistParams(
-    TStatsPerThread* stats,
-    std::string_view fn_name) {
-  ThriftFuncHistParams* params = nullptr;
-  for (int action = ThriftFuncAction::FIRST_ACTION;
-       action != ThriftFuncAction::LAST_ACTION;
-       action++) {
-    params = getThriftFuncHistParams(fn_name, ThriftFuncAction(action));
-    if (params) {
-      stats->enableThriftFuncHist(params);
-    }
-  }
-}
-
 TFunctionStatHandler::TFunctionStatHandler(
     DynamicCounters* counters,
     const std::string& serviceName,
@@ -181,8 +140,7 @@ TFunctionStatHandler::TFunctionStatHandler(
     int32_t secondsPerPeriod,
     const std::string& counterNamePrefix,
     bool useSubMinuteIntervalCounters)
-    : dummyHist_(1, 0, 1),
-      counterNamePrefix_(counterNamePrefix),
+    : counterNamePrefix_(counterNamePrefix),
       serviceName_(serviceName),
       counters_(counters),
       nThreads_(1),
@@ -199,8 +157,7 @@ TFunctionStatHandler::TFunctionStatHandler(
           AVG,
           useSubMinuteIntervalCounters
               ? ExportedStat(FiveSecondMinuteTenMinuteHourTimeSeries<int64_t>())
-              : ExportedStat(MinuteTenMinuteHourTimeSeries<int64_t>())),
-      histogramMap_(counters_, &dynamicStrings_, dummyHist_) {
+              : ExportedStat(MinuteTenMinuteHourTimeSeries<int64_t>())) {
   assert(desiredSamplesPerPeriod_ > 0);
 }
 
@@ -437,41 +394,6 @@ int32_t TFunctionStatHandler::consolidateStats(
   return calls;
 }
 
-std::string TFunctionStatHandler::getHistParamsMapKey(
-    std::string_view funcName,
-    ThriftFuncAction action) {
-  std::string key = std::string(funcName);
-  switch (action) {
-    case ThriftFuncAction::READ:
-      key += ".READ";
-      break;
-    case ThriftFuncAction::WRITE:
-      key += ".WRITE";
-      break;
-    case ThriftFuncAction::PROCESS:
-      key += ".PROCESS";
-      break;
-    case ThriftFuncAction::BYTES_READ:
-      key += ".BYTES_READ";
-      break;
-    case ThriftFuncAction::BYTES_WRITTEN:
-      key += ".BYTES_WRITTEN";
-      break;
-    default:
-      key += ".INVALID";
-      break;
-  }
-  return key;
-}
-
-std::shared_ptr<TStatsPerThread> TFunctionStatHandler::createStatsPerThreadImpl(
-    std::string_view fnName) {
-  auto stats = createStatsPerThread(fnName);
-  auto sharedQuantileStats = getSharedQuantileStats(fnName);
-  stats->setQuantileStats(sharedQuantileStats);
-  return stats;
-}
-
 TStatsPerThread* TFunctionStatHandler::getStats(std::string_view fnName) {
   auto mapPtr = tlFunctionMap_.get();
   if (mapPtr == nullptr) {
@@ -500,7 +422,6 @@ TStatsPerThread* TFunctionStatHandler::getStats(std::string_view fnName) {
     auto stats = createStatsPerThread(fnName);
     auto sharedQuantileStats = getSharedQuantileStats(fnName);
     stats->setQuantileStats(sharedQuantileStats);
-    setThriftHistParams(stats.get(), fnName);
 
     // we're going to be writing the map, so lock out stat aggregation ftm
     std::unique_lock lock(statMutex_);
@@ -558,9 +479,6 @@ void withThriftFunctionStats(
     BaseService* service,
     folly::Function<void()>&& fn) {
   auto handler = std::make_shared<StandardStatHandler>(serviceName);
-  for (auto& thriftFuncHistParams : service->getExportedThriftFuncHist()) {
-    handler->addThriftFuncHistParams(thriftFuncHistParams);
-  }
 
   apache::thrift::TProcessorBase::addProcessorEventHandler(handler);
   SCOPE_EXIT {

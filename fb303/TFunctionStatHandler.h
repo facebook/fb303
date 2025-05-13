@@ -108,50 +108,6 @@ class TStatsPerThread {
    */
   TStatsRequestContext* getContext();
 
-  class StatsPerThreadHist {
-   public:
-    ~StatsPerThreadHist() = default;
-
-    void setParameters(
-        folly::small_vector<int> percentiles,
-        CounterType bucketSize,
-        CounterType min,
-        CounterType max) {
-      set(std::move(percentiles), bucketSize, min, max);
-    }
-
-    bool isEnabled() {
-      return (exportedHist_ && hist_);
-    }
-
-    folly::small_vector<int>& getPercentiles() {
-      return percentiles_;
-    }
-
-    ExportedHistogram* getExportedHistogram() {
-      return exportedHist_.get();
-    }
-
-    folly::Histogram<CounterType>* getHistogram() {
-      return hist_.get();
-    }
-
-   private:
-    void set(
-        folly::small_vector<int> percentiles,
-        CounterType bucketSize,
-        CounterType min,
-        CounterType max);
-
-    folly::small_vector<int> percentiles_;
-    CounterType bucketSize_ = 0;
-    CounterType min_ = 0;
-    CounterType max_ = 0;
-
-    std::unique_ptr<folly::Histogram<CounterType>> hist_;
-    std::unique_ptr<ExportedHistogram> exportedHist_; // For consolidation
-  };
-
   struct TimeSeries {
     uint32_t count = 0;
     uint64_t sum = 0;
@@ -166,11 +122,6 @@ class TStatsPerThread {
       sum = 0;
     }
   };
-
-  /**
-   * Enable histogram stats for read.
-   */
-  void enableThriftFuncHist(ThriftFuncHistParams* params);
 
   // add data from this request to stats, calling logContextDataProcessed,
   // which can be customized based on whether we observe thrift server or client
@@ -223,11 +174,6 @@ class TFunctionStatHandler
   // we use folly::FunctionScheduler for periodic stats consolidation;
   folly::FunctionScheduler scheduler_;
 
-  DynamicStrings dynamicStrings_; // holds the counters information
-  ExportedHistogram dummyHist_;
-
-  folly::F14NodeMap<std::string, ThriftFuncHistParams> histParamsMap_;
-
   /**
    * Mapping from thrift functions to their respective
    * TStatsPerThread objects for a single thread
@@ -237,13 +183,6 @@ class TFunctionStatHandler
 
   class Tag;
   folly::ThreadLocalPtr<TStatsAggregator, Tag> tlFunctionMap_;
-
-  std::string getHistParamsMapKey(
-      std::string_view funcName,
-      ThriftFuncAction action);
-
-  std::shared_ptr<TStatsPerThread> createStatsPerThreadImpl(
-      std::string_view fnName);
 
  protected:
   std::recursive_mutex statMutex_; // mutex guarding thread-local function maps
@@ -256,7 +195,6 @@ class TFunctionStatHandler
   double desiredSamplesPerPeriod_; // overall samples/period wanted
   fb303::ExportedStatMap statMapSum_; // sums/rates
   fb303::ExportedStatMap statMapAvg_; // averages
-  ExportedHistogramMapImpl histogramMap_; // histogram
 
   static const std::string kDefaultCounterNamePrefix;
 
@@ -359,31 +297,6 @@ class TFunctionStatHandler
     auto stats = getStats(fnName);
     return (void*)(stats->getContext());
   }
-
-  /**
-   * Set histogram parameters for read/write/process in TStatsPerThread object.
-   * This action enables histogram for the given function
-   */
-  void addThriftFuncHistParams(ThriftFuncHistParams params) {
-    std::string key = getHistParamsMapKey(params.funcName, params.action);
-    auto it = histParamsMap_.find(key);
-    if (it == histParamsMap_.end()) {
-      histParamsMap_.insert(std::make_pair(key, params));
-    }
-  }
-
-  ThriftFuncHistParams* getThriftFuncHistParams(
-      std::string_view fn_name,
-      ThriftFuncAction action) {
-    std::string key = getHistParamsMapKey(std::string(fn_name), action);
-    auto it = histParamsMap_.find(key);
-    if (it == histParamsMap_.end()) {
-      return nullptr;
-    }
-    return &(it->second);
-  }
-
-  void setThriftHistParams(TStatsPerThread* stats, std::string_view fn_name);
 
   /**
    * Free resources associated with a context.

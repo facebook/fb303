@@ -155,10 +155,6 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
     return ServiceData::get()->getAliveSince().count();
   }
 
-  const std::vector<ThriftFuncHistParams>& getExportedThriftFuncHist() const {
-    return thriftFuncHistParams_;
-  }
-
   /**
    * getCounters() is processed in event base so that it won't be blocked by
    * unhealthy cpu thread pool. We also don't want to mark as high priority
@@ -288,7 +284,6 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
   std::chrono::milliseconds getCountersExpiration() const;
 
  private:
-  std::vector<ThriftFuncHistParams> thriftFuncHistParams_;
   folly::CPUThreadPoolExecutor getCountersExecutor_{
       2,
       std::make_shared<folly::NamedThreadFactory>("GetCountersCPU")};
