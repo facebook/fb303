@@ -155,19 +155,10 @@ class TStatsPerThread {
   struct TimeSeries {
     uint32_t count = 0;
     uint64_t sum = 0;
-    // TODO(ispulber): For the stats that actually do use histograms - once
-    // fully migrated, there is no need for this struct, just use the quantile
-    // stats directly. The count and sum can be retrieved directly from the
-    // quantile stats.
-    std::shared_ptr<QuantileStat> quantileStat;
 
     void addValue(int64_t value) {
       count++;
       sum += value;
-
-      if (quantileStat) {
-        quantileStat->addValue(value);
-      }
     }
 
     void clear() {
@@ -201,7 +192,7 @@ class TStatsPerThread {
   uint32_t samples_; // number of samples where timing was done
   TimeSeries readTime_;
   TimeSeries writeTime_;
-  TimeSeries processTime_;
+  std::shared_ptr<QuantileStat> processTime_;
   TimeSeries totalCpuTime_;
   TimeSeries totalWorkedTime_;
 
