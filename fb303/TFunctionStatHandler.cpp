@@ -209,7 +209,9 @@ SharedQuantileStats TFunctionStatHandler::getSharedQuantileStats(
   SharedQuantileStats quantileStats;
   quantileStats.processTime_ = fbData->getQuantileStat(
       fmt::format("{}{}.time_process_us", counterNamePrefix_, fnName),
-      ExportTypeConsts::kAvg,
+      // No need to export anything here, sum / count / average are handled +
+      // aggregated by per thread stats.
+      ExportTypeConsts::kNone,
       QuantileConsts::kP10_P50_P90_P95_P99_P100,
       SlidingWindowPeriodConsts::kOneMin);
   return quantileStats;
