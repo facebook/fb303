@@ -52,19 +52,6 @@ class FiveSecondMinuteTenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
             kFiveSecondMinuteTenMinuteHourDurations) {}
 };
 
-struct QuantileSumCount {
-  double sum;
-  double count;
-};
-
-QuantileSumCount getSumCount(const std::shared_ptr<QuantileStat>& stat) {
-  auto estimates = stat->getEstimates({});
-  return QuantileSumCount{
-      .sum = estimates.allTimeEstimate.sum,
-      .count = estimates.allTimeEstimate.count,
-  };
-}
-
 } // namespace
 
 // Default key prefix for stats collected by TFunctionStatHandler
@@ -95,6 +82,7 @@ void TStatsPerThread::clear() {
   samples_ = 0;
   readTime_.clear();
   writeTime_.clear();
+  processTime_.clear();
 }
 
 void TStatsPerThread::setSampleRate(double rate) {
@@ -105,7 +93,7 @@ void TStatsPerThread::setSampleRate(double rate) {
 }
 
 void TStatsPerThread::setQuantileStats(SharedQuantileStats& stats) {
-  processTime_ = stats.processTime_;
+  processTime_.quantileStat = stats.processTime_;
 }
 
 void TStatsPerThread::logContextData(const TStatsRequestContext& context) {
@@ -356,12 +344,11 @@ int32_t TFunctionStatHandler::consolidateStats(
     // (https://fburl.com/code/saisy2wd)
     // This is solely dependent on request lifecycle, and it the request
     // is never completed, this counter wouldn't be updated
-    auto processTimeSumCount = getSumCount(spt.processTime_);
     statMapAvg_.addValueAggregated(
         prefix + ".time_process_us",
         now,
-        processTimeSumCount.sum,
-        processTimeSumCount.count);
+        spt.processTime_.sum,
+        spt.processTime_.count);
 
     // Recording the time for the request to be totally on cpu
     // (https://fburl.com/code/jhpal24s)
@@ -442,7 +429,7 @@ class StandardStatsPerThread : public TStatsPerThread {
     CHECK(context.readEndCalled_);
     processed_++;
     if (context.measureTime_) {
-      processTime_->addValue(
+      processTime_.addValue(
           count_usec(context.writeBeginTime_ - context.readEndTime_));
     }
   }
