@@ -1378,15 +1378,8 @@ class DynamicTimeseriesWrapper {
   // E.g. add(1, "red", "cat");
   //      add(2, "red", 42);
   template <typename... Args>
-  void add(int64_t value, Args&&... subkeys) {
-    auto key = key_.getFormattedKeyWithExtra(std::forward<Args>(subkeys)...);
-    if (key.second.get() == nullptr) {
-      ThreadCachedServiceData::ThreadLocalStatsMap& tcData =
-          *ThreadCachedServiceData::getStatsThreadLocal();
-      // Cache thread local counter
-      key.second.get() = tcData.getTimeseriesSafe(key.first);
-    }
-    key.second.get()->addValue(value);
+  FOLLY_ERASE void add(int64_t value, Args&&... subkeys) {
+    addImpl(value, cast(subkeys)...);
   }
 
   // "subkeys" must be a list of exactly N strings or integers, one for each
@@ -1445,6 +1438,25 @@ class DynamicTimeseriesWrapper {
   }
 
  private:
+  FOLLY_ERASE static int64_t cast(int64_t subkey) {
+    return subkey;
+  }
+  FOLLY_ERASE static std::string_view cast(std::string_view subkey) {
+    return subkey;
+  }
+
+  template <typename... Args>
+  void addImpl(int64_t value, Args... subkeys) {
+    auto key = key_.getFormattedKeyWithExtra(subkeys...);
+    if (key.second.get() == nullptr) {
+      ThreadCachedServiceData::ThreadLocalStatsMap& tcData =
+          *ThreadCachedServiceData::getStatsThreadLocal();
+      // Cache thread local counter
+      key.second.get() = tcData.getTimeseriesSafe(key.first);
+    }
+    key.second.get()->addValue(value);
+  }
+
   inline ThreadCachedServiceData::ThreadLocalStatsMap& tcData() {
     return *ThreadCachedServiceData::getStatsThreadLocal();
   }
