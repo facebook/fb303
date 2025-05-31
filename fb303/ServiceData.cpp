@@ -372,10 +372,8 @@ int64_t ServiceData::getCounter(StringPiece key) const {
 void ServiceData::getCounters(map<string, int64_t>& _return) const {
   {
     auto countersRLock = counters_.rlock();
-    for (auto const& elem : countersRLock->map) {
-      _return.insert(std::make_pair(
-          std::string(elem.first),
-          elem.second.load(std::memory_order_relaxed)));
+    for (auto const& [name, value] : countersRLock->map) {
+      _return.emplace(name, value.load(std::memory_order_relaxed));
     }
   }
 
