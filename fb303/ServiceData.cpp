@@ -238,15 +238,13 @@ std::shared_ptr<QuantileStat> ServiceData::getQuantileStat(
   std::vector<detail::QuantileStatMap::StatDef> statDefs;
   statDefs.reserve(stats.size() + quantiles.size());
   for (auto statType : stats) {
-    detail::QuantileStatMap::StatDef statDef;
+    auto& statDef = statDefs.emplace_back();
     statDef.type = statType;
-    statDefs.push_back(statDef);
   }
   for (auto quantile : quantiles) {
-    detail::QuantileStatMap::StatDef statDef;
+    auto& statDef = statDefs.emplace_back();
     statDef.type = ExportType::PERCENT;
     statDef.quantile = quantile;
-    statDefs.push_back(statDef);
   }
 
   return quantileMap_.registerQuantileStat(
