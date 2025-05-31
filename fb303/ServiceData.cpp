@@ -643,11 +643,7 @@ ServiceData::SetOptionResult ServiceData::setOptionWithResult(
 
   // By default allow modifying glog verbosity (options 'v' or 'vmodule')
   auto useOptionsAsFlags = useOptionsAsFlags_.load(std::memory_order_relaxed);
-  static constexpr StringPiece blacklistedOptions[] = {
-      StringPiece{"logmailer"}, StringPiece{"whitelist_flags"}};
-  if (std::count(
-          std::begin(blacklistedOptions), std::end(blacklistedOptions), key) >
-      0) {
+  if (key == "logmailer" || key == "whitelist_flags") {
     return SetOptionResult::CmdlineBlacklisted;
   }
 
