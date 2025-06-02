@@ -127,9 +127,9 @@ void ServiceData::addStatExports(
     return; // already exists
   }
   bool addedHist = false;
-  vector<string> statsSplit;
+  vector<string_view> statsSplit;
   folly::split(',', stats, statsSplit);
-  for (const string& stat : statsSplit) {
+  for (const string_view stat : statsSplit) {
     if (stat == "AVG") {
       statsMap_.exportStat(key, AVG, statPrototype);
     } else if (stat == "RATE") {
