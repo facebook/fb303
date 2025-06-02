@@ -671,13 +671,13 @@ ServiceData::SetOptionResult ServiceData::setOptionWithResult(
 }
 
 void ServiceData::setVModuleOption(string_view /*key*/, string_view value) {
-  vector<string> values;
+  vector<string_view> values;
   folly::split(',', value, values);
-  for (size_t i = 0; i < values.size(); ++i) {
+  for (auto val : values) {
     vector<string> module_value;
-    folly::split('=', values[i], module_value);
+    folly::split('=', val, module_value);
     if (module_value.size() != 2) {
-      LOG(WARNING) << "Invalid vmodule value: " << values[i]
+      LOG(WARNING) << "Invalid vmodule value: " << val
                    << ". Expected <module>=<int>";
       continue;
     }
