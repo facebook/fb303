@@ -4,7 +4,7 @@
 name = "fb303_core_mocks"
 version = "0.0.0"
 authors = ["Facebook"]
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/facebook/fb303"
 license = "Apache-2.0"
 build = "thrift_build.rs"
