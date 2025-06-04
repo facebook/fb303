@@ -87,6 +87,7 @@ function(add_fbthrift_py_library LIB_NAME THRIFT_FILE)
       --legacy-strict
       --gen "py:${GEN_ARG_STR}"
       "${thrift_include_options}"
+      -I "${FBTHRIFT_INCLUDE_DIR}"
       -o "${output_dir}"
       "${CMAKE_CURRENT_SOURCE_DIR}/${THRIFT_FILE}"
     WORKING_DIRECTORY
