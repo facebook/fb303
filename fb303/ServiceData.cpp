@@ -29,10 +29,6 @@
 #include <gflags/gflags.h>
 
 using folly::StringPiece;
-using std::map;
-using std::string;
-using std::string_view;
-using std::vector;
 
 namespace facebook::fb303 {
 
@@ -127,9 +123,9 @@ void ServiceData::addStatExports(
     return; // already exists
   }
   bool addedHist = false;
-  vector<string_view> statsSplit;
+  std::vector<std::string_view> statsSplit;
   folly::split(',', stats, statsSplit);
-  for (const string_view stat : statsSplit) {
+  for (const auto stat : statsSplit) {
     if (stat == "AVG") {
       statsMap_.exportStat(key, AVG, statPrototype);
     } else if (stat == "RATE") {
@@ -141,7 +137,7 @@ void ServiceData::addStatExports(
     } else { // No match on stat type - assume it's a histogram percentile
       if (!addedHist) {
         if (bucketSize <= 0) {
-          throw std::runtime_error(folly::to<string>(
+          throw std::runtime_error(folly::to<std::string>(
               "bucketSize for ",
               key,
               " must be greater than zero (",
@@ -366,10 +362,10 @@ int64_t ServiceData::getCounter(StringPiece key) const {
     return *ret;
   }
   throw std::invalid_argument(
-      folly::to<string>("no such counter \"", key, "\""));
+      folly::to<std::string>("no such counter \"", key, "\""));
 }
 
-void ServiceData::getCounters(map<string, int64_t>& _return) const {
+void ServiceData::getCounters(std::map<std::string, int64_t>& _return) const {
   {
     auto countersRLock = counters_.rlock();
     for (auto const& [name, value] : countersRLock->map) {
@@ -413,19 +409,19 @@ uint64_t ServiceData::getNumCounters() const {
   return numCounters;
 }
 
-map<string, int64_t> ServiceData::getCounters() const {
-  map<string, int64_t> _return;
+std::map<std::string, int64_t> ServiceData::getCounters() const {
+  std::map<std::string, int64_t> _return;
   getCounters(_return);
   return _return;
 }
 
 void ServiceData::getSelectedCounters(
-    map<string, int64_t>& output,
-    const vector<string>& keys) const {
+    std::map<std::string, int64_t>& output,
+    const std::vector<std::string>& keys) const {
   // lock once and grab all the flat counters in one go...
   {
     auto countersRLock = counters_.rlock();
-    for (const string& key : keys) {
+    for (const auto& key : keys) {
       auto ptr = folly::get_ptr(countersRLock->map, key);
       if (ptr) {
         output[key] = ptr->load(std::memory_order_relaxed);
@@ -434,7 +430,7 @@ void ServiceData::getSelectedCounters(
   }
 
   // dynamic counters can replace flat counters
-  for (const string& key : keys) {
+  for (const auto& key : keys) {
     int64_t ret;
     if (dynamicCounters_.getValue(key, &ret)) {
       output[key] = ret;
@@ -445,16 +441,16 @@ void ServiceData::getSelectedCounters(
   quantileMap_.getSelectedValues(output, keys);
 }
 
-map<string, int64_t> ServiceData::getSelectedCounters(
-    const vector<string>& keys) const {
-  map<string, int64_t> _return;
+std::map<std::string, int64_t> ServiceData::getSelectedCounters(
+    const std::vector<std::string>& keys) const {
+  std::map<std::string, int64_t> _return;
   getSelectedCounters(_return, keys);
   return _return;
 }
 
 void ServiceData::getRegexCounters(
-    map<string, int64_t>& _return,
-    const string& regex) const {
+    std::map<std::string, int64_t>& _return,
+    const std::string& regex) const {
   const auto key = folly::RegexMatchCache::regex_key_and_view(regex);
   const auto now = folly::RegexMatchCache::clock::now();
   std::vector<std::string> keys;
@@ -464,8 +460,9 @@ void ServiceData::getRegexCounters(
   getSelectedCounters(_return, keys);
 }
 
-map<string, int64_t> ServiceData::getRegexCounters(const string& regex) const {
-  map<string, int64_t> _return;
+std::map<std::string, int64_t> ServiceData::getRegexCounters(
+    const std::string& regex) const {
+  std::map<std::string, int64_t> _return;
   getRegexCounters(_return, regex);
   return _return;
 }
@@ -505,7 +502,7 @@ void ServiceData::deleteExportedKey(StringPiece key) {
   exportedValuesWLock->erase(it);
 }
 
-void ServiceData::setExportedValue(StringPiece key, string value) {
+void ServiceData::setExportedValue(StringPiece key, std::string value) {
   {
     auto exportedValuesRLock = exportedValues_.rlock();
     if (auto ptr = folly::get_ptr(*exportedValuesRLock, key)) {
@@ -521,7 +518,8 @@ void ServiceData::setExportedValue(StringPiece key, string value) {
   entry.swap(value);
 }
 
-void ServiceData::getExportedValue(string& _return, StringPiece key) const {
+void ServiceData::getExportedValue(std::string& _return, StringPiece key)
+    const {
   if (dynamicStrings_.getValue(key, &_return)) {
     return;
   }
@@ -532,13 +530,14 @@ void ServiceData::getExportedValue(string& _return, StringPiece key) const {
   }
 }
 
-string ServiceData::getExportedValue(StringPiece key) const {
-  string _return;
+std::string ServiceData::getExportedValue(StringPiece key) const {
+  std::string _return;
   getExportedValue(_return, key);
   return _return;
 }
 
-void ServiceData::getExportedValues(map<string, string>& _return) const {
+void ServiceData::getExportedValues(
+    std::map<std::string, std::string>& _return) const {
   exportedValues_.withRLock([&](auto const& exportedValues) {
     for (auto const& elem : exportedValues) {
       _return[elem.first] = elem.second.copy();
@@ -548,15 +547,15 @@ void ServiceData::getExportedValues(map<string, string>& _return) const {
   dynamicStrings_.getValues(&_return);
 }
 
-map<string, string> ServiceData::getExportedValues() const {
-  map<string, string> _return;
+std::map<std::string, std::string> ServiceData::getExportedValues() const {
+  std::map<std::string, std::string> _return;
   getExportedValues(_return);
   return _return;
 }
 
 void ServiceData::getSelectedExportedValues(
-    map<string, string>& _return,
-    const vector<string>& keys) const {
+    std::map<std::string, std::string>& _return,
+    const std::vector<std::string>& keys) const {
   exportedValues_.withRLock([&](auto const& exportedValues) {
     for (auto const& key : keys) {
       if (auto ptr = folly::get_ptr(exportedValues, key)) {
@@ -566,25 +565,25 @@ void ServiceData::getSelectedExportedValues(
   });
 
   for (auto const& key : keys) {
-    string dynamicValue;
+    std::string dynamicValue;
     if (dynamicStrings_.getValue(key, &dynamicValue)) {
-      _return[key] = dynamicValue;
+      _return[key] = std::move(dynamicValue);
     }
   }
 }
 
-map<string, string> ServiceData::getSelectedExportedValues(
-    const vector<string>& keys) const {
-  map<string, string> _return;
+std::map<std::string, std::string> ServiceData::getSelectedExportedValues(
+    const std::vector<std::string>& keys) const {
+  std::map<std::string, std::string> _return;
   getSelectedExportedValues(_return, keys);
   return _return;
 }
 
 void ServiceData::getRegexExportedValues(
-    map<string, string>& _return,
-    const string& regex) const {
+    std::map<std::string, std::string>& _return,
+    const std::string& regex) const {
   const boost::regex regexObject(regex);
-  map<string, string> allExportedValues;
+  std::map<std::string, std::string> allExportedValues;
 
   getExportedValues(allExportedValues);
 
@@ -595,9 +594,9 @@ void ServiceData::getRegexExportedValues(
   }
 }
 
-map<string, string> ServiceData::getRegexExportedValues(
-    const string& regex) const {
-  map<string, string> _return;
+std::map<std::string, std::string> ServiceData::getRegexExportedValues(
+    const std::string& regex) const {
+  std::map<std::string, std::string> _return;
   getRegexExportedValues(_return, regex);
   return _return;
 }
@@ -621,14 +620,14 @@ void ServiceData::setOption(StringPiece key, StringPiece value) {
 }
 
 ServiceData::SetOptionResult ServiceData::setOptionWithResult(
-    string_view key,
-    string_view value) {
+    std::string_view key,
+    std::string_view value) {
   // Check to see if a dynamic option is registered for this key
   {
     auto dynamicOptionsRLock = dynamicOptions_.rlock();
     if (auto ptr = folly::get_ptr(*dynamicOptionsRLock, key)) {
       if (ptr->setter) {
-        as_mutable(ptr->setter)(string{value});
+        as_mutable(ptr->setter)(std::string{value});
       }
       return SetOptionResult::Dynamic;
     }
@@ -636,7 +635,7 @@ ServiceData::SetOptionResult ServiceData::setOptionWithResult(
 
   // This is not a dynamic option.
   // Set it in the static option map.
-  (*options_.wlock())[key] = string{value};
+  (*options_.wlock())[key] = std::string{value};
 
   // Next check to see if we should update command line flags based
   // on this static option name.
@@ -651,8 +650,8 @@ ServiceData::SetOptionResult ServiceData::setOptionWithResult(
     return SetOptionResult::CmdlineDisabled;
   }
 
-  string res =
-      gflags::SetCommandLineOption(string{key}.c_str(), string{value}.c_str());
+  std::string res = gflags::SetCommandLineOption(
+      std::string{key}.c_str(), std::string{value}.c_str());
   if (res.empty()) {
     LOG(ERROR) << "Couldn't set flag 'FLAGS_" << key << "' to val '" << value
                << "'";
@@ -670,11 +669,13 @@ ServiceData::SetOptionResult ServiceData::setOptionWithResult(
   return SetOptionResult::CmdlineUpdated;
 }
 
-void ServiceData::setVModuleOption(string_view /*key*/, string_view value) {
-  vector<string_view> values;
+void ServiceData::setVModuleOption(
+    std::string_view /*key*/,
+    std::string_view value) {
+  std::vector<std::string_view> values;
   folly::split(',', value, values);
   for (auto val : values) {
-    vector<string> module_value;
+    std::vector<std::string> module_value;
     folly::split('=', val, module_value);
     if (module_value.size() != 2) {
       LOG(WARNING) << "Invalid vmodule value: " << val
@@ -689,11 +690,11 @@ void ServiceData::setVModuleOption(string_view /*key*/, string_view value) {
   gflags::SetCommandLineOption("minloglevel", "0");
 }
 
-string ServiceData::getOption(StringPiece key) const {
+std::string ServiceData::getOption(StringPiece key) const {
   {
     auto dynamicOptionsRLock = dynamicOptions_.rlock();
     if (auto ptr = folly::get_ptr(*dynamicOptionsRLock, key)) {
-      return ptr->getter ? as_mutable(ptr->getter)() : string();
+      return ptr->getter ? as_mutable(ptr->getter)() : std::string();
     }
   }
 
@@ -704,16 +705,17 @@ string ServiceData::getOption(StringPiece key) const {
     }
   }
 
-  string ret;
+  std::string ret;
   if (gflags::GetCommandLineOption(key.str().c_str(), &ret)) {
     return ret;
   }
 
   throw std::invalid_argument(
-      folly::to<string>("no such option \"", key, "\""));
+      folly::to<std::string>("no such option \"", key, "\""));
 }
 
-void ServiceData::getOptions(map<string, string>& _return) const {
+void ServiceData::getOptions(
+    std::map<std::string, std::string>& _return) const {
   _return.clear();
 
   options_.withRLock([&](auto const& options) {
@@ -724,12 +726,12 @@ void ServiceData::getOptions(map<string, string>& _return) const {
 
   dynamicOptions_.withRLock([&](auto const& dynamicOptions) {
     for (const auto& entry : dynamicOptions) {
-      string value;
+      std::string value;
       if (entry.second.getter) {
         try {
           value = as_mutable(entry.second).getter();
         } catch (const std::exception& ex) {
-          value = folly::to<string>("<error: ", ex.what(), ">");
+          value = folly::to<std::string>("<error: ", ex.what(), ">");
         }
       }
       _return[entry.first] = value;
@@ -741,14 +743,15 @@ void ServiceData::getOptions(map<string, string>& _return) const {
   }
 }
 
-map<string, string> ServiceData::getOptions() const {
-  map<string, string> _return;
+std::map<std::string, std::string> ServiceData::getOptions() const {
+  std::map<std::string, std::string> _return;
   getOptions(_return);
   return _return;
 }
 
-void ServiceData::mergeOptionsWithGflags(map<string, string>& _return) const {
-  vector<gflags::CommandLineFlagInfo> allFlags;
+void ServiceData::mergeOptionsWithGflags(
+    std::map<std::string, std::string>& _return) const {
+  std::vector<gflags::CommandLineFlagInfo> allFlags;
 
   gflags::GetAllFlags(&allFlags);
 
