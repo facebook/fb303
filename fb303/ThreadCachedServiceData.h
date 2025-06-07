@@ -41,7 +41,7 @@
 #include <folly/ThreadLocal.h>
 #include <folly/container/F14Map.h>
 #include <folly/experimental/FunctionScheduler.h>
-#include <folly/hash/Hash.h>
+#include <folly/hash/rapidhash.h>
 #include <folly/synchronization/CallOnce.h>
 
 namespace facebook::fb303 {
@@ -454,12 +454,11 @@ class FormattedKeyHolder {
       (std::is_convertible_v<T, folly::StringPiece> || std::is_integral_v<T>) &&
       !std::is_same_v<T, std::nullptr_t> && !std::is_same_v<T, bool>;
 
-  struct string_view_hasher_murmur64 {
+  struct string_view_hasher_rapidhashNano {
     using folly_is_avalanching = std::true_type;
 
     size_t operator()(std::string_view sv) const noexcept {
-      constexpr uint64_t kSeed = 0xc70f6907ULL; // seed used by libstdc++
-      return folly::hash::murmurHash64(sv.data(), sv.size(), kSeed);
+      return folly::hash::rapidhashNano(sv.data(), sv.size());
     }
     size_t operator()(const std::string& s) const noexcept {
       return operator()(std::string_view(s));
@@ -467,7 +466,7 @@ class FormattedKeyHolder {
   };
 
   using int64_hasher = folly::hasher<int64_t>;
-  using string_view_hasher = string_view_hasher_murmur64;
+  using string_view_hasher = string_view_hasher_rapidhashNano;
   static_assert(int64_hasher::folly_is_avalanching::value);
   static_assert(string_view_hasher::folly_is_avalanching::value);
 
