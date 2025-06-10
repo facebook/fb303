@@ -249,7 +249,7 @@ cpp_library(
         "//folly:thread_local",
         "//folly/container:f14_hash",
         "//folly/experimental:function_scheduler",
-        "//folly/hash:hash",
+        "//folly/hash:rapidhash",
         "//folly/synchronization:call_once",
     ],
 )
@@ -305,7 +305,7 @@ cpp_library(
         "//folly:range",
         "//folly:thread_local",
         "//folly/container:f14_hash",
-        "//folly/hash:hash",
+        "//folly/hash:rapidhash",
         "//folly/memory:sanitize_leak",
     ],
 )
