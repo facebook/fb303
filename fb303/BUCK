@@ -305,7 +305,7 @@ cpp_library(
         "//folly:range",
         "//folly:thread_local",
         "//folly/container:f14_hash",
-        "//folly/hash:rapidhash",
+        "//folly/hash:hash",
         "//folly/memory:sanitize_leak",
     ],
 )
