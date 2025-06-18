@@ -914,6 +914,10 @@ class TimeseriesWrapper {
     tcTimeseries()->addValueAggregated(sum, numSamples);
   }
 
+  const std::string getKey() const {
+    return key_;
+  }
+
  private:
   std::string key_;
 
