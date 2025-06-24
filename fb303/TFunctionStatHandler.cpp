@@ -459,7 +459,7 @@ class StandardStatHandler : public TFunctionStatHandler {
 std::shared_ptr<TFunctionStatHandler> addThriftFunctionStatHandler(
     const char* serviceName) {
   auto handler = std::make_shared<StandardStatHandler>(serviceName);
-  apache::thrift::TProcessorBase::addProcessorEventHandler(handler);
+  apache::thrift::TProcessorBase::addProcessorEventHandler_deprecated(handler);
   return handler;
 }
 
@@ -469,7 +469,7 @@ void withThriftFunctionStats(
     folly::Function<void()>&& fn) {
   auto handler = std::make_shared<StandardStatHandler>(serviceName);
 
-  apache::thrift::TProcessorBase::addProcessorEventHandler(handler);
+  apache::thrift::TProcessorBase::addProcessorEventHandler_deprecated(handler);
   SCOPE_EXIT {
     apache::thrift::TProcessorBase::removeProcessorEventHandler(handler);
   };
