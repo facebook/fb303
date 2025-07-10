@@ -602,15 +602,15 @@ jobs:
        path: ${{ steps.paths.outputs.fbthrift_INSTALL }}
        key: ${{ steps.paths.outputs.fbthrift_CACHE_KEY }}-install
     - name: Build fb303
-      run: python3 build/fbcode_builder/getdeps.py --allow-system-packages build --src-dir=. fb303  --project-install-prefix fb303:/usr/local
+      run: python3 build/fbcode_builder/getdeps.py --allow-system-packages build --src-dir=. fb303 --project-install-prefix fb303:/usr/local
     - name: Copy artifacts
-      run: python3 build/fbcode_builder/getdeps.py --allow-system-packages fixup-dyn-deps --strip --src-dir=. fb303 _artifacts/linux  --project-install-prefix fb303:/usr/local --final-install-prefix /usr/local
+      run: python3 build/fbcode_builder/getdeps.py --allow-system-packages fixup-dyn-deps --strip --src-dir=. fb303 _artifacts/linux --project-install-prefix fb303:/usr/local --final-install-prefix /usr/local
     - uses: actions/upload-artifact@v4
       with:
         name: fb303
         path: _artifacts
     - name: Test fb303
-      run: python3 build/fbcode_builder/getdeps.py --allow-system-packages test --src-dir=. fb303  --project-install-prefix fb303:/usr/local
+      run: python3 build/fbcode_builder/getdeps.py --allow-system-packages test --src-dir=. fb303 --project-install-prefix fb303:/usr/local
     - name: Show disk space at end
       if: always()
       run: df -h
