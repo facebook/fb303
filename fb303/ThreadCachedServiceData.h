@@ -332,7 +332,9 @@ class ThreadCachedServiceData {
  private:
   ThreadCachedServiceData();
   ThreadCachedServiceData(const ThreadCachedServiceData&) = delete;
+  ThreadCachedServiceData(ThreadCachedServiceData&&) = delete;
   ThreadCachedServiceData& operator=(const ThreadCachedServiceData&) = delete;
+  ThreadCachedServiceData& operator=(ThreadCachedServiceData&&) = delete;
   static ThreadCachedServiceData& getInternal();
 
   friend class PublisherManager;
