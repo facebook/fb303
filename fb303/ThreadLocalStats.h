@@ -332,7 +332,7 @@ class TLStatT {
   virtual void aggregate(std::chrono::seconds now) = 0;
 
  protected:
-  enum SubclassMove { SUBCLASS_MOVE };
+  struct SubclassMoveTag {};
 
   /**
    * Helper constructor for move-construction of subclasses
@@ -346,7 +346,7 @@ class TLStatT {
    * old stat unregistered as well.  (Failure should be rare, typically only
    * memory allocation failure can cause this to fail.)
    */
-  explicit TLStatT(SubclassMove, TLStatT& other) noexcept(false);
+  explicit TLStatT(SubclassMoveTag, TLStatT& other) noexcept(false);
 
   /*
    * Subclasses of TLStat must call postInit() once they have finished

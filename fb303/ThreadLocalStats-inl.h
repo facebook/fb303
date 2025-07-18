@@ -122,8 +122,9 @@ void TLStatT<LockTraits>::unlink() {
  * TLStat with the container.
  */
 template <class LockTraits>
-TLStatT<LockTraits>::TLStatT(SubclassMove, TLStatT<LockTraits>& other) noexcept(
-    false)
+TLStatT<LockTraits>::TLStatT(
+    typename TLStatT<LockTraits>::SubclassMoveTag,
+    TLStatT<LockTraits>& other) noexcept(false)
     // Copy a reference to the TLStatLink, but don't link us into the container
     // until finishMove().
     : link_{
@@ -203,7 +204,8 @@ TLTimeseriesT<LockTraits>::TLTimeseriesT(
 
 template <class LockTraits>
 TLTimeseriesT<LockTraits>::TLTimeseriesT(TLTimeseriesT&& other) noexcept(false)
-    : TLStatT<LockTraits>{TLStatT<LockTraits>::SUBCLASS_MOVE, other},
+    : TLStatT<
+          LockTraits>{typename TLStatT<LockTraits>::SubclassMoveTag{}, other},
       // Move construct globalStat_.
       //
       // We don't need to hold StatGuard while doing this.  StatGuard is only
@@ -213,7 +215,7 @@ TLTimeseriesT<LockTraits>::TLTimeseriesT(TLTimeseriesT&& other) noexcept(false)
       globalStat_{std::move(other.globalStat_)} {
   // We don't need to update count_ and sum_ here.
   // other.count_ and other.sum_ should always be 0 since the TLStatT
-  // SUBCLASS_MOVE constructor just called aggregate() on the other stat.
+  // SubclassMove constructor just called aggregate() on the other stat.
 
   this->finishMove();
 }
@@ -344,14 +346,15 @@ TLHistogramT<LockTraits>::TLHistogramT(
 
 template <class LockTraits>
 TLHistogramT<LockTraits>::TLHistogramT(TLHistogramT&& other) noexcept(false)
-    : TLStatT<LockTraits>{TLStatT<LockTraits>::SUBCLASS_MOVE, other},
+    : TLStatT<
+          LockTraits>{typename TLStatT<LockTraits>::SubclassMoveTag{}, other},
       globalStat_{std::move(other.globalStat_)},
       simpleHistogram_{
           other.simpleHistogram_.getBucketSize(),
           other.simpleHistogram_.getMin(),
           other.simpleHistogram_.getMax()} {
   // We don't need to copy the simpleHistogram_ data:
-  // The SUBCLASS_MOVE constructor just called other.aggregate(), so
+  // The SubclassMove constructor just called other.aggregate(), so
   // other.simpleHistogram_ should be empty now.
 
   this->finishMove();
@@ -465,7 +468,9 @@ TLCounterT<LockTraits>::~TLCounterT() {
 
 template <class LockTraits>
 TLCounterT<LockTraits>::TLCounterT(TLCounterT&& other) noexcept(false)
-    : TLStatT<LockTraits>(TLStatT<LockTraits>::SUBCLASS_MOVE, other),
+    : TLStatT<LockTraits>(
+          typename TLStatT<LockTraits>::SubclassMoveTag{},
+          other),
       serviceData_(other.serviceData_) {
   this->finishMove();
 }
