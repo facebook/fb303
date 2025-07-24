@@ -18,8 +18,6 @@
 
 #include <folly/lang/Exception.h> // @donotremove
 
-#include <stdexcept>
-
 namespace facebook::fb303 {
 
 time_t get_legacy_stats_time() {
