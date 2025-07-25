@@ -43,7 +43,7 @@ std::ostream& operator<<(
 }
 
 TEST(MinuteHourTimeSeries, Basic) {
-  typedef MinuteHourTimeSeries<int> IntMHTS;
+  using IntMHTS = MinuteHourTimeSeries<int>;
   IntMHTS mhts;
 
   EXPECT_EQ(mhts.numLevels(), IntMHTS::NUM_LEVELS);
@@ -172,7 +172,7 @@ TEST(MinuteHourTimeSeries, Basic) {
 }
 
 TEST(MinuteHourTimeSeries, QueryByInterval) {
-  typedef MinuteHourTimeSeries<int> IntMHTS;
+  using IntMHTS = MinuteHourTimeSeries<int>;
   IntMHTS mhts;
 
   int curTime;

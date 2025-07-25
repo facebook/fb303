@@ -34,7 +34,7 @@ TimePoint mkTimePoint(int value) {
 } // namespace
 
 TEST(TimeseriesHistogram, Clear) {
-  typedef MinuteTenMinuteHourTimeSeries<int> TS;
+  using TS = MinuteTenMinuteHourTimeSeries<int>;
 
   {
     TimeseriesHistogram<int> hist(10, 0, 100);
@@ -70,7 +70,7 @@ TEST(TimeseriesHistogram, Clear) {
 }
 
 TEST(TimeseriesHistogram, Basic) {
-  typedef MinuteTenMinuteHourTimeSeries<int> TS;
+  using TS = MinuteTenMinuteHourTimeSeries<int>;
 
   {
     TimeseriesHistogram<int> hist(10, 0, 100);
