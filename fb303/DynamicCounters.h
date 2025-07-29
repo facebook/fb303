@@ -31,7 +31,7 @@ using CounterType = int64_t;
  */
 class DynamicCounters : public CallbackValuesMap<CounterType> {
  public:
-  typedef CallbackValuesMap<CounterType>::Callback Callback;
+  using Callback = CallbackValuesMap<CounterType>::Callback;
 
   // for backwards compat
   void getCounters(std::map<std::string, CounterType>* output) const {

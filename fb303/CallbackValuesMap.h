@@ -38,8 +38,8 @@ class CallbackValuesMap {
   CallbackValuesMap& operator=(const CallbackValuesMap&) = delete;
 
   // output type to return all values
-  typedef std::map<std::string, T> ValuesMap;
-  typedef std::function<T()> Callback; // callback type
+  using ValuesMap = std::map<std::string, T>;
+  using Callback = std::function<T()>; // callback type
 
   /** Returns all the values in the map by invoking all the callbacks */
   void getValues(ValuesMap* output) const;
