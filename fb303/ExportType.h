@@ -113,6 +113,7 @@ struct QuantileConsts {
       {.5, .75, .90, .95, .99}};
   static constexpr const std::array<double, 5> kP1_P10_P50_P90_P99{
       {.01, .1, .5, .9, .99}};
+  static constexpr const std::array<double, 5> kP1_P50_P99{{.01, .5, .99}};
   static constexpr const std::array<double, 5> kP10_P50_P90_P99_P100{
       {.1, .5, .9, .99, 1}};
   static constexpr const std::array<double, 6> kP10_P50_P90_P95_P99_P100{
