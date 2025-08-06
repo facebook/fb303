@@ -32,6 +32,10 @@ using folly::StringPiece;
 
 namespace facebook::fb303 {
 
+TimePoint get_current_time() {
+  return TimePoint(std::chrono::seconds(get_legacy_stats_time()));
+}
+
 template <typename T>
 static T& as_mutable(T const& t) {
   return const_cast<T&>(t);
@@ -159,28 +163,28 @@ void ServiceData::addStatExports(
 }
 
 void ServiceData::addStatValue(StringPiece key, int64_t value) {
-  statsMap_.addValue(key, get_legacy_stats_time(), value);
+  statsMap_.addValue(key, get_current_time(), value);
 }
 
 void ServiceData::addStatValue(
     StringPiece key,
     int64_t value,
     ExportType exportType) {
-  statsMap_.addValue(key, get_legacy_stats_time(), value, exportType);
+  statsMap_.addValue(key, get_current_time(), value, exportType);
 }
 
 void ServiceData::addStatValue(
     StringPiece key,
     int64_t value,
     folly::Range<const ExportType*> exportTypes) {
-  statsMap_.addValue(key, get_legacy_stats_time(), value, exportTypes);
+  statsMap_.addValue(key, get_current_time(), value, exportTypes);
 }
 
 void ServiceData::addStatValueAggregated(
     StringPiece key,
     int64_t sum,
     int64_t numSamples) {
-  statsMap_.addValueAggregated(key, get_legacy_stats_time(), sum, numSamples);
+  statsMap_.addValueAggregated(key, get_current_time(), sum, numSamples);
 }
 
 bool ServiceData::addHistogram(
@@ -270,11 +274,10 @@ void ServiceData::addHistAndStatValue(
     StringPiece key,
     int64_t value,
     bool checkContains) {
-  time_t now = get_legacy_stats_time();
-  statsMap_.addValue(key, now, value);
+  statsMap_.addValue(key, get_current_time(), value);
 
   if (!checkContains || histMap_.contains(key)) {
-    histMap_.addValue(key, now, value);
+    histMap_.addValue(key, get_legacy_stats_time(), value);
   }
 }
 
@@ -285,7 +288,8 @@ void ServiceData::addHistAndStatValues(
     int64_t sum,
     int64_t nsamples,
     bool checkContains) {
-  statsMap_.addValueAggregated(key, now, sum, nsamples);
+  statsMap_.addValueAggregated(
+      key, TimePoint(std::chrono::seconds(now)), sum, nsamples);
 
   if (!checkContains || histMap_.contains(key)) {
     histMap_.addValues(key, now, values);

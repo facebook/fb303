@@ -1210,7 +1210,10 @@ class MultiLevelTimeseriesWrapper : public TimeseriesWrapperBase {
   std::shared_ptr<ThreadCachedServiceData::TLTimeseries> getStatSafe(
       const std::string& key) override {
     return ThreadCachedServiceData::getStatsThreadLocal()->getTimeseriesSafe(
-        key, 60, sizeof...(LevelDurations), kDurations);
+        key,
+        60,
+        sizeof...(LevelDurations),
+        std::array{std::chrono::seconds{LevelDurations}...}.data());
   }
 
  private:
@@ -1222,7 +1225,9 @@ class MultiLevelTimeseriesWrapper : public TimeseriesWrapperBase {
   }
   static const ExportedStat& templateExportedStat() {
     static const folly::Indestructible<MultiLevelTimeSeries<CounterType>> obj(
-        sizeof...(LevelDurations), 60, kDurations);
+        sizeof...(LevelDurations),
+        60,
+        std::array{std::chrono::seconds{LevelDurations}...}.data());
     return *obj.get();
   }
 };

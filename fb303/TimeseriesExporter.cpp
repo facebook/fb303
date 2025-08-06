@@ -56,7 +56,8 @@ CounterType TimeseriesExporter::getStatValue(
   // update the stat with the current time -- if no new items are being
   // inserted, the stats won't decay properly without this update()
   if (update) {
-    stat.update(get_legacy_stats_time());
+    stat.update(
+        ExportedStat::TimePoint(std::chrono::seconds(get_legacy_stats_time())));
   }
 
   // retrieve the correct type of info from the stat

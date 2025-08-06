@@ -75,7 +75,10 @@ int main(int argc, char* argv[]) {
 }
 
 namespace {
-const int kTimeseriesIntervals[] = {5, 15, 60};
+const ExportedStat::Duration kTimeseriesIntervals[] = {
+    std::chrono::seconds(5),
+    std::chrono::seconds(15),
+    std::chrono::seconds(60)};
 constexpr std::array<int, 32> kValues = {
     1,    9028, 532523, 653, 543,   235749, 42,    543, 523,   64,     32532,
     5364, 6436, 90879,  625, 1975,  52079,  352,   89,  62307, 970976, 23,

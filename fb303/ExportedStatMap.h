@@ -30,6 +30,7 @@ namespace fb303 {
 using CounterType = int64_t;
 class DynamicCounters;
 using ExportedStat = MultiLevelTimeSeries<CounterType>;
+using TimePoint = ExportedStat::TimePoint;
 
 /**
  * class ExportedStatMap
@@ -175,7 +176,7 @@ class ExportedStatMap {
    */
   void addValue(
       folly::StringPiece name,
-      time_t now,
+      TimePoint now,
       CounterType value,
       ExportType type) {
     getStatPtr(name, &type)->lock()->addValue(now, value);
@@ -187,7 +188,7 @@ class ExportedStatMap {
    */
   void addValue(
       folly::StringPiece name,
-      time_t now,
+      TimePoint now,
       CounterType value,
       folly::Range<const ExportType*> exportTypes) {
     getStatPtr(name, exportTypes)->lock()->addValue(now, value);
@@ -199,7 +200,7 @@ class ExportedStatMap {
    */
   void addValue(
       folly::StringPiece name,
-      time_t now,
+      TimePoint now,
       CounterType value,
       int64_t times = 1) {
     getStatPtr(name)->lock()->addValue(now, value, times);
@@ -211,7 +212,7 @@ class ExportedStatMap {
    */
   void addValueAggregated(
       folly::StringPiece name,
-      time_t now,
+      TimePoint now,
       CounterType sum,
       int64_t nsamples) {
     getStatPtr(name)->lock()->addValueAggregated(now, sum, nsamples);

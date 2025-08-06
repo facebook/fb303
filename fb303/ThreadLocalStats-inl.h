@@ -282,7 +282,7 @@ void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
     // We must call update() after aggregation at least once so that subsequent
     // reads see it, and so that the stat decays properly even if no samples
     // were added.
-    lockedStatPtr->update(now.count());
+    lockedStatPtr->update(TimePoint(now));
   }
 }
 
@@ -296,7 +296,7 @@ template <class LockTraits>
 void TLTimeseriesT<LockTraits>::init(
     size_t numBuckets,
     size_t numLevels,
-    const int levelDurations[],
+    const ExportedStat::Duration levelDurations[],
     ThreadLocalStatsT<LockTraits>* stats) {
   ExportedStat levels(numLevels, numBuckets, levelDurations);
   globalStat_ = stats->getStatsMap()->getLockableStatNoExport(

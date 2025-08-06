@@ -315,7 +315,6 @@ cpp_library(
     srcs = ["Timeseries.cpp"],
     headers = [
         "Timeseries.h",
-        "Timeseries-inl.h",
     ],
     modular_headers = True,
     exported_deps = [

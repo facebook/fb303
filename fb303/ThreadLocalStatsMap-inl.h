@@ -95,7 +95,7 @@ ThreadLocalStatsMapT<LockTraits>::getTimeseriesSafe(
     folly::StringPiece name,
     size_t numBuckets,
     size_t numLevels,
-    const int levelDurations[]) {
+    const ExportedStat::Duration levelDurations[]) {
   auto& entry = tryInsertLocked(state_.lock()->namedTimeseries_, name, [&] {
     return std::shared_ptr<TLTimeseries>{
         new TLTimeseries(this, name, numBuckets, numLevels, levelDurations)};

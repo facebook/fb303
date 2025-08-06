@@ -31,7 +31,12 @@ namespace facebook::fb303 {
 
 namespace {
 
-constexpr int kFiveSecondMinuteTenMinuteHourDurations[] = {5, 60, 600, 3600, 0};
+constexpr ExportedStat::Duration kFiveSecondMinuteTenMinuteHourDurations[] = {
+    std::chrono::seconds(5),
+    std::chrono::seconds(60),
+    std::chrono::seconds(600),
+    std::chrono::seconds(3600),
+    std::chrono::seconds(0)};
 
 template <class T>
 class FiveSecondMinuteTenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
@@ -268,12 +273,13 @@ int32_t TFunctionStatHandler::consolidateThread(
 }
 
 int32_t TFunctionStatHandler::consolidateStats(
-    time_t now,
+    time_t nowSec,
     const std::string& fnName,
     TStatsPerThread& spt) {
   std::unique_lock lock(spt.mutex_);
 
   auto calls = spt.calls_;
+  TimePoint now{std::chrono::seconds(nowSec)};
 
   // Note that in this section all the counters are
   // per method - not aggregated across all the methods of the service

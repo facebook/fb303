@@ -22,9 +22,6 @@ using namespace std;
 using namespace facebook::fb303;
 using std::chrono::seconds;
 
-using StatsClock = folly::LegacyStatsClock<std::chrono::seconds>;
-using TimePoint = StatsClock::time_point;
-
 /*
  * Helper function to log timeseries sum data for debugging purposes in the
  * test.
@@ -67,7 +64,7 @@ TEST(MinuteHourTimeSeries, Basic) {
   EXPECT_EQ(mhts.getLevel(IntMHTS::HOUR).elapsed().count(), 0);
   EXPECT_EQ(mhts.getLevel(IntMHTS::ALLTIME).elapsed().count(), 0);
 
-  int cur_time = 0;
+  IntMHTS::TimePoint cur_time(IntMHTS::Duration(0));
 
   mhts.addValue(cur_time++, 10);
   mhts.flush();
@@ -175,37 +172,41 @@ TEST(MinuteHourTimeSeries, QueryByInterval) {
   using IntMHTS = MinuteHourTimeSeries<int>;
   IntMHTS mhts;
 
-  int curTime;
-  for (curTime = 0; curTime < 7200; curTime++) {
+  IntMHTS::TimePoint curTime;
+  for (curTime = IntMHTS::TimePoint(IntMHTS::Duration(0));
+       curTime < IntMHTS::TimePoint(IntMHTS::Duration(7200));
+       curTime++) {
     mhts.addValue(curTime, 1);
   }
-  for (curTime = 7200; curTime < 7200 + 3540; curTime++) {
+  for (curTime = IntMHTS::TimePoint(IntMHTS::Duration(7200));
+       curTime < IntMHTS::TimePoint(IntMHTS::Duration(7200 + 3540));
+       curTime++) {
     mhts.addValue(curTime, 10);
   }
-  for (curTime = 7200 + 3540; curTime < 7200 + 3600; curTime++) {
+  for (curTime = IntMHTS::TimePoint(IntMHTS::Duration(7200 + 3540));
+       curTime < IntMHTS::TimePoint(IntMHTS::Duration(7200 + 3600));
+       curTime++) {
     mhts.addValue(curTime, 100);
   }
   mhts.flush();
 
   struct TimeInterval {
-    TimeInterval(int s, int e) : start(seconds(s)), end(seconds(e)) {}
-
-    TimePoint start;
-    TimePoint end;
+    IntMHTS::TimePoint start;
+    IntMHTS::TimePoint end;
   };
   TimeInterval intervals[12] = {
-      {curTime - 60, curTime},
-      {curTime - 3600, curTime},
-      {curTime - 7200, curTime},
-      {curTime - 3600, curTime - 60},
-      {curTime - 7200, curTime - 60},
-      {curTime - 7200, curTime - 3600},
-      {curTime - 50, curTime - 20},
-      {curTime - 3020, curTime - 20},
-      {curTime - 7200, curTime - 20},
-      {curTime - 3000, curTime - 1000},
-      {curTime - 7200, curTime - 1000},
-      {curTime - 7200, curTime - 3600},
+      {curTime - IntMHTS::Duration(60), curTime},
+      {curTime - IntMHTS::Duration(3600), curTime},
+      {curTime - IntMHTS::Duration(7200), curTime},
+      {curTime - IntMHTS::Duration(3600), curTime - IntMHTS::Duration(60)},
+      {curTime - IntMHTS::Duration(7200), curTime - IntMHTS::Duration(60)},
+      {curTime - IntMHTS::Duration(7200), curTime - IntMHTS::Duration(3600)},
+      {curTime - IntMHTS::Duration(50), curTime - IntMHTS::Duration(20)},
+      {curTime - IntMHTS::Duration(3020), curTime - IntMHTS::Duration(20)},
+      {curTime - IntMHTS::Duration(7200), curTime - IntMHTS::Duration(20)},
+      {curTime - IntMHTS::Duration(3000), curTime - IntMHTS::Duration(1000)},
+      {curTime - IntMHTS::Duration(7200), curTime - IntMHTS::Duration(1000)},
+      {curTime - IntMHTS::Duration(7200), curTime - IntMHTS::Duration(3600)},
   };
 
   int expectedSums[12] = {

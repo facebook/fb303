@@ -94,7 +94,7 @@ class ThreadLocalStatsMapT : public ThreadLocalStatsT<LockTraits> {
       folly::StringPiece name,
       size_t numBuckets,
       size_t numLevels,
-      const int levelDurations[]);
+      const ExportedStat::Duration levelDurations[]);
   /*
    * Clears the TLTimeseries with the given name for the current thread.
    */

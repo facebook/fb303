@@ -30,7 +30,7 @@ void testExportedStatMapImpl(bool useStatPtr) {
   DynamicCounters dc;
   ExportedStatMapImpl statMap(&dc);
 
-  int64_t now = ::time(nullptr);
+  TimePoint now(std::chrono::seconds(::time(nullptr)));
   if (useStatPtr) {
     ExportedStatMapImpl::StatPtr item = statMap.getStatPtr("test_value");
     statMap.addValue(item, now, 10);
@@ -72,8 +72,8 @@ TEST(ExportedStatMapImpl, ForgetWithoutUnexport) {
   ExportedStatMapImpl statMap(&dc);
 
   const string statName = "mystat";
-  statMap.addValue(statName, 0, 10);
-  statMap.addValue(statName, 0, 20);
+  statMap.addValue(statName, TimePoint{}, 10);
+  statMap.addValue(statName, TimePoint{}, 20);
   statMap.forgetStatsFor(statName);
 
   int64_t result;
@@ -101,7 +101,7 @@ TEST(ExportedStatMapImpl, ConcurrentForget) {
   std::thread updateThread([&] {
     while (std::chrono::steady_clock::now() < end) {
       for (int n = 0; n < 100; ++n) {
-        statMap.addValue(statName, 0, 1);
+        statMap.addValue(statName, TimePoint{}, 1);
         ++updateIterations;
       }
     }
@@ -142,7 +142,10 @@ void exportStatThread(
     uint64_t incrAmount) {
   for (uint32_t n = 0; n < numIters; ++n) {
     statsMap->exportStat(counterName, fb303::SUM);
-    statsMap->addValue(counterName, ::time(nullptr), incrAmount);
+    statsMap->addValue(
+        counterName,
+        TimePoint(std::chrono::seconds(::time(nullptr))),
+        incrAmount);
     sched_yield();
   }
 }
@@ -179,7 +182,8 @@ TEST(LockableStat, Swap) {
   LockableStat statA = statMap.getLockableStat("testA");
   {
     auto guard = statA.lock();
-    statA.addValueLocked(guard, ::time(nullptr), 10);
+    statA.addValueLocked(
+        guard, TimePoint(std::chrono::seconds(::time(nullptr))), 10);
     statA.flushLocked(guard);
   }
   LockableStat statB = statMap.getLockableStat("testB");
@@ -207,7 +211,7 @@ TEST(LockableStat, AddValue) {
   DynamicCounters dc;
   ExportedStatMapImpl statMap(&dc);
 
-  time_t now = ::time(nullptr);
+  TimePoint now(std::chrono::seconds(::time(nullptr)));
   const string name = "test_value";
   LockableStat stat = statMap.getLockableStat(name);
   stat.addValue(now, 10);

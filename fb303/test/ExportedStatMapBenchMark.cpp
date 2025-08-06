@@ -45,7 +45,7 @@ void ExportedPerformace(int numUpdates, bool useStatPtr) {
     keys[k].append(boost::lexical_cast<string>(k));
   }
 
-  int64_t now = ::time(nullptr);
+  TimePoint now(std::chrono::seconds(::time(nullptr)));
 
   // === Actual updates
   if (useStatPtr) {
@@ -111,7 +111,7 @@ void MultiThreadedStatOperation(int iters, size_t kThreads) {
     auto i = iters;
     while (i--) {
       auto iter = iters - i;
-      int64_t now = ::time(nullptr);
+      TimePoint now(std::chrono::seconds(::time(nullptr)));
       statMap_.addValue("random_app_foobar_avg_1", now, iter);
       statMap_.addValue("random_app_foobar_avg_2", now, iter * 100);
     }
@@ -130,7 +130,7 @@ void MultiThreadedHistogramOperation(int iters, size_t kThreads) {
     auto i = iters;
     while (i--) {
       auto iter = iters - i;
-      int64_t now = ::time(nullptr);
+      time_t now = ::time(nullptr);
       int64_t value = 1000 * ((k + iter) % 100);
       histMap_.addValue("random_app_foobar_hist_1", now, value);
       histMap_.addValue("random_app_foobar_hist_2", now, value);
@@ -147,7 +147,7 @@ void MultiThreadedStatOperationDispersedCached(int iters, size_t kThreads) {
   // addValue is uncached if the key is not previously seen or, for the same
   // seen key, if the time passed is different from the previous call - so
   // cache all the keys and, for subsequent calls, use the cached time
-  int64_t now = ::time(nullptr);
+  TimePoint now(std::chrono::seconds(::time(nullptr)));
   std::vector<std::string> keys;
   for (size_t i = 0; i < kThreads * 2; ++i) {
     keys.push_back(fmt::format("key_{}", i));

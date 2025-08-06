@@ -68,14 +68,8 @@ class ExportedStatMapImpl : public ExportedStatMap {
      * can be used here to add multiple copies of the value at a time. The
      * StatPtr remains locked for the duration of this call.
      */
-    void addValue(time_t now, const CounterType value, int64_t times = 1)
+    void addValue(TimePoint now, const CounterType value, int64_t times = 1)
         const {
-      stat_->lock()->addValue(std::chrono::seconds(now), value, times);
-    }
-    void addValue(
-        std::chrono::seconds now,
-        const CounterType value,
-        int64_t times = 1) const {
       stat_->lock()->addValue(now, value, times);
     }
 
@@ -84,15 +78,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
      * samples. The StatPtr remains locked for the duration of this call.
      */
     void addValueAggregated(
-        time_t now,
-        const CounterType value,
-        int64_t numSamples) const {
-      stat_->lock()->addValueAggregated(
-          std::chrono::seconds(now), value, numSamples);
-    }
-
-    void addValueAggregated(
-        std::chrono::seconds now,
+        TimePoint now,
         const CounterType value,
         int64_t numSamples) const {
       stat_->lock()->addValueAggregated(now, value, numSamples);
@@ -107,7 +93,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
      */
     void addValueLocked(
         const LockedStatPtr& lockedObj,
-        time_t now,
+        TimePoint now,
         const CounterType value,
         int64_t times = 1) const {
       DCHECK(!lockedObj.isNull());
@@ -120,7 +106,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
      * This method assumes that the object has already been locked, and requires
      * the appropriate LockedPtr object as a parameter.
      */
-    void updateLocked(const LockedStatPtr& lockedObj, time_t now) {
+    void updateLocked(const LockedStatPtr& lockedObj, TimePoint now) {
       DCHECK(!lockedObj.isNull());
       lockedObj->update(now);
     }
@@ -230,7 +216,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
    * using the -> operator instead of using this method.
    */
   void
-  addValue(StatPtr& item, time_t now, CounterType value, int64_t times = 1) {
+  addValue(StatPtr& item, TimePoint now, CounterType value, int64_t times = 1) {
     item->lock()->addValue(now, value, times);
   }
 
@@ -249,7 +235,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
    */
   void addValueAggregated(
       StatPtr& item,
-      time_t now,
+      TimePoint now,
       CounterType sum,
       int64_t nsamples) {
     item->lock()->addValueAggregated(now, sum, nsamples);

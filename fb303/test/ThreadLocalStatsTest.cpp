@@ -50,7 +50,9 @@ enum : uint64_t {
   COUNTER_INCR = 13,
 };
 
-const int kTimeseriesIntervalsC[] = {5, 15};
+const ExportedStat::Duration kTimeseriesIntervalsC[] = {
+    std::chrono::seconds(5),
+    std::chrono::seconds(15)};
 
 template <typename LockTraits>
 void testSaturateTimeseries() {

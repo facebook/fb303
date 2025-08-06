@@ -492,7 +492,7 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
       folly::StringPiece name,
       size_t numBuckets,
       size_t numLevels,
-      const int levelDurations[])
+      const ExportedStat::Duration levelDurations[])
       : TLStatT<LockTraits>(stats, name) {
     init(numBuckets, numLevels, levelDurations, stats);
   }
@@ -503,7 +503,7 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
       folly::StringPiece name,
       size_t numBuckets,
       size_t numLevels,
-      const int levelDurations[],
+      const ExportedStat::Duration levelDurations[],
       ExportTypes... types)
       : TLStatT<LockTraits>(stats, name) {
     init(numBuckets, numLevels, levelDurations, stats);
@@ -593,7 +593,7 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
   void init(
       size_t numBuckets,
       size_t numLevels,
-      const int levelDurations[],
+      const ExportedStat::Duration levelDurations[],
       ThreadLocalStatsT<LockTraits>* stats);
 
   template <typename T>
