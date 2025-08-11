@@ -78,7 +78,6 @@ CounterType TimeseriesExporter::getStatValue(
   // -Wswitch flag will warn if we do not handle all enum values here.
 
   LOG(FATAL) << "invalid stat export type: " << type;
-  return CounterType();
 }
 
 /* static */
