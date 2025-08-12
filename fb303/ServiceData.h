@@ -397,7 +397,7 @@ class ServiceData {
    * Just use addHistogramValue(), and export the desired stats from the
    * histogram rather than using a separate timeseries.
    */
-  void addHistAndStatValue(
+  [[deprecated]] void addHistAndStatValue(
       folly::StringPiece key,
       int64_t value,
       bool checkContains = false);
@@ -413,7 +413,7 @@ class ServiceData {
    * Just use addHistogramValue(), and export the desired stats from the
    * histogram rather than using a separate timeseries.
    */
-  void addHistAndStatValues(
+  [[deprecated]] void addHistAndStatValues(
       folly::StringPiece key,
       const folly::Histogram<int64_t>& values,
       time_t now,
