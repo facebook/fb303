@@ -121,8 +121,7 @@ void ServiceData::addStatExports(
     StringPiece stats,
     int64_t bucketSize,
     int64_t min,
-    int64_t max,
-    const ExportedStat* statPrototype) {
+    int64_t max) {
   if (histMap_.contains(key)) {
     return; // already exists
   }
@@ -131,13 +130,13 @@ void ServiceData::addStatExports(
   folly::split(',', stats, statsSplit);
   for (const auto stat : statsSplit) {
     if (stat == "AVG") {
-      statsMap_.exportStat(key, AVG, statPrototype);
+      statsMap_.exportStat(key, AVG, nullptr);
     } else if (stat == "RATE") {
-      statsMap_.exportStat(key, RATE, statPrototype);
+      statsMap_.exportStat(key, RATE, nullptr);
     } else if (stat == "SUM") {
-      statsMap_.exportStat(key, SUM, statPrototype);
+      statsMap_.exportStat(key, SUM, nullptr);
     } else if (stat == "COUNT") {
-      statsMap_.exportStat(key, COUNT, statPrototype);
+      statsMap_.exportStat(key, COUNT, nullptr);
     } else { // No match on stat type - assume it's a histogram percentile
       if (!addedHist) {
         if (bucketSize <= 0) {
@@ -148,12 +147,7 @@ void ServiceData::addStatExports(
               bucketSize,
               ")"));
         }
-        ExportedHistogram hist(
-            bucketSize,
-            min,
-            max,
-            statPrototype != nullptr ? *statPrototype
-                                     : histMap_.getDefaultStat());
+        ExportedHistogram hist(bucketSize, min, max, histMap_.getDefaultStat());
         histMap_.addHistogram(key, hist);
         addedHist = true;
       }

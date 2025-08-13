@@ -217,8 +217,7 @@ class ServiceData {
       folly::StringPiece stats,
       int64_t bucketWidth = 0,
       int64_t min = 0,
-      int64_t max = 0,
-      const ExportedStat* statPrototype = nullptr);
+      int64_t max = 0);
 
   /**
    * Adds a value to the historical statistics for a given key.

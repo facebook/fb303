@@ -218,10 +218,8 @@ class ThreadCachedServiceData {
       folly::StringPiece stats,
       int64_t bucketWidth = 0,
       int64_t min = 0,
-      int64_t max = 0,
-      const ExportedStat* statPrototype = nullptr) {
-    getServiceData()->addStatExports(
-        key, stats, bucketWidth, min, max, statPrototype);
+      int64_t max = 0) {
+    getServiceData()->addStatExports(key, stats, bucketWidth, min, max);
   }
   bool addHistogram(
       folly::StringPiece key,
