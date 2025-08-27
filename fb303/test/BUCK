@@ -25,6 +25,7 @@ cpp_unittest(
         "GetCountersConcurrencyTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         ":if-cpp2-services",
         "//fb303:base_service",
         "//thrift/lib/cpp2/util:util",
@@ -37,6 +38,7 @@ cpp_unittest(
         "GetCountersWithLimitTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         ":if-cpp2-services",
         "//common/fb303/cpp:default_monitor",
         "//fb303:base_service",
@@ -95,6 +97,7 @@ cpp_unittest(
         "GetRegexCountersCachedMultithreadTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:service_data",
         "//fb303/thrift:fb303_core-cpp2-services",
         "//folly:conv",
@@ -111,6 +114,7 @@ cpp_unittest(
     name = "CallbackValuesMapTest",
     srcs = ["CallbackValuesMapTest.cpp"],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:callback_values_map",
         "//folly/synchronization:baton",
     ],
@@ -125,6 +129,7 @@ cpp_unittest(
         "LegacyClockTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:legacy_clock",
     ],
 )
@@ -135,6 +140,7 @@ cpp_unittest(
         "ExportedHistogramTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:histogram_exporter",
     ],
 )
@@ -145,6 +151,7 @@ cpp_unittest(
         "ExportedStatMapTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:dynamic_counters",
         "//fb303:exported_stat_map_impl",
     ],
@@ -156,6 +163,7 @@ cpp_unittest(
         "ExportedStatMapLoadTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//common/stats:service_data",
         "//fb303:exported_stat_map_impl",
     ],
@@ -198,6 +206,7 @@ cpp_unittest(
         "QuantileStatTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:quantile_stat",
     ],
 )
@@ -208,6 +217,7 @@ cpp_unittest(
         "QuantileStatMapTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303/detail:quantile_stat_map",
     ],
 )
@@ -218,6 +228,7 @@ cpp_unittest(
         "ServiceDataTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//common/stats:service_data",
     ],
     external_deps = [
@@ -229,6 +240,7 @@ cpp_unittest(
     name = "simple_lru_map_test",
     srcs = ["SimpleLRUMapTest.cpp"],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//common/base:stl_util",
         "//common/datastruct:simple_lru_map",
         "//common/time:time",
@@ -257,6 +269,7 @@ cpp_unittest(
         "ThreadLocalStatsTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:service_data",
         "//fb303:thread_cached_service_data",
         "//fb303:thread_local_stats",
@@ -285,6 +298,7 @@ cpp_unittest(
         "TimeseriesExporterTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:timeseries_exporter",
     ],
 )
@@ -295,6 +309,7 @@ cpp_unittest(
         "TLStatsAsyncAggregatorTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:tl_stats_async_aggregator",
         "//folly/io/async:async_base",
     ],
@@ -306,6 +321,7 @@ cpp_unittest(
         "TimeseriesHistogramTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:timeseries_histogram",
     ],
 )
@@ -316,6 +332,7 @@ cpp_unittest(
         "TimeseriesTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:timeseries",
     ],
 )
@@ -326,6 +343,7 @@ cpp_unittest(
         "FollyLoggingHandlerTest.cpp",
     ],
     deps = [
+        "fbsource//third-party/googletest:gtest",
         "//fb303:logging",
         "//fb303:service_data",
         "//folly/logging:logging",
