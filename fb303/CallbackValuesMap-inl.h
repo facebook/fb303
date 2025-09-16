@@ -90,11 +90,11 @@ size_t CallbackValuesMap<T>::getNumKeys() const {
 template <typename T>
 void CallbackValuesMap<T>::registerCallback(
     folly::StringPiece name,
-    const Callback& cob) {
+    Callback cob) {
+  auto entry = std::make_shared<CallbackEntry>(std::move(cob));
   auto wlock = callbackMap_.wlock();
   auto iter = detail::cachedAddString(*wlock, name, nullptr);
-
-  iter->second = std::make_shared<CallbackEntry>(cob);
+  iter->second.swap(entry);
 }
 
 template <typename T>
@@ -107,7 +107,7 @@ bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
   auto callbackCopy = std::move(entry->second);
 
   detail::cachedEraseString(*wlock, entry);
-  VLOG(5) << "Unregistered  callback: " << name;
+  VLOG(5) << "Unregistered callback: " << name;
 
   // clear the callback after releasing the lock
   wlock.unlock();
@@ -137,8 +137,8 @@ CallbackValuesMap<T>::getCallback(folly::StringPiece name) {
 }
 
 template <typename T>
-CallbackValuesMap<T>::CallbackEntry::CallbackEntry(const Callback& callback)
-    : callback_(callback) {}
+CallbackValuesMap<T>::CallbackEntry::CallbackEntry(Callback&& callback)
+    : callback_(std::move(callback)) {}
 
 template <typename T>
 void CallbackValuesMap<T>::CallbackEntry::clear() {

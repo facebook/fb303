@@ -19,6 +19,7 @@
 #include <fb303/detail/RegexUtil.h>
 #include <fmt/core.h>
 #include <folly/MapUtil.h>
+#include <folly/container/Reserve.h>
 
 namespace facebook {
 namespace fb303 {
@@ -42,11 +43,11 @@ folly::Optional<int64_t> BasicQuantileStatMap<ClockT>::getValue(
   CounterMapEntry cme;
   {
     auto countersRLock = counters_.rlock();
-    auto it = countersRLock->map.find(key);
-    if (it == countersRLock->map.end()) {
-      return folly::none;
+    if (auto* p = folly::get_ptr(countersRLock->map, key)) {
+      cme = *p;
+    } else {
+      return {};
     }
-    cme = it->second;
   }
   folly::Range<const double*> r;
   if (cme.statDef.type == ExportType::PERCENT) {
@@ -82,10 +83,18 @@ template <typename ClockT>
 void BasicQuantileStatMap<ClockT>::getValues(
     std::map<std::string, int64_t>& out) const {
   auto now = ClockT::now();
-  // Note: Assume that stats get added rarely, so hold the read lock for the
-  // entire time rather than copy the map.
-  auto countersRLock = counters_.rlock();
-  for (const auto& [key, sme] : countersRLock->bases) {
+  // Processing the stats is expensive, so collect them first and process them
+  // outside of the rlock.
+  std::vector<std::pair<std::string, StatMapEntry>> counters;
+  {
+    auto countersRLock = counters_.rlock();
+    counters.insert(
+        counters.end(),
+        countersRLock->bases.begin(),
+        countersRLock->bases.end());
+  }
+
+  for (const auto& [key, sme] : counters) {
     std::vector<double> quantiles;
     for (const auto& statDef : sme.statDefs) {
       if (statDef.type == ExportType::PERCENT) {
@@ -112,9 +121,8 @@ void BasicQuantileStatMap<ClockT>::getSelectedValues(
   {
     auto countersRLock = counters_.rlock();
     for (const auto& key : keys) {
-      auto it = countersRLock->map.find(key);
-      if (it != countersRLock->map.end()) {
-        stats[it->second.stat.get()].emplace_back(&key, it->second);
+      if (auto* p = folly::get_ptr(countersRLock->map, key)) {
+        stats[p->stat.get()].emplace_back(&key, *p);
       }
     }
   }
@@ -152,25 +160,22 @@ template <typename ClockT>
 std::shared_ptr<BasicQuantileStat<ClockT>> BasicQuantileStatMap<ClockT>::get(
     folly::StringPiece name) const {
   auto countersRLock = counters_.rlock();
-  auto it = countersRLock->bases.find(name);
-  if (it != countersRLock->bases.end()) {
-    return it->second.stat;
+  if (auto* p = folly::get_ptr(countersRLock->bases, name)) {
+    return p->stat;
   }
   return nullptr;
 }
 
 template <typename ClockT>
 bool BasicQuantileStatMap<ClockT>::contains(folly::StringPiece name) const {
-  auto countersRLock = counters_.rlock();
-  auto it = countersRLock->map.find(name);
-  return (it != countersRLock->map.end());
+  return counters_.rlock()->map.contains(name);
 }
 
 template <typename ClockT>
 void BasicQuantileStatMap<ClockT>::getKeys(
     std::vector<std::string>& keys) const {
   auto countersRLock = counters_.rlock();
-  keys.reserve(keys.size() + countersRLock->map.size());
+  folly::grow_capacity_by(keys, countersRLock->map.size());
   for (const auto& [key, _] : countersRLock->map) {
     keys.emplace_back(key);
   }
@@ -186,8 +191,7 @@ void BasicQuantileStatMap<ClockT>::getRegexKeys(
 
 template <typename ClockT>
 size_t BasicQuantileStatMap<ClockT>::getNumKeys() const {
-  auto countersRLock = counters_.rlock();
-  return countersRLock->map.size();
+  return counters_.rlock()->map.size();
 }
 
 template <typename ClockT>
@@ -195,15 +199,19 @@ folly::Optional<typename BasicQuantileStatMap<ClockT>::SnapshotEntry>
 BasicQuantileStatMap<ClockT>::getSnapshotEntry(
     folly::StringPiece name,
     TimePoint now) const {
-  auto countersRLock = counters_.rlock();
-  auto it = countersRLock->bases.find(name);
-  if (it == countersRLock->bases.end()) {
-    return {};
+  StatMapEntry sme;
+  {
+    auto countersRLock = counters_.rlock();
+    if (auto* p = folly::get_ptr(countersRLock->bases, name)) {
+      sme = *p;
+    } else {
+      return {};
+    }
   }
   SnapshotEntry entry;
   entry.name = name;
-  entry.snapshot = it->second.stat->getSnapshot(now);
-  entry.statDefs = it->second.statDefs;
+  entry.snapshot = sme.stat->getSnapshot(now);
+  entry.statDefs = sme.statDefs;
   return entry;
 }
 
@@ -213,10 +221,15 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
     folly::StringPiece name,
     std::shared_ptr<BasicQuantileStat<ClockT>> stat,
     std::vector<BasicQuantileStatMap<ClockT>::StatDef> statDefs) {
+  {
+    auto countersRLock = counters_.rlock();
+    if (auto* p = folly::get_ptr(countersRLock->bases, name)) {
+      return p->stat;
+    }
+  }
   auto countersWLock = counters_.wlock();
-  auto it = countersWLock->bases.find(name);
-  if (it != countersWLock->bases.end()) {
-    return it->second.stat;
+  if (auto* p = folly::get_ptr(countersWLock->bases, name)) {
+    return p->stat;
   }
   for (const auto& statDef : statDefs) {
     CounterMapEntry entry;

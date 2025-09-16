@@ -76,7 +76,7 @@ class CallbackValuesMap {
    * that a copy of the given cob is made, and that any previous registered
    * cob (if any) is replaced.
    */
-  void registerCallback(folly::StringPiece name, const Callback& cob);
+  void registerCallback(folly::StringPiece name, Callback cob);
 
   /**
    * Unregisters the callback asssociated with the given name.
@@ -96,7 +96,7 @@ class CallbackValuesMap {
 
   class CallbackEntry {
    public:
-    explicit CallbackEntry(const Callback& callback);
+    explicit CallbackEntry(Callback&& callback);
     void clear();
     bool getValue(T* output) const;
 
