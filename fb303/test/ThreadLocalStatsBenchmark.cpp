@@ -69,7 +69,7 @@ BENCHMARK(incrementBenchmarkNoLocking_Histogram, iters) {
 BENCHMARK_DRAW_LINE();
 
 int main(int argc, char* argv[]) {
-  folly::init(&argc, &argv, true);
+  const folly::Init init(&argc, &argv, true);
   folly::runBenchmarks();
   return 0;
 }
