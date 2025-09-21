@@ -30,7 +30,9 @@ namespace facebook {
 namespace fb303 {
 
 using ExportedHistogram = TimeseriesHistogram<CounterType>;
-using ExportedStat = MultiLevelTimeSeries<CounterType>;
+using ExportedStatForHistogram = MultiLevelTimeSeries<
+    CounterType,
+    folly::LegacyStatsClock<std::chrono::seconds>>;
 
 /**
  * class ExportedHistogramMap
@@ -95,23 +97,25 @@ class ExportedHistogramMap {
   /**
    * Set defaultStat_ field.
    */
-  void setDefaultStat(const ExportedStat& defaultStat) {
-    *defaultStat_.wlock() = std::make_shared<ExportedStat>(defaultStat);
+  void setDefaultStat(const ExportedStatForHistogram& defaultStat) {
+    *defaultStat_.wlock() =
+        std::make_shared<ExportedStatForHistogram>(defaultStat);
   }
 
   /**
    * Set defaultStat_ field.
    */
-  void setDefaultStatPtr(std::shared_ptr<ExportedStat> defaultStat) {
+  void setDefaultStatPtr(
+      std::shared_ptr<ExportedStatForHistogram> defaultStat) {
     *defaultStat_.wlock() = std::move(defaultStat);
   }
 
-  [[deprecated("Use getDefaultStatPtr")]] const ExportedStat& getDefaultStat()
-      const {
+  [[deprecated("Use getDefaultStatPtr")]] const ExportedStatForHistogram&
+  getDefaultStat() const {
     return **defaultStat_.rlock();
   }
 
-  std::shared_ptr<ExportedStat> getDefaultStatPtr() const {
+  std::shared_ptr<ExportedStatForHistogram> getDefaultStatPtr() const {
     return *defaultStat_.rlock();
   }
 
@@ -407,13 +411,13 @@ class ExportedHistogramMap {
   DynamicCounters* dynamicCounters_;
   DynamicStrings* dynamicStrings_;
   folly::Synchronized<std::shared_ptr<ExportedHistogram>> defaultHist_;
-  // note: We slice defaultStat by copying it to a ExportedStat
+  // note: We slice defaultStat by copying it to a ExportedStatForHistogram
   // (non-pointer, non-reference), but that's according to plan: the
   // derived classes only set data members in the base class, nothing
   // more (they have no data members of their own).
-  folly::Synchronized<std::shared_ptr<ExportedStat>> defaultStat_{
-      std::make_shared<ExportedStat>(
-          MinuteTenMinuteHourTimeSeries<CounterType>())};
+  folly::Synchronized<std::shared_ptr<ExportedStatForHistogram>> defaultStat_{
+      std::make_shared<ExportedStatForHistogram>(
+          HistogramMinuteTenMinuteHourTimeSeries<CounterType>())};
 };
 
 // Lock the histogram and calculate the percentile

@@ -22,6 +22,106 @@
 
 namespace facebook::fb303 {
 
+const std::chrono::seconds kHistogramMinuteTenMinuteHourDurations[] = {
+    std::chrono::seconds(60),
+    std::chrono::seconds(600),
+    std::chrono::seconds(3600),
+    std::chrono::seconds(0)};
+
+template <class T>
+class HistogramMinuteTenMinuteHourTimeSeries
+    : public MultiLevelTimeSeries<
+          T,
+          folly::LegacyStatsClock<std::chrono::seconds>> {
+ public:
+  enum Levels {
+    MINUTE,
+    TEN_MINUTE,
+    HOUR,
+    ALLTIME,
+    NUM_LEVELS,
+  };
+
+  HistogramMinuteTenMinuteHourTimeSeries()
+      : MultiLevelTimeSeries<T, folly::LegacyStatsClock<std::chrono::seconds>>(
+            NUM_LEVELS,
+            60,
+            kHistogramMinuteTenMinuteHourDurations) {}
+};
+
+const std::chrono::seconds kHistogramSubminuteMinuteOnlyDurations[] = {
+    std::chrono::seconds(5),
+    std::chrono::seconds(10),
+    std::chrono::seconds(20),
+    std::chrono::seconds(30),
+    std::chrono::seconds(60)};
+
+template <class T>
+class HistogramSubminuteMinuteOnlyTimeSeries
+    : public MultiLevelTimeSeries<
+          T,
+          folly::LegacyStatsClock<std::chrono::seconds>> {
+ public:
+  enum Levels {
+    FIVE_SECOND,
+    TEN_SECOND,
+    TWENTY_SECOND,
+    THIRTY_SECOND,
+    MINUTE,
+    NUM_LEVELS,
+  };
+
+  HistogramSubminuteMinuteOnlyTimeSeries()
+      : MultiLevelTimeSeries<T, folly::LegacyStatsClock<std::chrono::seconds>>(
+            NUM_LEVELS,
+            60,
+            kHistogramSubminuteMinuteOnlyDurations) {}
+};
+
+const std::chrono::seconds kHistogramMinuteOnlyDurations[] = {
+    std::chrono::seconds(60)};
+
+template <class T>
+class HistogramMinuteOnlyTimeSeries
+    : public MultiLevelTimeSeries<
+          T,
+          folly::LegacyStatsClock<std::chrono::seconds>> {
+ public:
+  enum Levels {
+    MINUTE,
+    NUM_LEVELS,
+  };
+
+  HistogramMinuteOnlyTimeSeries()
+      : MultiLevelTimeSeries<T, folly::LegacyStatsClock<std::chrono::seconds>>(
+            NUM_LEVELS,
+            60,
+            kHistogramMinuteOnlyDurations) {}
+};
+
+const std::chrono::seconds kHistogramMinuteTenMinuteOnlyDurations[] = {
+    std::chrono::seconds(60),
+    std::chrono::seconds(600)};
+
+template <class T>
+class HistogramMinuteTenMinuteOnlyTimeSeries
+    : public MultiLevelTimeSeries<
+          T,
+          folly::LegacyStatsClock<std::chrono::seconds>> {
+ public:
+  enum Levels {
+    MINUTE,
+    TEN_MINUTE,
+    NUM_LEVELS,
+  };
+
+  HistogramMinuteTenMinuteOnlyTimeSeries()
+      : MultiLevelTimeSeries<T, folly::LegacyStatsClock<std::chrono::seconds>>(
+            NUM_LEVELS,
+            60,
+            kHistogramMinuteTenMinuteOnlyDurations) {}
+};
+
 /**
  * TimeseriesHistogram is a class which allows you to track data distributions
  * as they change over time.
@@ -51,20 +151,24 @@ namespace facebook::fb303 {
  */
 
 template <class T>
-class TimeseriesHistogram : public folly::TimeseriesHistogram<
-                                T,
-                                folly::LegacyStatsClock<std::chrono::seconds>,
-                                MultiLevelTimeSeries<T>> {
+class TimeseriesHistogram
+    : public folly::TimeseriesHistogram<
+          T,
+          folly::LegacyStatsClock<std::chrono::seconds>,
+          MultiLevelTimeSeries<
+              T,
+              folly::LegacyStatsClock<std::chrono::seconds>>> {
  public:
   // values to be inserted into container
   using ValueType = T;
   // the container type we use internally for each bucket
-  using ContainerType = MultiLevelTimeSeries<T>;
+  using ContainerType =
+      MultiLevelTimeSeries<T, folly::LegacyStatsClock<std::chrono::seconds>>;
   // The parent type
   using BaseType = folly::TimeseriesHistogram<
       T,
       folly::LegacyStatsClock<std::chrono::seconds>,
-      MultiLevelTimeSeries<T>>;
+      MultiLevelTimeSeries<T, folly::LegacyStatsClock<std::chrono::seconds>>>;
   // The time type.
   using TimeType = typename BaseType::Duration;
 
@@ -91,8 +195,23 @@ class TimeseriesHistogram : public folly::TimeseriesHistogram<
       ValueType min,
       ValueType max,
       const ContainerType& defaultContainer =
-          MinuteTenMinuteHourTimeSeries<T>())
+          HistogramMinuteTenMinuteHourTimeSeries<T>())
       : BaseType(bucketSize, min, max, defaultContainer) {}
+
+  /**
+   * Create a timeseries histogram from the default (millisecond) timeseries.
+   * It is a common pattern for using the same default timeseries template
+   * to initialize both timeseries and histogram, which use different clock (for
+   * now).
+   * TODO(lupan): delete this constructor when histogram is also migrated to
+   * use millisecond clock.
+   */
+  TimeseriesHistogram(
+      ValueType bucketSize,
+      ValueType min,
+      ValueType max,
+      const MultiLevelTimeSeries<T>& defaultContainer)
+      : BaseType(bucketSize, min, max, ContainerType{defaultContainer}) {}
 
   /**
    * Updates every underlying timeseries object with the given timestamp. You

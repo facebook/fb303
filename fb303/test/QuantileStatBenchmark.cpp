@@ -53,7 +53,7 @@ DEFINE_histogram(
     1000000,
     facebook::stats::AVG,
     99,
-    MinuteOnlyTimeSeries<int64_t>());
+    HistogramMinuteOnlyTimeSeries<int64_t>());
 DEFINE_histogram(
     basic_histogram_3_level,
     10000,
@@ -61,7 +61,7 @@ DEFINE_histogram(
     1000000,
     facebook::stats::AVG,
     99,
-    MinuteTenMinuteHourTimeSeries<int64_t>());
+    HistogramMinuteTenMinuteHourTimeSeries<int64_t>());
 DEFINE_dynamic_histogram(
     dynamic_histogram_1_level,
     "bar.{}",
@@ -70,7 +70,7 @@ DEFINE_dynamic_histogram(
     1000000,
     facebook::stats::AVG,
     99,
-    MinuteOnlyTimeSeries<int64_t>());
+    HistogramMinuteOnlyTimeSeries<int64_t>());
 DEFINE_dynamic_histogram(
     dynamic_histogram_3_level,
     "bar.{}",
@@ -79,7 +79,7 @@ DEFINE_dynamic_histogram(
     1000000,
     facebook::stats::AVG,
     99,
-    MinuteTenMinuteHourTimeSeries<int64_t>());
+    HistogramMinuteTenMinuteHourTimeSeries<int64_t>());
 
 unsigned int basic(
     unsigned int iters,

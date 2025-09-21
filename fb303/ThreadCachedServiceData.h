@@ -373,7 +373,7 @@ struct HistogramSpec {
   int64_t max;
   std::vector<ExportType> stats;
   std::vector<int> percentiles;
-  MultiLevelTimeSeries<CounterType> levels;
+  ExportedStatForHistogram levels;
 
   template <typename... Args>
   HistogramSpec(
@@ -384,7 +384,7 @@ struct HistogramSpec {
       : bucketWidth(bucketWidth_),
         min(min_),
         max(max_),
-        levels(MinuteTenMinuteHourTimeSeries<CounterType>()) {
+        levels(HistogramMinuteTenMinuteHourTimeSeries<CounterType>()) {
     ctorHandleArgs(args...);
   }
 
@@ -409,7 +409,7 @@ struct HistogramSpec {
     this->percentiles.push_back(pctile);
   }
 
-  void ctorHandleArg(const MultiLevelTimeSeries<CounterType>& levels_) {
+  void ctorHandleArg(const ExportedStatForHistogram& levels_) {
     this->levels = levels_;
   }
 
@@ -1211,7 +1211,9 @@ class MultiLevelTimeseriesWrapper : public TimeseriesWrapperBase {
         key,
         60,
         sizeof...(LevelDurations),
-        std::array{std::chrono::seconds{LevelDurations}...}.data());
+        std::array{std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::seconds{LevelDurations})...}
+            .data());
   }
 
  private:
@@ -1225,7 +1227,9 @@ class MultiLevelTimeseriesWrapper : public TimeseriesWrapperBase {
     static const folly::Indestructible<MultiLevelTimeSeries<CounterType>> obj(
         sizeof...(LevelDurations),
         60,
-        std::array{std::chrono::seconds{LevelDurations}...}.data());
+        std::array{std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::seconds{LevelDurations})...}
+            .data());
     return *obj.get();
   }
 };
@@ -1290,7 +1294,7 @@ class MinuteOnlyHistogram : public HistogramWrapper {
             min,
             max,
             args...,
-            MinuteOnlyTimeSeries<CounterType>()) {}
+            HistogramMinuteOnlyTimeSeries<CounterType>()) {}
 };
 
 class SubminuteMinuteOnlyHistogram : public HistogramWrapper {
@@ -1308,7 +1312,7 @@ class SubminuteMinuteOnlyHistogram : public HistogramWrapper {
             min,
             max,
             args...,
-            SubminuteMinuteOnlyTimeSeries<CounterType>()) {}
+            HistogramSubminuteMinuteOnlyTimeSeries<CounterType>()) {}
 };
 
 /**

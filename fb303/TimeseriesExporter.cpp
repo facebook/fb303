@@ -81,44 +81,6 @@ CounterType TimeseriesExporter::getStatValue(
 }
 
 /* static */
-void TimeseriesExporter::getCounterName(
-    char* counterName,
-    const int counterNameSize,
-    const ExportedStat* stat,
-    StringPiece statName,
-    ExportType type,
-    const int level) {
-  // NOTE:  We access the stat object here without locking.  This depends
-  // on the fact that getLevel(), and Level::isAllTime() and
-  // Level::duration() are all non-volatile calls meaning they only read things
-  // that are constant once the stat is constructed (number of levels can never
-  // change, nor their durations).
-  //   - mrabkin
-  if (stat->getLevel(level).isAllTime()) {
-    // typical name: 'ad_request.rate' or 'ad_request_elapsed_time.avg'
-    snprintf(
-        counterName,
-        counterNameSize,
-        "%.*s.%s",
-        static_cast<int>(statName.size()),
-        statName.data(),
-        TimeseriesExporter::getTypeString()[type]);
-  } else {
-    // typical name: 'ad_request.rate.600' or 'ad_request_elapsed_time.avg.3600'
-    auto durationSecs =
-        duration_cast<std::chrono::seconds>(stat->getLevel(level).duration());
-    snprintf(
-        counterName,
-        counterNameSize,
-        "%.*s.%s.%ld",
-        static_cast<int>(statName.size()),
-        statName.data(),
-        TimeseriesExporter::getTypeString()[type],
-        static_cast<long>(durationSecs.count()));
-  }
-}
-
-/* static */
 void TimeseriesExporter::exportStat(
     const StatPtr& stat,
     ExportType type,

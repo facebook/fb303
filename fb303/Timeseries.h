@@ -21,6 +21,29 @@
 
 namespace facebook::fb303 {
 
+template <typename T, typename CT>
+class MultiLevelTimeSeries;
+
+namespace detail {
+template <typename Duration, typename ValueType, typename CLOCK>
+std::vector<Duration> getDurations(
+    const MultiLevelTimeSeries<ValueType, CLOCK>& timeseries) {
+  std::vector<Duration> res;
+  size_t levels = timeseries.numLevels();
+  res.reserve(levels);
+  for (size_t i = 0; i < levels; ++i) {
+    typename CLOCK::duration original = timeseries.getLevel(i).duration();
+    Duration duration = std::chrono::duration_cast<Duration>(original);
+    DCHECK(
+        std::chrono::duration_cast<typename CLOCK::duration>(duration) ==
+        original)
+        << "precision loss when converting MultiLevelTimeSeries to a different clock type";
+    res.push_back(duration);
+  }
+  return res;
+}
+} // namespace detail
+
 /** class MultiLevelTimeSeries
  *
  * This class has been moved to folly/stats/MultiLevelTimeSeries.h. This is left
@@ -50,10 +73,12 @@ namespace facebook::fb303 {
  *
  * @author Mark Rabkin (mrabkin@facebook.com)
  */
-template <class T>
-class MultiLevelTimeSeries : public folly::MultiLevelTimeSeries<T> {
+template <
+    class T,
+    typename CT = folly::LegacyStatsClock<std::chrono::milliseconds>>
+class MultiLevelTimeSeries : public folly::MultiLevelTimeSeries<T, CT> {
  public:
-  using BaseType = folly::MultiLevelTimeSeries<T>;
+  using BaseType = folly::MultiLevelTimeSeries<T, CT>;
   using Duration = typename BaseType::Duration;
   using TimePoint = typename BaseType::TimePoint;
   // The legacy TimeType.  The older code used this instead of Duration and
@@ -72,9 +97,49 @@ class MultiLevelTimeSeries : public folly::MultiLevelTimeSeries<T> {
       const Duration* durations)
       : MultiLevelTimeSeries(num_buckets, folly::Range(durations, num_levels)) {
   }
+
+  /*
+   * Convert between MultiLevelTimeSeries of the same value type but different
+   * clock type.
+   */
+  template <typename CLOCK>
+  explicit MultiLevelTimeSeries(
+      const MultiLevelTimeSeries<T, CLOCK>& timeseries)
+      : MultiLevelTimeSeries(
+            timeseries.numBuckets(),
+            detail::getDurations<Duration>(timeseries)) {}
+
+  /* convert all the rate to std::chrono::seconds to be backwards compatible */
+  template <typename ReturnType = double>
+  ReturnType rate(size_t level) const {
+    return BaseType::template rate<ReturnType, std::chrono::seconds>(level);
+  }
+
+  template <typename ReturnType = double>
+  ReturnType rate(Duration duration) const {
+    return BaseType::template rate<ReturnType, std::chrono::seconds>(duration);
+  }
+
+  template <typename ReturnType = double>
+  ReturnType rate(TimePoint start, TimePoint end) const {
+    return BaseType::template rate<ReturnType, std::chrono::seconds>(
+        start, end);
+  }
+
+  template <typename ReturnType = double>
+  ReturnType countRate(size_t level) const {
+    return BaseType::template countRate<ReturnType, std::chrono::seconds>(
+        level);
+  }
+
+  template <typename ReturnType = double>
+  ReturnType countRate(Duration duration) const {
+    return BaseType::template countRate<ReturnType, std::chrono::seconds>(
+        duration);
+  }
 };
 
-const std::chrono::seconds kMinuteDurations[] = {
+const std::chrono::milliseconds kMinuteDurations[] = {
     std::chrono::seconds(60),
     std::chrono::seconds(0)};
 
@@ -91,7 +156,7 @@ class MinuteTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteDurations) {}
 };
 
-const std::chrono::seconds kMinuteHourDurations[] = {
+const std::chrono::milliseconds kMinuteHourDurations[] = {
     std::chrono::seconds(60),
     std::chrono::seconds(3600),
     std::chrono::seconds(0)};
@@ -110,7 +175,7 @@ class MinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteHourDurations) {}
 };
 
-const std::chrono::seconds kMinuteTenMinuteHourDurations[] = {
+const std::chrono::milliseconds kMinuteTenMinuteHourDurations[] = {
     std::chrono::seconds(60),
     std::chrono::seconds(600),
     std::chrono::seconds(3600),
@@ -132,7 +197,7 @@ class MinuteTenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
   }
 };
 
-const std::chrono::seconds kMinuteHourDayDurations[] = {
+const std::chrono::milliseconds kMinuteHourDayDurations[] = {
     std::chrono::seconds(60),
     std::chrono::seconds(3600),
     std::chrono::seconds(86400),
@@ -153,7 +218,7 @@ class MinuteHourDayTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteHourDayDurations) {}
 };
 
-const std::chrono::seconds kMinuteTenMinuteDurations[] = {
+const std::chrono::milliseconds kMinuteTenMinuteDurations[] = {
     std::chrono::seconds(60),
     std::chrono::seconds(600),
     std::chrono::seconds(0)};
@@ -172,7 +237,7 @@ class MinuteTenMinuteTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteTenMinuteDurations) {}
 };
 
-const std::chrono::seconds kTenMinuteHourDurations[] = {
+const std::chrono::milliseconds kTenMinuteHourDurations[] = {
     std::chrono::seconds(600),
     std::chrono::seconds(3600)};
 
@@ -189,7 +254,7 @@ class TenMinuteHourTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kTenMinuteHourDurations) {}
 };
 
-const std::chrono::seconds kQuarterMinuteOnlyDurations[] = {
+const std::chrono::milliseconds kQuarterMinuteOnlyDurations[] = {
     std::chrono::seconds(15)};
 
 template <class T>
@@ -204,7 +269,8 @@ class QuarterMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 15, kQuarterMinuteOnlyDurations) {}
 };
 
-const std::chrono::seconds kMinuteOnlyDurations[] = {std::chrono::seconds(60)};
+const std::chrono::milliseconds kMinuteOnlyDurations[] = {
+    std::chrono::seconds(60)};
 
 template <class T>
 class MinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
@@ -218,7 +284,7 @@ class MinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteOnlyDurations) {}
 };
 
-const std::chrono::seconds kTenMinuteOnlyDurations[] = {
+const std::chrono::milliseconds kTenMinuteOnlyDurations[] = {
     std::chrono::seconds(600)};
 
 template <class T>
@@ -233,7 +299,7 @@ class TenMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kTenMinuteOnlyDurations) {}
 };
 
-const std::chrono::seconds kMinuteTenMinuteOnlyDurations[] = {
+const std::chrono::milliseconds kMinuteTenMinuteOnlyDurations[] = {
     std::chrono::seconds(60),
     std::chrono::seconds(600)};
 
@@ -251,7 +317,7 @@ class MinuteTenMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
   }
 };
 
-const std::chrono::seconds kHourDurations[] = {
+const std::chrono::milliseconds kHourDurations[] = {
     std::chrono::seconds(3600),
     std::chrono::seconds(0)};
 
@@ -267,7 +333,7 @@ class HourTimeSeries : public MultiLevelTimeSeries<T> {
   HourTimeSeries() : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kHourDurations) {}
 };
 
-const std::chrono::seconds kTenMinutesChunksDurations[] = {
+const std::chrono::milliseconds kTenMinutesChunksDurations[] = {
     std::chrono::seconds(600),
     std::chrono::seconds(1200),
     std::chrono::seconds(1800)};
@@ -286,7 +352,7 @@ class TenMinutesChunksTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kTenMinutesChunksDurations) {}
 };
 
-const std::chrono::seconds kSubminuteMinuteDurations[] = {
+const std::chrono::milliseconds kSubminuteMinuteDurations[] = {
     std::chrono::seconds(5),
     std::chrono::seconds(10),
     std::chrono::seconds(20),
@@ -311,7 +377,7 @@ class SubminuteMinuteTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kSubminuteMinuteDurations) {}
 };
 
-const std::chrono::seconds kSubminuteMinuteOnlyDurations[] = {
+const std::chrono::milliseconds kSubminuteMinuteOnlyDurations[] = {
     std::chrono::seconds(5),
     std::chrono::seconds(10),
     std::chrono::seconds(20),
