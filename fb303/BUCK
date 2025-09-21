@@ -190,7 +190,6 @@ cpp_library(
     srcs = ["ServiceData.cpp"],
     modular_headers = True,
     deps = [
-        ":legacy_clock",
         "//fb303/detail:regex_util",
         "//folly:conv",
         "//folly:indestructible",
@@ -202,6 +201,7 @@ cpp_library(
         ":dynamic_counters",
         ":exported_stat_map_impl",
         ":histogram_exporter",
+        ":legacy_clock",
         "//fb303/detail:quantile_stat_map",
         "//folly:chrono",
         "//folly:optional",
@@ -212,8 +212,8 @@ cpp_library(
         "//folly/synchronization:relaxed_atomic",
     ],
     external_deps = [
-        "gflags",
         ("boost", None, "boost_regex"),
+        "gflags",
     ],
 )
 

@@ -29,6 +29,7 @@
 #include <folly/container/RegexMatchCache.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
+#include <fb303/LegacyClock.h>
 #include <atomic>
 #include <chrono>
 #include <cinttypes>
@@ -39,6 +40,10 @@
 #include <vector>
 
 namespace facebook::fb303 {
+
+inline TimePoint get_current_time() {
+  return TimePoint(std::chrono::seconds(get_legacy_stats_time()));
+}
 
 /**
  * ServiceData stores statistics and other information used by most
@@ -233,17 +238,25 @@ class ServiceData {
    * Note that the optional exportType parameter is only used if the
    * stat has not already been added.
    */
-  void addStatValue(folly::StringPiece key, int64_t value = 1);
-  void
-  addStatValue(folly::StringPiece key, int64_t value, ExportType exportType);
+  void addStatValue(
+      folly::StringPiece key,
+      int64_t value = 1,
+      TimePoint now = get_current_time());
   void addStatValue(
       folly::StringPiece key,
       int64_t value,
-      folly::Range<const ExportType*> exportType);
+      ExportType exportType,
+      TimePoint now = get_current_time());
+  void addStatValue(
+      folly::StringPiece key,
+      int64_t value,
+      folly::Range<const ExportType*> exportType,
+      TimePoint now = get_current_time());
   void addStatValueAggregated(
       folly::StringPiece key,
       int64_t sum,
-      int64_t numSamples);
+      int64_t numSamples,
+      TimePoint now = get_current_time());
 
   /**
    * Defines a histogram that can be used via calls to addHistogramValue() and
@@ -399,7 +412,8 @@ class ServiceData {
   [[deprecated]] void addHistAndStatValue(
       folly::StringPiece key,
       int64_t value,
-      bool checkContains = false);
+      bool checkContains = false,
+      TimePoint now = get_current_time());
 
   /**
    * Convenience function for adding the same value to stats and histograms.

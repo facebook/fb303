@@ -19,7 +19,6 @@
 #include <stdexcept>
 
 #include <boost/regex.hpp>
-#include <fb303/LegacyClock.h>
 #include <fb303/detail/RegexUtil.h>
 #include <folly/Conv.h>
 #include <folly/Indestructible.h>
@@ -31,10 +30,6 @@
 using folly::StringPiece;
 
 namespace facebook::fb303 {
-
-TimePoint get_current_time() {
-  return TimePoint(std::chrono::seconds(get_legacy_stats_time()));
-}
 
 template <typename T>
 static T& as_mutable(T const& t) {
@@ -156,29 +151,32 @@ void ServiceData::addStatExports(
   }
 }
 
-void ServiceData::addStatValue(StringPiece key, int64_t value) {
-  statsMap_.addValue(key, get_current_time(), value);
+void ServiceData::addStatValue(StringPiece key, int64_t value, TimePoint now) {
+  statsMap_.addValue(key, now, value);
 }
 
 void ServiceData::addStatValue(
     StringPiece key,
     int64_t value,
-    ExportType exportType) {
-  statsMap_.addValue(key, get_current_time(), value, exportType);
+    ExportType exportType,
+    TimePoint now) {
+  statsMap_.addValue(key, now, value, exportType);
 }
 
 void ServiceData::addStatValue(
     StringPiece key,
     int64_t value,
-    folly::Range<const ExportType*> exportTypes) {
-  statsMap_.addValue(key, get_current_time(), value, exportTypes);
+    folly::Range<const ExportType*> exportTypes,
+    TimePoint now) {
+  statsMap_.addValue(key, now, value, exportTypes);
 }
 
 void ServiceData::addStatValueAggregated(
     StringPiece key,
     int64_t sum,
-    int64_t numSamples) {
-  statsMap_.addValueAggregated(key, get_current_time(), sum, numSamples);
+    int64_t numSamples,
+    TimePoint now) {
+  statsMap_.addValueAggregated(key, now, sum, numSamples);
 }
 
 bool ServiceData::addHistogram(
@@ -267,8 +265,9 @@ void ServiceData::addHistogramValueMult(
 void ServiceData::addHistAndStatValue(
     StringPiece key,
     int64_t value,
-    bool checkContains) {
-  statsMap_.addValue(key, get_current_time(), value);
+    bool checkContains,
+    TimePoint now) {
+  statsMap_.addValue(key, now, value);
 
   if (!checkContains || histMap_.contains(key)) {
     histMap_.addValue(key, get_legacy_stats_time(), value);
