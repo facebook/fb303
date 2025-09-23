@@ -90,9 +90,18 @@ size_t CallbackValuesMap<T>::getNumKeys() const {
 template <typename T>
 void CallbackValuesMap<T>::registerCallback(
     folly::StringPiece name,
-    Callback cob) {
+    Callback cob,
+    bool overwrite) {
+  if (!overwrite && callbackMap_.rlock()->map.contains(name)) {
+    return;
+  }
+
+  auto ulock = callbackMap_.ulock();
+  if (!overwrite && ulock->map.contains(name)) {
+    return;
+  }
   auto entry = std::make_shared<CallbackEntry>(std::move(cob));
-  auto wlock = callbackMap_.wlock();
+  auto wlock = ulock.moveFromUpgradeToWrite();
   auto iter = detail::cachedAddString(*wlock, name, nullptr);
   iter->second.swap(entry);
 }

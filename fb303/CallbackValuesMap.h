@@ -72,11 +72,15 @@ class CallbackValuesMap {
   size_t getNumKeys() const;
 
   /**
-   * Registers a given callback as associated with the given name.  Note
-   * that a copy of the given cob is made, and that any previous registered
-   * cob (if any) is replaced.
+   * Registers a given callback as associated with the given name.  Note that a
+   * copy of the given cob is made. If the name is already present in the map,
+   * the passed callback replaces the previous one if overwrite = true,
+   * otherwise the old callback is left in place.
    */
-  void registerCallback(folly::StringPiece name, Callback cob);
+  void registerCallback(
+      folly::StringPiece name,
+      Callback cob,
+      bool overwrite = true);
 
   /**
    * Unregisters the callback asssociated with the given name.

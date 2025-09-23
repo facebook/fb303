@@ -41,6 +41,7 @@ cpp_library(
         "//folly/container:reserve",
         "//folly/synchronization:relaxed_atomic",
     ],
+    external_deps = ["glog"],
     exported_external_deps = [
         "glog",
     ],

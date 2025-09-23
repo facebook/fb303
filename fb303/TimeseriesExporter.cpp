@@ -109,10 +109,12 @@ void TimeseriesExporter::exportStat(
     getCounterName(
         counterName.data(), kNameSize, &statObj, statName, type, lev);
 
-    // register the actual counter callback with the DynamicCounters obj
-    counters->registerCallback(counterName.data(), [=] {
-      return getStatValue(*stat->lock(), type, lev, updateOnRead);
-    });
+    // register the actual counter callback with the DynamicCounters obj, if it
+    // hasn't already been registered.
+    counters->registerCallback(
+        counterName.data(),
+        [=] { return getStatValue(*stat->lock(), type, lev, updateOnRead); },
+        /* overwrite */ false);
   }
 }
 
