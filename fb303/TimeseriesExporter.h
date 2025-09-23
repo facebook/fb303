@@ -19,6 +19,7 @@
 #include <fb303/ExportType.h>
 #include <fb303/MutexWrapper.h>
 #include <fb303/Timeseries.h>
+#include <chrono>
 
 namespace facebook::fb303 {
 
@@ -95,8 +96,11 @@ class TimeseriesExporter {
       // typical name: 'ad_request.rate.600' or
       // 'ad_request_elapsed_time.avg.3600'
       auto duration = stat->getLevel(level).duration();
-      auto durationSecs = duration_cast<std::chrono::seconds>(duration);
-      DCHECK(duration_cast<typename MLTS::Duration>(durationSecs) == duration);
+      auto durationSecs =
+          std::chrono::duration_cast<std::chrono::seconds>(duration);
+      DCHECK(
+          std::chrono::duration_cast<typename MLTS::Duration>(durationSecs) ==
+          duration);
       snprintf(
           counterName,
           counterNameSize,
