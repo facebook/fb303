@@ -30,20 +30,20 @@ void CallbackValuesMap<T>::getValues(ValuesMap* output) const {
 
   // if callbacks were to be invoked under the lock, that could deadlock
   // so copy under the shared lock and invoke after the lock is released
-  std::vector<std::pair<std::string, std::shared_ptr<CallbackEntry>>> mapCopy;
+  std::vector<std::shared_ptr<CallbackEntry>> mapCopy;
   callbackMap_.withRLock([&](auto const& map) {
     // a vector to avoid N allocations when copying a std::map with N entries
     mapCopy.reserve(map.map.size());
     for (const auto& entry : map.map) {
-      mapCopy.emplace_back(entry.first, entry.second);
+      mapCopy.push_back(entry.second);
     }
   });
 
   for (auto& it : mapCopy) {
     T result;
     // if the entry was unregistered underneath, getValue returns false
-    if (it.second->getValue(&result)) {
-      (*output)[std::move(it.first)] = std::move(result);
+    if (it->getValue(&result)) {
+      (*output)[it->name()] = std::move(result);
     }
   }
 }
@@ -100,7 +100,7 @@ void CallbackValuesMap<T>::registerCallback(
   if (!overwrite && ulock->map.contains(name)) {
     return;
   }
-  auto entry = std::make_shared<CallbackEntry>(std::move(cob));
+  auto entry = std::make_shared<CallbackEntry>(name.str(), std::move(cob));
   auto wlock = ulock.moveFromUpgradeToWrite();
   auto iter = detail::cachedAddString(*wlock, name, nullptr);
   iter->second.swap(entry);
@@ -146,8 +146,10 @@ CallbackValuesMap<T>::getCallback(folly::StringPiece name) {
 }
 
 template <typename T>
-CallbackValuesMap<T>::CallbackEntry::CallbackEntry(Callback&& callback)
-    : callback_(std::move(callback)) {}
+CallbackValuesMap<T>::CallbackEntry::CallbackEntry(
+    std::string&& name,
+    Callback&& callback)
+    : name_(std::move(name)), callback_(std::move(callback)) {}
 
 template <typename T>
 void CallbackValuesMap<T>::CallbackEntry::clear() {

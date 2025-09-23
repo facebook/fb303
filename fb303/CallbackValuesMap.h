@@ -100,11 +100,16 @@ class CallbackValuesMap {
 
   class CallbackEntry {
    public:
-    explicit CallbackEntry(Callback&& callback);
+    CallbackEntry(std::string&& name, Callback&& callback);
+
     void clear();
     bool getValue(T* output) const;
+    const std::string& name() const {
+      return name_;
+    }
 
    private:
+    const std::string name_;
     folly::Synchronized<Callback> callback_;
   };
 
