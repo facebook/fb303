@@ -309,6 +309,9 @@ class ThreadCachedServiceData {
   }
 
   using TLCounter = ThreadLocalStatsMap::TLCounter;
+  // NOTE: these are lazily created, meaning the underlying timeseries that can
+  // be exported out of process are only created if
+  // they are bumped at least once.
   using TLHistogram = ThreadLocalStatsMap::TLHistogram;
   using TLTimeseries = ThreadLocalStatsMap::TLTimeseries;
 

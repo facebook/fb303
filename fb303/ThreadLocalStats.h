@@ -610,7 +610,9 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
 
 /**
  * A thread-local data structure to update a global TimeseriesHistogram
- * statistic.
+ * statistic. NOTE: these are lazily created, meaning the underlying timeseries
+ * that can be exported out of process are only created if they are bumped at
+ * least once.
  */
 template <class LockTraits>
 class TLHistogramT : public TLStatT<LockTraits> {
