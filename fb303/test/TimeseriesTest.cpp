@@ -220,7 +220,11 @@ TEST(MinuteHourTimeSeries, QueryByInterval) {
        curTime++) {
     mhts.addValue(curTime, 100);
   }
-  mhts.flush();
+
+  // the expectation is that one should always call update() before reading,
+  // which flushes all the cached value and moves the clock forward for each
+  // BucketedTimeSeries
+  mhts.update(curTime - IntMHTS::Duration{1});
 
   struct TimeInterval {
     IntMHTS::TimePoint start;
