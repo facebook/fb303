@@ -102,8 +102,8 @@ void CallbackValuesMap<T>::registerCallback(
   }
   auto entry = std::make_shared<CallbackEntry>(name.str(), std::move(cob));
   auto wlock = ulock.moveFromUpgradeToWrite();
-  auto iter = detail::cachedAddString(*wlock, name, nullptr);
-  iter->second.swap(entry);
+  auto result = wlock->map.try_emplace(name, std::move(entry));
+  detail::cachedAddString(*wlock, result, &result.first->first);
 }
 
 template <typename T>
@@ -115,7 +115,7 @@ bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
   }
   auto callbackCopy = std::move(entry->second);
 
-  detail::cachedEraseString(*wlock, entry);
+  detail::cachedEraseString(*wlock, entry, &entry->first);
   VLOG(5) << "Unregistered callback: " << name;
 
   // clear the callback after releasing the lock

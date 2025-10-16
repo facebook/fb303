@@ -587,6 +587,10 @@ class ServiceData {
   using StringKeyedMap = folly::F14FastMap<std::string, Mapped>;
 
   void getKeys(std::vector<std::string>& keys) const;
+
+  template <class F>
+  int64_t modifyCounter(folly::StringPiece key, F f);
+
   const std::chrono::seconds aliveSince_;
 
   std::atomic<bool> useOptionsAsFlags_;

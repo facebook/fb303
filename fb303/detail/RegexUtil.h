@@ -30,29 +30,26 @@
 namespace facebook::fb303::detail {
 
 template <typename Map, typename Iter>
-Iter cachedAddStringAfterInsert(Map& map, std::pair<Iter, bool> const& result) {
-  auto const& iter = result.first;
-  if (result.second) {
+Iter cachedAddString(
+    Map& map,
+    std::pair<Iter, bool> const& insertResult,
+    std::string const* s) {
+  const auto& iter = insertResult.first;
+  if (insertResult.second) {
     auto rollback = folly::makeGuard([&] {
-      if (!map.matches.hasString(&iter->first)) {
+      if (!map.matches.hasString(s)) {
         map.map.erase(iter);
       }
     });
-    map.matches.addString(&iter->first);
+    map.matches.addString(s);
     rollback.dismiss();
   }
   return iter;
 }
 
-template <typename Map, typename... Arg>
-auto cachedAddString(Map& map, folly::StringPiece const name, Arg&&... arg) {
-  return cachedAddStringAfterInsert(
-      map, map.map.emplace(name, std::forward<Arg>(arg)...));
-}
-
 template <typename Map, typename Iter>
-void cachedEraseString(Map& map, Iter const& iter) {
-  map.matches.eraseString(&iter->first);
+void cachedEraseString(Map& map, Iter const& iter, std::string const* s) {
+  map.matches.eraseString(s);
   map.map.erase(iter);
 }
 

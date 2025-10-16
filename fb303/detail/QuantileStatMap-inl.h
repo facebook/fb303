@@ -235,15 +235,17 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
     CounterMapEntry entry;
     entry.stat = stat;
     entry.statDef = statDef;
-    detail::cachedAddString(
-        *countersWLock, makeKey(name, statDef, folly::none), entry);
+    auto result = countersWLock->map.try_emplace(
+        makeKey(name, statDef, folly::none), entry);
+    detail::cachedAddString(*countersWLock, result, &result.first->first);
 
     auto slidingWindowLengths = stat->getSlidingWindowLengths();
 
     for (auto slidingWindowLength : slidingWindowLengths) {
       entry.slidingWindowLength = slidingWindowLength;
-      detail::cachedAddString(
-          *countersWLock, makeKey(name, statDef, slidingWindowLength), entry);
+      result = countersWLock->map.try_emplace(
+          makeKey(name, statDef, slidingWindowLength), entry);
+      detail::cachedAddString(*countersWLock, result, &result.first->first);
     }
   }
   StatMapEntry statMapEntry;

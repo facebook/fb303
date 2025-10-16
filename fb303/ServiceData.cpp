@@ -289,48 +289,45 @@ void ServiceData::addHistAndStatValues(
   }
 }
 
-int64_t ServiceData::incrementCounter(StringPiece key, int64_t amount) {
+template <class F>
+int64_t ServiceData::modifyCounter(folly::StringPiece key, F f) {
   {
     //  optimistically, the key is certainly present; update under rlock
     auto countersRLock = counters_.rlock();
     if (auto ptr = folly::get_ptr(countersRLock->map, key)) {
       //  this const-cast is safe: the lock protects the map structure only
       auto& ref = as_mutable(*ptr);
-      return ref.fetch_add(amount, std::memory_order_relaxed) + amount;
+      return f(ref);
     }
   }
 
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
-  auto& ref = detail::cachedAddString(*countersWLock, key, 0)->second;
+  auto result = countersWLock->map.emplace(key, 0);
+  auto& ref =
+      detail::cachedAddString(*countersWLock, result, &result.first->first)
+          ->second;
 
-  return ref.fetch_add(amount, std::memory_order_relaxed) + amount;
+  return f(ref);
+}
+
+int64_t ServiceData::incrementCounter(StringPiece key, int64_t amount) {
+  return modifyCounter(key, [amount](auto& ref) {
+    return ref.fetch_add(amount, std::memory_order_relaxed) + amount;
+  });
 }
 
 int64_t ServiceData::setCounter(StringPiece key, int64_t value) {
-  {
-    //  optimistically, the key is certainly present; update under rlock
-    auto countersRLock = counters_.rlock();
-    if (auto ptr = folly::get_ptr(countersRLock->map, key)) {
-      //  this const-cast is safe: the lock protects the map structure only
-      auto& ref = as_mutable(*ptr);
-      ref.store(value, std::memory_order_relaxed);
-      return value;
-    }
-  }
-
-  //  pessimistically, the key is possibly absent; upsert under wlock
-  auto countersWLock = counters_.wlock();
-  auto& ref = detail::cachedAddString(*countersWLock, key, 0)->second;
-
-  ref.store(value, std::memory_order_relaxed);
-  return value;
+  return modifyCounter(key, [value](auto& ref) {
+    ref.store(value, std::memory_order_relaxed);
+    return value;
+  });
 }
 
 void ServiceData::clearCounter(StringPiece key) {
   auto countersWLock = counters_.wlock();
   if (auto it = countersWLock->map.find(key); it != countersWLock->map.end()) {
-    detail::cachedEraseString(*countersWLock, it);
+    detail::cachedEraseString(*countersWLock, it, &it->first);
   }
 }
 
