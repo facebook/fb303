@@ -23,7 +23,7 @@
 #include <folly/Chrono.h>
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
-#include <folly/container/F14Map.h>
+#include <folly/container/F14Set.h>
 #include <folly/container/RegexMatchCache.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
@@ -120,18 +120,44 @@ class CallbackValuesMap {
    * @return the callback associated with the given name, which can then be used
    * directly to retrieve callback values
    */
-  std::shared_ptr<CallbackEntry> getCallback(folly::StringPiece name);
+  std::shared_ptr<CallbackEntry> getCallback(folly::StringPiece name) const;
 
  private:
   // Combining counters map with cache and epoch numbers.  If epochs
   // match, cache is valid.
-  template <typename Mapped>
-  struct MapWithKeyCache {
-    folly::F14NodeMap<std::string, Mapped> map;
-    folly::RegexMatchCache matches; // requires map to have reference stability
-  };
+  struct CallbackMap {
+    // Use a set with heterogeneous lookup to avoid duplicating the storage of
+    // the name, since it is already inside CallbackEntry.
 
-  using CallbackMap = MapWithKeyCache<std::shared_ptr<CallbackEntry>>;
+    static folly::StringPiece getKey(folly::StringPiece val) {
+      return val;
+    }
+    static folly::StringPiece getKey(
+        const std::shared_ptr<CallbackEntry>& val) {
+      return val->name();
+    }
+
+    struct Hash : folly::HeterogeneousAccessHash<folly::StringPiece> {
+      using folly::HeterogeneousAccessHash<folly::StringPiece>::operator();
+
+      size_t operator()(const std::shared_ptr<CallbackEntry>& val) const {
+        return (*this)(getKey(val));
+      }
+    };
+
+    struct EqualTo : folly::HeterogeneousAccessEqualTo<folly::StringPiece> {
+      using folly::HeterogeneousAccessEqualTo<folly::StringPiece>::operator();
+
+      bool operator()(const auto& lhs, const auto& rhs) const {
+        return getKey(lhs) == getKey(rhs);
+      }
+    };
+
+    // Both key and string pointer stored in RegexMatchCache refer to name_ in
+    // CallbackEntry, so they are stable regardless of map type.
+    folly::F14FastSet<std::shared_ptr<CallbackEntry>, Hash, EqualTo> map;
+    folly::RegexMatchCache matches;
+  };
 
   folly::Synchronized<CallbackMap> callbackMap_;
 };

@@ -35,7 +35,7 @@ void CallbackValuesMap<T>::getValues(ValuesMap* output) const {
     // a vector to avoid N allocations when copying a std::map with N entries
     mapCopy.reserve(map.map.size());
     for (const auto& entry : map.map) {
-      mapCopy.push_back(entry.second);
+      mapCopy.push_back(entry);
     }
   });
 
@@ -54,23 +54,22 @@ bool CallbackValuesMap<T>::getValue(folly::StringPiece name, T* output) const {
 
   // if callbacks were to be invoked under the lock, that could deadlock
   // so copy under the shared lock and invoke after the lock is released
-  auto entry = folly::get_default(callbackMap_.rlock()->map, name);
-
+  auto entry = getCallback(name);
   // if the entry was unregistered underneath, getValue returns false
   return entry && entry->getValue(output);
 }
 
 template <typename T>
 bool CallbackValuesMap<T>::contains(folly::StringPiece name) const {
-  return nullptr != folly::get_ptr(callbackMap_.rlock()->map, name);
+  return callbackMap_.rlock()->map.contains(name);
 }
 
 template <typename T>
 void CallbackValuesMap<T>::getKeys(std::vector<std::string>* keys) const {
   auto rlock = callbackMap_.rlock();
   folly::grow_capacity_by(*keys, rlock->map.size());
-  for (const auto& [key, _] : rlock->map) {
-    keys->emplace_back(key);
+  for (const auto& entry : rlock->map) {
+    keys->emplace_back(entry->name());
   }
 }
 
@@ -97,30 +96,35 @@ void CallbackValuesMap<T>::registerCallback(
   }
 
   auto ulock = callbackMap_.ulock();
-  if (!overwrite && ulock->map.contains(name)) {
+  auto iter = ulock->map.find(name);
+  if (!overwrite && iter != ulock->map.end()) {
     return;
   }
   auto entry = std::make_shared<CallbackEntry>(name.str(), std::move(cob));
   auto wlock = ulock.moveFromUpgradeToWrite();
-  auto result = wlock->map.try_emplace(name, std::move(entry));
-  detail::cachedAddString(*wlock, result, &result.first->first);
+  if (iter != wlock->map.end()) {
+    // Cannot replace an entry in a set, we need to remove it first.
+    detail::cachedEraseString(*wlock, iter, &(*iter)->name());
+  }
+  auto result = wlock->map.emplace(std::move(entry));
+  DCHECK(result.second);
+  detail::cachedAddString(*wlock, result, &(*result.first)->name());
 }
 
 template <typename T>
 bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
   auto wlock = callbackMap_.wlock();
-  auto entry = wlock->map.find(name);
-  if (entry == wlock->map.end()) {
+  auto iter = wlock->map.find(name);
+  if (iter == wlock->map.end()) {
     return false;
   }
-  auto callbackCopy = std::move(entry->second);
-
-  detail::cachedEraseString(*wlock, entry, &entry->first);
+  auto callback = *iter;
+  detail::cachedEraseString(*wlock, iter, &callback->name());
   VLOG(5) << "Unregistered callback: " << name;
 
   // clear the callback after releasing the lock
   wlock.unlock();
-  callbackCopy->clear();
+  callback->clear();
   return true;
 }
 
@@ -128,7 +132,7 @@ template <typename T>
 void CallbackValuesMap<T>::clear() {
   auto wlock = callbackMap_.wlock();
   for (auto& entry : wlock->map) {
-    entry.second->clear();
+    entry->clear();
   }
   detail::cachedClearStrings(*wlock);
 }
@@ -141,8 +145,10 @@ void CallbackValuesMap<T>::trimRegexCache(
 
 template <typename T>
 std::shared_ptr<typename CallbackValuesMap<T>::CallbackEntry>
-CallbackValuesMap<T>::getCallback(folly::StringPiece name) {
-  return folly::get_default(callbackMap_.rlock()->map, name);
+CallbackValuesMap<T>::getCallback(folly::StringPiece name) const {
+  auto map = callbackMap_.rlock();
+  auto iter = map->map.find(name);
+  return iter != map->map.end() ? *iter : nullptr;
 }
 
 template <typename T>
