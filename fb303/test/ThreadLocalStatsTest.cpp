@@ -622,3 +622,95 @@ TEST_F(ThreadCachedServiceDataTest, AddHistogramValueNotExported) {
   EXPECT_FALSE(map.getLockableHistogram(key).isNull());
   EXPECT_TRUE(stats.getHistogramSafe(key));
 }
+
+// Test that completePendingLink correctly updates tlStatsEmpty_ flag
+TEST(ThreadLocalStats, CompletePendingLinkUpdatesEmptyFlag) {
+  ServiceData data;
+  ThreadLocalStatsT<TLStatsThreadSafe> tlstats(&data);
+
+  // Initially empty - aggregate should return 0
+  EXPECT_EQ(0, tlstats.aggregate());
+
+  // Create a stat - it will be registered directly or via pending list
+  TLCounterT<TLStatsThreadSafe> counter(&tlstats, "test_counter");
+  counter.incrementValue(42);
+
+  // Aggregate should find the stat (either from main list or pending list)
+  uint64_t count = tlstats.aggregate();
+  EXPECT_EQ(1, count);
+
+  // Verify the counter value was aggregated
+  EXPECT_EQ(42, data.getCounter("test_counter"));
+
+  // Aggregate again - should still process the stat from main list
+  count = tlstats.aggregate();
+  EXPECT_EQ(1, count);
+}
+
+// Test concurrent registration via pending stats list
+TEST(ThreadLocalStats, ConcurrentPendingRegistration) {
+  ServiceData data;
+  ThreadLocalStatsT<TLStatsThreadSafe> tlstats(&data);
+
+  constexpr int kNumThreads = 10;
+  constexpr int kIncrementValue = 7;
+
+  std::vector<std::thread> threads;
+  threads.reserve(kNumThreads);
+  folly::test::Barrier startBarrier(kNumThreads + 1);
+
+  for (int i = 0; i < kNumThreads; ++i) {
+    threads.emplace_back([&, i]() {
+      // Wait for all threads to be ready
+      startBarrier.wait();
+
+      // Create stats that may contend for the lock
+      std::string counterName = "counter_" + std::to_string(i);
+      TLCounterT<TLStatsThreadSafe> counter(&tlstats, counterName);
+      counter.incrementValue(kIncrementValue);
+
+      // Aggregate locally
+      counter.aggregate();
+    });
+  }
+
+  // Start all threads at once
+  startBarrier.wait();
+
+  // Wait for all threads to complete
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  // Aggregate to drain any remaining pending stats
+  tlstats.aggregate();
+
+  // Verify all counters were registered and aggregated
+  for (int i = 0; i < kNumThreads; ++i) {
+    std::string counterName = "counter_" + std::to_string(i);
+    EXPECT_EQ(kIncrementValue, data.getCounter(counterName))
+        << "Counter " << counterName << " has wrong value";
+  }
+}
+
+// Test stat registration, aggregation, and destruction lifecycle
+TEST(ThreadLocalStats, StatLifecycle) {
+  ServiceData data;
+  ThreadLocalStatsT<TLStatsThreadSafe> tlstats(&data);
+
+  // Initially empty - aggregate should return quickly
+  EXPECT_EQ(0, tlstats.aggregate());
+
+  // Add a stat
+  {
+    TLCounterT<TLStatsThreadSafe> counter(&tlstats, "temp_counter");
+    counter.incrementValue(1);
+
+    // Aggregate should find the stat
+    EXPECT_EQ(1, tlstats.aggregate());
+    EXPECT_EQ(1, data.getCounter("temp_counter"));
+  }
+
+  // After stat is destroyed, aggregate should still work
+  EXPECT_EQ(0, tlstats.aggregate());
+}

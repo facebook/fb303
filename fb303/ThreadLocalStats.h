@@ -276,6 +276,14 @@ class ThreadLocalStatsT {
   ThreadLocalStatsT(const ThreadLocalStatsT&) = delete;
   ThreadLocalStatsT& operator=(const ThreadLocalStatsT&) = delete;
 
+  /**
+   * Helper method to complete registration of pending stats into the
+   * main container.
+   *
+   * NOT THREAD SAFE: Must be called with link_->mutex held.
+   */
+  void completePendingLink();
+
   // The serviceData_ pointer never changes, so does not need locking.
   // ServiceData performs its own synchronization to allow it to be accessed
   // from multiple threads.
@@ -302,6 +310,20 @@ class ThreadLocalStatsT {
    * provides thread-safety guarantees).
    */
   folly::F14VectorSet<TLStat*> tlStats_;
+
+  /**
+   * Holds stats that failed to acquire link_->mutex during link().
+   * This typically occurs due to contention with aggregate(), which may run
+   * frequently and hold the lock for extended periods.
+   *
+   * Pending stats are drained via completePendingLink(), which is invoked
+   * whenever link_->mutex is acquired via lock() in the following paths:
+   * - aggregate()
+   * - unlink()
+   * - ~ThreadLocalStatsT() (destructor)
+   * - withContainerChecked() (e.g., exportStat())
+   */
+  folly::Synchronized<std::vector<TLStat*>> linkPending_;
 
   friend class TLStatT<LockTraits>;
   friend class detail::TLStatLink<LockTraits>;
@@ -838,7 +860,11 @@ class TLStatLink {
   }
 
   std::unique_lock<Lock> lock() {
-    return std::unique_lock{mutex_};
+    auto guard = std::unique_lock{mutex_};
+    if (container_) {
+      container_->completePendingLink();
+    }
+    return guard;
   }
 
   bool shouldUpdateGlobalStatsOnRead() const {

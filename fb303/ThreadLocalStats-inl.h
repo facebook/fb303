@@ -74,7 +74,20 @@ void TLStatT<LockTraits>::link() {
   if (link_.linked_) {
     return;
   }
-  auto guard = link_->lock();
+
+  std::unique_lock<typename LockTraits::RegistryLock> guard(
+      link_->mutex_, std::try_to_lock);
+
+  if (!guard.owns_lock()) {
+    // Failed to acquire the lock, add to pending list
+    if (link_->container_) {
+      link_->container_->linkPending_.wlock()->push_back(this);
+    }
+    link_.linked_ = true;
+    return;
+  }
+
+  // Successfully acquired the lock, insert into the container
   if (link_->container_) {
     bool inserted = link_->container_->tlStats_.insert(this)
                         .second; // May throw, so do this first.
@@ -504,6 +517,23 @@ void TLCounterT<LockTraits>::aggregate() {
 /*
  * ThreadLocalStatsT methods
  */
+
+// NOT THREAD SAFE: Must be called with link_->mutex held.
+template <class LockTraits>
+void ThreadLocalStatsT<LockTraits>::completePendingLink() {
+  // Drain pending stats by swapping out the vector
+  std::vector<TLStatT<LockTraits>*> pending;
+  linkPending_.wlock()->swap(pending);
+
+  for (auto* stat : pending) {
+    bool inserted = tlStats_.insert(stat).second;
+    CHECK(inserted) << "attempted to register a stat twice from pending list: "
+                    << stat->name() << "(" << tlStats_.size() << " registered)";
+    if (tlStats_.size() == 1) {
+      tlStatsEmpty_ = false;
+    }
+  }
+}
 
 template <class LockTraits>
 ThreadLocalStatsT<LockTraits>::ThreadLocalStatsT(

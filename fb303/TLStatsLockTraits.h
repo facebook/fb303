@@ -33,6 +33,9 @@ namespace detail {
  */
 struct UniqueNoLock {
   void lock() {}
+  bool try_lock() {
+    return true;
+  }
   void unlock() {}
 };
 
@@ -45,6 +48,12 @@ struct DebugCheckedLock {
     [[maybe_unused]] auto old =
         owner_.exchange(std::this_thread::get_id(), std::memory_order_acq_rel);
     assert(old == std::thread::id{});
+  }
+
+  bool try_lock() {
+    std::thread::id expected{};
+    return owner_.compare_exchange_strong(
+        expected, std::this_thread::get_id(), std::memory_order_acq_rel);
   }
 
   void unlock() {
