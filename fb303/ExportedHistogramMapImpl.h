@@ -47,7 +47,7 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
      * locked as long as the LockedHistogramPtr remains in scope.
      */
     LockedHistogramPtr makeLockGuard() const {
-      return hist_->lock();
+      return hist_->wlock();
     }
 
     /** Return true if histogram is null. */
@@ -65,7 +65,7 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
      * locked for the duration of this call.
      */
     CounterType getBucketSize() const {
-      return hist_->lock()->getBucketSize();
+      return hist_->wlock()->getBucketSize();
     }
 
     /**
@@ -73,7 +73,7 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
      * remains locked for the duration of this call.
      */
     CounterType getMin() const {
-      return hist_->lock()->getMin();
+      return hist_->wlock()->getMin();
     }
 
     /**
@@ -81,7 +81,7 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
      * remains locked for the duration of this call.
      */
     CounterType getMax() const {
-      return hist_->lock()->getMax();
+      return hist_->wlock()->getMax();
     }
 
     /**
@@ -91,7 +91,7 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
      */
     void addValue(time_t now, const CounterType value, int64_t times = 1)
         const {
-      hist_->lock()->addValue(now, value, times);
+      hist_->wlock()->addValue(now, value, times);
     }
 
     /**
@@ -115,10 +115,10 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
      * histogram. The histogram remains locked for the duration of this call.
      */
     void addValues(std::chrono::seconds now, const Histogram& values) const {
-      hist_->lock()->addValues(now, values);
+      hist_->wlock()->addValues(now, values);
     }
     void addValues(time_t now, const Histogram& values) const {
-      hist_->lock()->addValues(now, values);
+      hist_->wlock()->addValues(now, values);
     }
 
     /**
@@ -217,7 +217,7 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
       time_t now,
       CounterType value,
       int64_t times = 1) {
-    histogram->lock()->addValue(now, value, times);
+    histogram->wlock()->addValue(now, value, times);
   }
 
   /*

@@ -19,7 +19,6 @@
 #include <memory>
 
 #include <fb303/ExportType.h>
-#include <fb303/MutexWrapper.h>
 #include <fb303/Timeseries.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
@@ -40,9 +39,9 @@ using TimePoint = ExportedStat::TimePoint;
 
 class ExportedStatMap {
  public:
-  using SyncStat = folly::Synchronized<ExportedStat, MutexWrapper>;
+  using SyncStat = folly::Synchronized<ExportedStat>;
   using StatPtr = std::shared_ptr<SyncStat>;
-  using LockedStatPtr = SyncStat::LockedPtr;
+  using LockedStatPtr = SyncStat::WLockedPtr;
   using StatMap = folly::F14FastMap<std::string, StatPtr>;
 
   /*
@@ -119,7 +118,7 @@ class ExportedStatMap {
    * --
    */
   LockedStatPtr getLockedStatPtr(folly::StringPiece name) {
-    auto result = getStatPtr(name)->lock();
+    auto result = getStatPtr(name)->wlock();
     result->flush();
     return result;
   }
@@ -179,7 +178,7 @@ class ExportedStatMap {
       TimePoint now,
       CounterType value,
       ExportType type) {
-    getStatPtr(name, &type)->lock()->addValue(now, value);
+    getStatPtr(name, &type)->wlock()->addValue(now, value);
   }
 
   /*
@@ -191,7 +190,7 @@ class ExportedStatMap {
       TimePoint now,
       CounterType value,
       folly::Range<const ExportType*> exportTypes) {
-    getStatPtr(name, exportTypes)->lock()->addValue(now, value);
+    getStatPtr(name, exportTypes)->wlock()->addValue(now, value);
   }
 
   /*
@@ -203,7 +202,7 @@ class ExportedStatMap {
       TimePoint now,
       CounterType value,
       int64_t times = 1) {
-    getStatPtr(name)->lock()->addValue(now, value, times);
+    getStatPtr(name)->wlock()->addValue(now, value, times);
   }
 
   /*
@@ -215,14 +214,14 @@ class ExportedStatMap {
       TimePoint now,
       CounterType sum,
       int64_t nsamples) {
-    getStatPtr(name)->lock()->addValueAggregated(now, sum, nsamples);
+    getStatPtr(name)->wlock()->addValueAggregated(now, sum, nsamples);
   }
 
   /*
    * Removes all entries from the map specified by 'name.'
    */
   void clearValue(folly::StringPiece name) {
-    getStatPtr(name)->lock()->clear();
+    getStatPtr(name)->wlock()->clear();
   }
 
   /*

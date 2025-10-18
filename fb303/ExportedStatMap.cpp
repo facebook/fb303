@@ -135,14 +135,14 @@ void ExportedStatMap::forgetStatsFor(StringPiece name) {
 void ExportedStatMap::flushAllStats() {
   auto lockedStatMap = statMap_.wlock();
   for (auto& [_, ptr] : *lockedStatMap) {
-    ptr->lock()->flush();
+    ptr->wlock()->flush();
   }
 }
 
 void ExportedStatMap::clearAllStats() {
   auto lockedStatMap = statMap_.wlock();
   for (auto& [_, ptr] : *lockedStatMap) {
-    ptr->lock()->clear();
+    ptr->wlock()->clear();
   }
 }
 

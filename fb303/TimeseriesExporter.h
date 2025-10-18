@@ -17,8 +17,8 @@
 #pragma once
 
 #include <fb303/ExportType.h>
-#include <fb303/MutexWrapper.h>
 #include <fb303/Timeseries.h>
+#include <folly/Synchronized.h>
 #include <chrono>
 
 namespace facebook::fb303 {
@@ -29,8 +29,7 @@ using ExportedStat = MultiLevelTimeSeries<CounterType>;
 
 class TimeseriesExporter {
  public:
-  using StatPtr =
-      std::shared_ptr<folly::Synchronized<ExportedStat, MutexWrapper>>;
+  using StatPtr = std::shared_ptr<folly::Synchronized<ExportedStat>>;
 
   /**
    * Register the counter callback with the DynamicCounters object.

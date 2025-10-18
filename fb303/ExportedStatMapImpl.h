@@ -41,11 +41,11 @@ class ExportedStatMapImpl : public ExportedStatMap {
 
     /*
      * Locks the timeseries object that is held by this LockableStat object
-     * and returns the LockedPtr for it. The histogram remains locked as long as
-     * the LockedPtr object remains in scope.
+     * and returns the LockedStatPtr for it. The histogram remains locked as
+     * long as the LockedStatPtr object remains in scope.
      */
     LockedStatPtr lock() const {
-      return stat_->lock();
+      return stat_->wlock();
     }
 
     /* Return true if the stat held by this object is null. */
@@ -70,7 +70,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
      */
     void addValue(TimePoint now, const CounterType value, int64_t times = 1)
         const {
-      stat_->lock()->addValue(now, value, times);
+      stat_->wlock()->addValue(now, value, times);
     }
 
     /*
@@ -81,7 +81,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
         TimePoint now,
         const CounterType value,
         int64_t numSamples) const {
-      stat_->lock()->addValueAggregated(now, value, numSamples);
+      stat_->wlock()->addValueAggregated(now, value, numSamples);
     }
 
     /*
@@ -89,7 +89,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
      * can be used here to add multiple copies of the value at a time.
      *
      * This method assumes that the object has already been locked, and requires
-     * the appropriate LockedPtr object as a parameter.
+     * the appropriate LockedStatPtr object as a parameter.
      */
     void addValueLocked(
         const LockedStatPtr& lockedObj,
@@ -104,7 +104,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
      * Update the histogram with the given time value.
      *
      * This method assumes that the object has already been locked, and requires
-     * the appropriate LockedPtr object as a parameter.
+     * the appropriate LockedStatPtr object as a parameter.
      */
     void updateLocked(const LockedStatPtr& lockedObj, TimePoint now) {
       DCHECK(!lockedObj.isNull());
@@ -115,7 +115,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
      * Flush all cached updates.
      *
      * This method assumes that the object has already been locked, and requires
-     * the appropriate LockedPtr object as a parameter.
+     * the appropriate LockedStatPtr object as a parameter.
      */
     void flushLocked(const LockedStatPtr& lockedObj) {
       DCHECK(!lockedObj.isNull());
@@ -128,14 +128,14 @@ class ExportedStatMapImpl : public ExportedStatMap {
      */
     template <typename ReturnType>
     ReturnType rate(int level) {
-      return stat_->lock()->rate<ReturnType>(level);
+      return stat_->wlock()->rate<ReturnType>(level);
     }
 
     /*
      * Return the sum of all the data points currently tracked at this level.
      *
      * This method assumes that the object has already been locked, and requires
-     * the appropriate LockedPtr object as a parameter.
+     * the appropriate LockedStatPtr object as a parameter.
      */
     CounterType getSumLocked(const LockedStatPtr& lockedObj, int level) {
       DCHECK(!lockedObj.isNull());
@@ -217,7 +217,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
    */
   void
   addValue(StatPtr& item, TimePoint now, CounterType value, int64_t times = 1) {
-    item->lock()->addValue(now, value, times);
+    item->wlock()->addValue(now, value, times);
   }
 
   using ExportedStatMap::addValueAggregated;
@@ -238,7 +238,7 @@ class ExportedStatMapImpl : public ExportedStatMap {
       TimePoint now,
       CounterType sum,
       int64_t nsamples) {
-    item->lock()->addValueAggregated(now, sum, nsamples);
+    item->wlock()->addValueAggregated(now, sum, nsamples);
   }
 
   using ExportedStatMap::exportStat;

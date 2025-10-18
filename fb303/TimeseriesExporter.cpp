@@ -104,7 +104,7 @@ void TimeseriesExporter::exportStat(
 
   // statObj is used below just to get levels info. As level info is set just
   // in the construction, it's safe to use it without a lock
-  auto& statObj = stat->unsafeGetUnlocked();
+  const auto& statObj = stat->unsafeGetUnlocked();
   for (size_t lev = 0; lev < statObj.numLevels(); ++lev) {
     getCounterName(
         counterName.data(), kNameSize, &statObj, statName, type, lev);
@@ -113,7 +113,7 @@ void TimeseriesExporter::exportStat(
     // hasn't already been registered.
     counters->registerCallback(
         counterName.data(),
-        [=] { return getStatValue(*stat->lock(), type, lev, updateOnRead); },
+        [=] { return getStatValue(*stat->wlock(), type, lev, updateOnRead); },
         /* overwrite */ false);
   }
 }
@@ -130,9 +130,12 @@ void TimeseriesExporter::unExportStat(
   const size_t kNameSize = statName.size() + 50; // some extra space
   folly::small_vector<char, 200> counterName(kNameSize);
 
-  auto statObj = stat->lock().operator->();
-  for (size_t lev = 0; lev < stat->lock()->numLevels(); ++lev) {
-    getCounterName(counterName.data(), kNameSize, statObj, statName, type, lev);
+  // statObj is used below just to get levels info. As level info is set just
+  // in the construction, it's safe to use it without a lock
+  const auto& statObj = stat->unsafeGetUnlocked();
+  for (size_t lev = 0; lev < statObj.numLevels(); ++lev) {
+    getCounterName(
+        counterName.data(), kNameSize, &statObj, statName, type, lev);
 
     // unregister the counter callback from the DynamicCounters obj
     counters->unregisterCallback(counterName.data());

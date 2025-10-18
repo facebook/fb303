@@ -74,7 +74,6 @@ cpp_library(
     ],
     exported_deps = [
         ":export_type",
-        ":mutex_wrapper",
         ":timeseries",
         "//folly:synchronized",
         "//folly/container:f14_hash",
@@ -162,7 +161,6 @@ cpp_library(
         ":dynamic_counters",
         ":export_type",
         ":exported_stat_map_impl",
-        ":mutex_wrapper",
         ":timeseries_histogram",
         "//folly:function",
         "//folly:map_util",
@@ -172,17 +170,6 @@ cpp_library(
     ],
     external_deps = [
         "glog",
-    ],
-)
-
-cpp_library(
-    name = "mutex_wrapper",
-    srcs = [],
-    headers = ["MutexWrapper.h"],
-    modular_headers = True,
-    exported_deps = [
-        "//folly:shared_mutex",
-        "//folly:synchronized",
     ],
 )
 
@@ -337,8 +324,8 @@ cpp_library(
     ],
     exported_deps = [
         ":export_type",
-        ":mutex_wrapper",
         ":timeseries",
+        "//folly:synchronized",
     ],
     external_deps = [
         "glog",

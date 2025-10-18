@@ -26,7 +26,7 @@ CounterType getHistogramPercentile(
     const ExportedHistogramMap::HistogramPtr& hist,
     int level,
     double percentile) {
-  auto lockedHist = hist->lock();
+  auto lockedHist = hist->wlock();
 
   // make sure the histogram is up to date and data is decayed appropriately
   lockedHist->update(get_legacy_stats_time());
@@ -145,7 +145,7 @@ void ExportedHistogramMap::checkAdd(
     int64_t max) const {
   // Log an error if someone tries to create an existing histogram with
   // different parameters.
-  auto lockedHist = item->lock();
+  auto lockedHist = item->wlock();
   if (lockedHist->getBucketSize() != bucketWidth ||
       lockedHist->getMin() != min || lockedHist->getMax() != max) {
     LOG(ERROR) << "Attempted to create an existing histogram with "
@@ -202,7 +202,7 @@ void ExportedHistogramMap::unexportStat(StringPiece name, ExportType type) {
 void ExportedHistogramMap::clearAllHistograms() {
   auto lockedHistMap = histMap_.wlock();
   for (auto& histPtrKvp : *lockedHistMap) {
-    histPtrKvp.second->lock()->clear();
+    histPtrKvp.second->wlock()->clear();
   }
 }
 } // namespace facebook::fb303

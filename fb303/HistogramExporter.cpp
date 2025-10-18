@@ -32,7 +32,7 @@ namespace facebook::fb303 {
 static std::string getHistogramBuckets(const HistogramPtr& hist, int level) {
   CHECK(hist);
 
-  auto lockedHist = hist->lock();
+  auto lockedHist = hist->wlock();
 
   // make sure the histogram is up to date and data is decayed appropriately
   lockedHist->update(get_legacy_stats_time());
@@ -43,7 +43,7 @@ static std::string getHistogramBuckets(const HistogramPtr& hist, int level) {
 
 static CounterType
 getHistogramStat(const HistogramPtr& item, int level, ExportType exportType) {
-  auto lockedHist = item->lock();
+  auto lockedHist = item->wlock();
 
   // make sure the histogram is up to date and data is decayed appropriately
   lockedHist->update(get_legacy_stats_time());
@@ -86,8 +86,8 @@ void HistogramExporter::exportBuckets(
   // can never change, nor their durations).
   //
   //   - mrabkin
-  CHECK_GT(hist->lock()->getNumBuckets(), 0);
-  const ExportedHistogram::ContainerType& stat = hist->lock()->getBucket(0);
+  CHECK_GT(hist->wlock()->getNumBuckets(), 0);
+  const ExportedHistogram::ContainerType& stat = hist->wlock()->getBucket(0);
 
   // now, export each level
   for (size_t level = 0; level < stat.numLevels(); ++level) {
@@ -116,11 +116,11 @@ void HistogramExporter::forEachPercentileName(
     StringPiece name,
     int percentile,
     const Fn& fn) {
-  CHECK_GT(hist->lock()->getNumBuckets(), 0);
+  CHECK_GT(hist->wlock()->getNumBuckets(), 0);
   CHECK_GE(percentile, 0);
   CHECK_LE(percentile, 100);
 
-  const ExportedHistogram::ContainerType& stat = hist->lock()->getBucket(0);
+  const ExportedHistogram::ContainerType& stat = hist->wlock()->getBucket(0);
   for (size_t level = 0; level < stat.numLevels(); ++level) {
     // NOTE:  We access the histogram's stat object here without locking.  This
     // depends on the fact that getLevel(), and Level::isAllTime() and
@@ -181,7 +181,7 @@ void HistogramExporter::forEachStatName(
   const size_t kNameSize = name.size() + 50; // some extra space
   folly::small_vector<char, 200> counterName(kNameSize);
 
-  const ExportedHistogram::ContainerType& stat = hist->lock()->getBucket(0);
+  const ExportedHistogram::ContainerType& stat = hist->wlock()->getBucket(0);
   for (size_t level = 0; level < stat.numLevels(); ++level) {
     TimeseriesExporter::getCounterName(
         counterName.data(), kNameSize, &stat, name, exportType, level);

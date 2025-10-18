@@ -18,7 +18,6 @@
 
 #include <fb303/DynamicCounters.h>
 #include <fb303/ExportType.h>
-#include <fb303/MutexWrapper.h>
 #include <fb303/TimeseriesHistogram.h>
 #include <folly/Function.h>
 #include <folly/MapUtil.h>
@@ -62,9 +61,9 @@ using ExportedStatForHistogram = MultiLevelTimeSeries<
 
 class ExportedHistogramMap {
  public:
-  using SyncHistogram = folly::Synchronized<ExportedHistogram, MutexWrapper>;
+  using SyncHistogram = folly::Synchronized<ExportedHistogram>;
   using HistogramPtr = std::shared_ptr<SyncHistogram>;
-  using LockedHistogramPtr = SyncHistogram::LockedPtr;
+  using LockedHistogramPtr = SyncHistogram::WLockedPtr;
   using HistMap = folly::F14NodeMap<std::string, HistogramPtr>;
   using MakeExportedHistogram = folly::FunctionRef<ExportedHistogram()>;
 
@@ -136,7 +135,7 @@ class ExportedHistogramMap {
   LockedHistogramPtr getHistogram(folly::StringPiece name) {
     auto hist = getHistogramUnlocked(name);
     if (hist) {
-      return hist->lock();
+      return hist->wlock();
     }
     return LockedHistogramPtr();
   }
@@ -302,7 +301,7 @@ class ExportedHistogramMap {
       int64_t times = 1) {
     HistogramPtr hist = getHistogramUnlocked(name);
     if (hist) {
-      hist->lock()->addValue(now, value, times);
+      hist->wlock()->addValue(now, value, times);
     }
   }
 
@@ -312,7 +311,7 @@ class ExportedHistogramMap {
       const folly::Histogram<CounterType>& values) {
     HistogramPtr hist = getHistogramUnlocked(name);
     if (hist) {
-      hist->lock()->addValues(now, values);
+      hist->wlock()->addValues(now, values);
     }
   }
 
@@ -360,7 +359,7 @@ class ExportedHistogramMap {
   void clearHistogram(folly::StringPiece name) {
     HistogramPtr hist = getHistogramUnlocked(name);
     if (hist) {
-      hist->lock()->clear();
+      hist->wlock()->clear();
     }
   }
 
