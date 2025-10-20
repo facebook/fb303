@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <bit>
+
 #include <fb303/detail/RegexUtil.h>
 #include <folly/MapUtil.h>
 #include <folly/container/Reserve.h>
@@ -31,9 +33,11 @@ void CallbackValuesMap<T>::getValues(ValuesMap* output) const {
   // if callbacks were to be invoked under the lock, that could deadlock
   // so copy under the shared lock and invoke after the lock is released
   std::vector<std::shared_ptr<CallbackEntry>> mapCopy;
+  // bit-ceil gracefully (amortized) handles the loaded size being stale
+  const auto mapSize = callbackMap_.rlock()->map.size(); // unlock then reserve
+  mapCopy.reserve(std::bit_ceil(mapSize));
   callbackMap_.withRLock([&](auto const& map) {
-    // a vector to avoid N allocations when copying a std::map with N entries
-    mapCopy.reserve(map.map.size());
+    // avoid vector::assign() since std::distance() would have to walk the set
     for (const auto& entry : map.map) {
       mapCopy.push_back(entry);
     }
@@ -104,11 +108,10 @@ void CallbackValuesMap<T>::registerCallback(
   auto wlock = ulock.moveFromUpgradeToWrite();
   if (iter != wlock->map.end()) {
     // Cannot replace an entry in a set, we need to remove it first.
-    detail::cachedEraseString(*wlock, iter, &(*iter)->name());
+    detail::cachedEraseString(*wlock, iter);
   }
-  auto result = wlock->map.emplace(std::move(entry));
-  DCHECK(result.second);
-  detail::cachedAddString(*wlock, result, &(*result.first)->name());
+  auto inserted = detail::cachedAddString(*wlock, std::move(entry)).second;
+  DCHECK(inserted);
 }
 
 template <typename T>
@@ -119,7 +122,7 @@ bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
     return false;
   }
   auto callback = *iter;
-  detail::cachedEraseString(*wlock, iter, &callback->name());
+  detail::cachedEraseString(*wlock, iter);
   VLOG(5) << "Unregistered callback: " << name;
 
   // clear the callback after releasing the lock

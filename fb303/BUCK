@@ -39,6 +39,7 @@ cpp_library(
         "//folly/container:f14_hash",
         "//folly/container:regex_match_cache",
         "//folly/container:reserve",
+        "//folly/functional:invoke",
         "//folly/synchronization:relaxed_atomic",
     ],
     external_deps = ["glog"],

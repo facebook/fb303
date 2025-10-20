@@ -303,10 +303,7 @@ int64_t ServiceData::modifyCounter(folly::StringPiece key, F f) {
 
   //  pessimistically, the key is possibly absent; upsert under wlock
   auto countersWLock = counters_.wlock();
-  auto result = countersWLock->map.emplace(key, 0);
-  auto& ref =
-      detail::cachedAddString(*countersWLock, result, &result.first->first)
-          ->second;
+  auto& ref = detail::cachedAddString(*countersWLock, key, 0).first->second;
 
   return f(ref);
 }
@@ -327,7 +324,7 @@ int64_t ServiceData::setCounter(StringPiece key, int64_t value) {
 void ServiceData::clearCounter(StringPiece key) {
   auto countersWLock = counters_.wlock();
   if (auto it = countersWLock->map.find(key); it != countersWLock->map.end()) {
-    detail::cachedEraseString(*countersWLock, it, &it->first);
+    detail::cachedEraseString(*countersWLock, it);
   }
 }
 

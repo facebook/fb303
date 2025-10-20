@@ -25,6 +25,7 @@
 #include <folly/Synchronized.h>
 #include <folly/container/F14Set.h>
 #include <folly/container/RegexMatchCache.h>
+#include <folly/functional/Invoke.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
 namespace facebook {
@@ -126,36 +127,47 @@ class CallbackValuesMap {
   // Combining counters map with cache and epoch numbers.  If epochs
   // match, cache is valid.
   struct CallbackMap {
-    // Use a set with heterogeneous lookup to avoid duplicating the storage of
-    // the name, since it is already inside CallbackEntry.
+    using SPtr = std::shared_ptr<CallbackEntry>;
 
-    static folly::StringPiece getKey(folly::StringPiece val) {
-      return val;
-    }
-    static folly::StringPiece getKey(
-        const std::shared_ptr<CallbackEntry>& val) {
-      return val->name();
-    }
-
-    struct Hash : folly::HeterogeneousAccessHash<folly::StringPiece> {
-      using folly::HeterogeneousAccessHash<folly::StringPiece>::operator();
-
-      size_t operator()(const std::shared_ptr<CallbackEntry>& val) const {
-        return (*this)(getKey(val));
+    // Helpers for hash and key-equal functions
+    struct cast_to_key_fn {
+      constexpr folly::StringPiece operator()(
+          folly::StringPiece name) const noexcept {
+        return name;
+      }
+      constexpr std::string const& operator()(const SPtr& ptr) const noexcept {
+        return ptr->name();
       }
     };
+    static constexpr cast_to_key_fn cast_to_key{};
 
-    struct EqualTo : folly::HeterogeneousAccessEqualTo<folly::StringPiece> {
-      using folly::HeterogeneousAccessEqualTo<folly::StringPiece>::operator();
+    // Required for RegexUtils helpers - gives ref to stably-stored string key
+    static constexpr cast_to_key_fn fb303_key_accessor{};
 
-      bool operator()(const auto& lhs, const auto& rhs) const {
-        return getKey(lhs) == getKey(rhs);
+    using HashBase = folly::HeterogeneousAccessHash<folly::StringPiece>;
+    using EqualToBase = folly::HeterogeneousAccessEqualTo<folly::StringPiece>;
+
+    // Use a set with heterogeneous lookup to avoid duplicating the storage of
+    // the name, since it is already inside CallbackEntry. The set requires a
+    // custom hash function and a custom key-equal function.
+    struct Hash : HashBase {
+      size_t operator()(
+          folly::passable_to<cast_to_key_fn> auto const& val) const noexcept {
+        return HashBase::operator()(cast_to_key(val));
+      }
+    };
+    struct EqualTo : EqualToBase {
+      bool operator()(
+          folly::passable_to<cast_to_key_fn> auto const& lhs,
+          folly::passable_to<cast_to_key_fn> auto const& rhs) const noexcept {
+        return EqualToBase::operator()(cast_to_key(lhs), cast_to_key(rhs));
       }
     };
 
     // Both key and string pointer stored in RegexMatchCache refer to name_ in
     // CallbackEntry, so they are stable regardless of map type.
-    folly::F14FastSet<std::shared_ptr<CallbackEntry>, Hash, EqualTo> map;
+    // Use a vector-set to optimize for iteration in getValues().
+    folly::F14VectorSet<SPtr, Hash, EqualTo> map;
     folly::RegexMatchCache matches;
   };
 
