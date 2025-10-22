@@ -31,10 +31,6 @@ using folly::StringPiece;
 
 namespace facebook::fb303 {
 
-template <typename T>
-static T& as_mutable(T const& t) {
-  return const_cast<T&>(t);
-}
 /*
  * The constructor used to create additional ServiceData instances.
  * IMPORTANT NOTE: There already is a global singleton instance living,
@@ -86,9 +82,9 @@ void ServiceData::resetAllData() {
 void ServiceData::zeroStats() {
   {
     auto countersRLock = counters_.rlock();
-    for (auto const& elem : countersRLock->map) {
-      //  this const-cast is safe: the lock protects the map structure only
-      as_mutable(elem.second).store(0, std::memory_order_relaxed);
+    // this mutation is safe: the lock protects the map structure only
+    for (auto& elem : countersRLock.asNonConstUnsafe().map) {
+      elem.second.store(0, std::memory_order_relaxed);
     }
   }
 
@@ -294,10 +290,9 @@ int64_t ServiceData::modifyCounter(folly::StringPiece key, F f) {
   {
     //  optimistically, the key is certainly present; update under rlock
     auto countersRLock = counters_.rlock();
-    if (auto ptr = folly::get_ptr(countersRLock->map, key)) {
-      //  this const-cast is safe: the lock protects the map structure only
-      auto& ref = as_mutable(*ptr);
-      return f(ref);
+    //  this mutation is safe: the lock protects the map structure only
+    if (auto ptr = folly::get_ptr(countersRLock.asNonConstUnsafe().map, key)) {
+      return f(*ptr);
     }
   }
 
@@ -496,8 +491,10 @@ void ServiceData::deleteExportedKey(StringPiece key) {
 void ServiceData::setExportedValue(StringPiece key, std::string value) {
   {
     auto exportedValuesRLock = exportedValues_.rlock();
-    if (auto ptr = folly::get_ptr(*exportedValuesRLock, key)) {
-      as_mutable(*ptr).swap(value);
+    // this mutation is safe: the lock protects the map structure only
+    if (auto ptr =
+            folly::get_ptr(exportedValuesRLock.asNonConstUnsafe(), key)) {
+      ptr->swap(value);
       return;
     }
   }
@@ -618,7 +615,7 @@ ServiceData::SetOptionResult ServiceData::setOptionWithResult(
     auto dynamicOptionsRLock = dynamicOptions_.rlock();
     if (auto ptr = folly::get_ptr(*dynamicOptionsRLock, key)) {
       if (ptr->setter) {
-        as_mutable(ptr->setter)(std::string{value});
+        ptr->setter(std::string{value});
       }
       return SetOptionResult::Dynamic;
     }
@@ -685,7 +682,7 @@ std::string ServiceData::getOption(StringPiece key) const {
   {
     auto dynamicOptionsRLock = dynamicOptions_.rlock();
     if (auto ptr = folly::get_ptr(*dynamicOptionsRLock, key)) {
-      return ptr->getter ? as_mutable(ptr->getter)() : std::string();
+      return ptr->getter ? ptr->getter() : std::string();
     }
   }
 
@@ -720,7 +717,7 @@ void ServiceData::getOptions(
       std::string value;
       if (entry.second.getter) {
         try {
-          value = as_mutable(entry.second).getter();
+          value = entry.second.getter();
         } catch (const std::exception& ex) {
           value = folly::to<std::string>("<error: ", ex.what(), ">");
         }

@@ -557,8 +557,8 @@ class ServiceData {
   void mergeOptionsWithGflags(
       std::map<std::string, std::string>& _return) const;
 
-  using DynamicOptionGetter = folly::Function<std::string()>;
-  using DynamicOptionSetter = folly::Function<void(std::string const&)>;
+  using DynamicOptionGetter = folly::Function<std::string() const>;
+  using DynamicOptionSetter = folly::Function<void(std::string const&) const>;
 
   /**
    * Register dynamic callbacks that will be called when getOption()
