@@ -418,7 +418,7 @@ TEST(SimpleLRUMap, ConstComplexity) {
 TEST(SimpleLRUMap, Stats) {
   lru_map lru(2);
 
-  enum stat_type { hit, miss, none };
+  enum stat_type { hit, miss, no_change };
 
   auto testStats = [&](lru_map::stats_type hits,
                        lru_map::stats_type misses,
@@ -433,7 +433,7 @@ TEST(SimpleLRUMap, Stats) {
           ++misses;
           LOG(INFO) << "miss";
           break;
-        case none:
+        case no_change:
           LOG(INFO) << "no change";
           break;
       };
@@ -465,19 +465,19 @@ TEST(SimpleLRUMap, Stats) {
     doCheck(expected[6]);
   };
 
-  testStats(0, 0, {miss, none, hit, none, hit, hit, miss});
+  testStats(0, 0, {miss, no_change, hit, no_change, hit, hit, miss});
 
   LOG(INFO) << "clearing";
   lru.clear();
-  testStats(0, 0, {miss, none, hit, none, hit, hit, miss});
+  testStats(0, 0, {miss, no_change, hit, no_change, hit, hit, miss});
 
   LOG(INFO) << "clearing (items only)";
   lru.clear(false);
-  testStats(3, 2, {miss, none, hit, none, hit, hit, miss});
+  testStats(3, 2, {miss, no_change, hit, no_change, hit, hit, miss});
 
   LOG(INFO) << "clearing (stats only)";
   lru.clear_stats();
-  testStats(0, 0, {hit, none, hit, none, hit, hit, miss});
+  testStats(0, 0, {hit, no_change, hit, no_change, hit, hit, miss});
 }
 
 TEST(SimpleLRUMap, TryGetOrCreateDefaultCtor) {
