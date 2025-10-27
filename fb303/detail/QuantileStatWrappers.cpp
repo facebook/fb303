@@ -24,11 +24,10 @@ QuantileStatWrapper::QuantileStatWrapper(
     folly::Range<const ExportType*> stats,
     folly::Range<const double*> quantiles,
     folly::Range<const size_t*> slidingWindowPeriods)
-    : stat_(ServiceData::get()->getQuantileStat(
-          name,
-          stats,
-          quantiles,
-          slidingWindowPeriods)) {}
+    : stat_(
+          ServiceData::get()
+              ->getQuantileStat(name, stats, quantiles, slidingWindowPeriods)) {
+}
 
 QuantileStatWrapper::QuantileStatWrapper(
     folly::StringPiece /*unused*/,

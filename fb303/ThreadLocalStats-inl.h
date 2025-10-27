@@ -189,10 +189,11 @@ template <typename Fn>
 auto TLStatT<LockTraits>::withContainerChecked(const char* errorMsg, Fn&& fn) {
   auto guard = link_->lock();
   if (!link_->container_) {
-    throw std::runtime_error(folly::to<std::string>(
-        name(),
-        ": ThreadLocalStats container has already been destroyed while ",
-        errorMsg));
+    throw std::runtime_error(
+        folly::to<std::string>(
+            name(),
+            ": ThreadLocalStats container has already been destroyed while ",
+            errorMsg));
   }
 
   return fn(*link_->container_);

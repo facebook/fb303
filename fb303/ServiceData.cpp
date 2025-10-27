@@ -131,12 +131,13 @@ void ServiceData::addStatExports(
     } else { // No match on stat type - assume it's a histogram percentile
       if (!addedHist) {
         if (bucketSize <= 0) {
-          throw std::runtime_error(folly::to<std::string>(
-              "bucketSize for ",
-              key,
-              " must be greater than zero (",
-              bucketSize,
-              ")"));
+          throw std::runtime_error(
+              folly::to<std::string>(
+                  "bucketSize for ",
+                  key,
+                  " must be greater than zero (",
+                  bucketSize,
+                  ")"));
         }
         ExportedHistogram hist(bucketSize, min, max, histMap_.getDefaultStat());
         histMap_.addHistogram(key, hist);

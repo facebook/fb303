@@ -131,4 +131,4 @@ class DynamicQuantileStatWrapper {
       "Must have at least one placeholder.");                       \
   facebook::fb303::detail::DynamicQuantileStatWrapper<              \
       ::facebook::fb303::detail::count_placeholders(keyformat)>     \
-      STATS_##varname(keyformat, ##__VA_ARGS__)
+  STATS_##varname(keyformat, ##__VA_ARGS__)

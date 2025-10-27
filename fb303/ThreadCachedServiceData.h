@@ -1257,11 +1257,12 @@ class HistogramWrapper {
       int64_t max,
       const Args&... args)
       : key_(key),
-        spec_(std::make_unique<internal::HistogramSpec>(
-            bucketWidth,
-            min,
-            max,
-            args...)) {}
+        spec_(
+            std::make_unique<internal::HistogramSpec>(
+                bucketWidth,
+                min,
+                max,
+                args...)) {}
 
   void add(int64_t value = 1) {
     tcHistogram()->addValue(value);
@@ -1624,7 +1625,7 @@ constexpr size_t count_placeholders(std::string_view keyformat) {
       "Must have at least one placeholder.");                       \
   ::facebook::fb303::DynamicTimeseriesWrapper<                      \
       ::facebook::fb303::detail::count_placeholders(keyformat)>     \
-      STATS_##varname(keyformat, ##__VA_ARGS__)
+  STATS_##varname(keyformat, ##__VA_ARGS__)
 
 #define DEFINE_dynamic_histogram(                                   \
     varname, keyformat, bucketWidth, min, max, ...)                 \
@@ -1633,4 +1634,4 @@ constexpr size_t count_placeholders(std::string_view keyformat) {
       "Must have at least one placeholder.");                       \
   ::facebook::fb303::DynamicHistogramWrapper<                       \
       ::facebook::fb303::detail::count_placeholders(keyformat)>     \
-      STATS_##varname(keyformat, bucketWidth, min, max, __VA_ARGS__)
+  STATS_##varname(keyformat, bucketWidth, min, max, __VA_ARGS__)
