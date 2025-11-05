@@ -55,7 +55,7 @@ TEST(ExportedHistogram, ExportedStats) {
   // current time.  When the stats code does its own internal update from the
   // actual time, it will ignore the update if it has already seen a timestamp
   // further in the future.
-  auto timeStart = ::time(nullptr) + 600;
+  auto timeStart = ::time(nullptr);
 
   for (int64_t n = 0; n < 100; ++n) {
     histMap.addValue("hist1", timeStart + n, n * 10);
