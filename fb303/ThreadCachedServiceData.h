@@ -878,6 +878,24 @@ class TimeseriesWrapper {
   }
   template <
       typename Arg1,
+      typename Arg2,
+      typename... Args,
+      typename std::enable_if<
+          std::is_convertible<Arg2, ExportedStat>::value>::type* = nullptr,
+      typename std::enable_if<!std::is_lvalue_reference<Arg2>::value>::type* =
+          nullptr,
+      typename std::enable_if<
+          std::is_convertible<Arg1, std::string_view>::value>::type* = nullptr>
+  TimeseriesWrapper(
+      const std::string& /* varname */,
+      const Arg1& key,
+      Arg2&& prototype,
+      const Args&... args)
+      : key_(key) {
+    exportStats(&prototype, args...);
+  }
+  template <
+      typename Arg1,
       typename... Args,
       typename std::enable_if<
           std::is_convertible<Arg1, ExportedStat>::value>::type* = nullptr,
