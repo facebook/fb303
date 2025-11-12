@@ -116,6 +116,12 @@ class MultiLevelTimeSeries : public folly::MultiLevelTimeSeries<T, CT> {
   }
 
   template <typename ReturnType = double>
+  ReturnType rateBy(size_t level, TimePoint now) const {
+    return BaseType::template rateBy<ReturnType, std::chrono::seconds>(
+        level, now);
+  }
+
+  template <typename ReturnType = double>
   ReturnType rate(Duration duration) const {
     return BaseType::template rate<ReturnType, std::chrono::seconds>(duration);
   }
@@ -130,6 +136,12 @@ class MultiLevelTimeSeries : public folly::MultiLevelTimeSeries<T, CT> {
   ReturnType countRate(size_t level) const {
     return BaseType::template countRate<ReturnType, std::chrono::seconds>(
         level);
+  }
+
+  template <typename ReturnType = double>
+  ReturnType countRateBy(size_t level, TimePoint now) const {
+    return BaseType::template countRateBy<ReturnType, std::chrono::seconds>(
+        level, now);
   }
 
   template <typename ReturnType = double>
