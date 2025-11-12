@@ -41,7 +41,7 @@ std::array<const char* const, 5> TimeseriesExporter::getTypeString() {
 
 /* static */
 CounterType TimeseriesExporter::getStatValue(
-    const ExportedStat& stat,
+    ExportedStat& stat,
     ExportType type,
     int level) {
   return getStatValue(stat, type, level, true /* update */);
@@ -49,44 +49,30 @@ CounterType TimeseriesExporter::getStatValue(
 
 /* static */
 CounterType TimeseriesExporter::getStatValue(
-    const ExportedStat& stat,
+    ExportedStat& stat,
     ExportType type,
     int level,
     bool update) {
+  // update the stat with the current time -- if no new items are being
+  // inserted, the stats won't decay properly without this update()
   if (update) {
-    // `update` requires calling update() before reading, but the *By() methods
-    // are semantically equivalent and do not require mutability
-    auto now =
-        ExportedStat::TimePoint(std::chrono::seconds(get_legacy_stats_time()));
-    switch (type) {
-      case SUM:
-        return stat.sumBy(level, now);
-      case AVG:
-        return stat.avgBy<CounterType>(level, now);
-      case RATE:
-        return stat.rateBy<CounterType>(level, now);
-      case PERCENT:
-        return static_cast<CounterType>(100.0 * stat.avgBy<double>(level, now));
-      case COUNT:
-        // getCount() returns int64_t, so we cast it to CounterType to be safe
-        return static_cast<CounterType>(stat.countBy(level, now));
-    }
+    stat.update(
+        ExportedStat::TimePoint(std::chrono::seconds(get_legacy_stats_time())));
+  }
 
-  } else {
-    // retrieve the correct type of info from the stat
-    switch (type) {
-      case SUM:
-        return stat.sum(level);
-      case AVG:
-        return stat.avg<CounterType>(level);
-      case RATE:
-        return stat.rate<CounterType>(level);
-      case PERCENT:
-        return static_cast<CounterType>(100.0 * stat.avg<double>(level));
-      case COUNT:
-        // getCount() returns int64_t, so we cast it to CounterType to be safe
-        return static_cast<CounterType>(stat.count(level));
-    }
+  // retrieve the correct type of info from the stat
+  switch (type) {
+    case SUM:
+      return stat.sum(level);
+    case AVG:
+      return stat.avg<CounterType>(level);
+    case RATE:
+      return stat.rate<CounterType>(level);
+    case PERCENT:
+      return static_cast<CounterType>(100.0 * stat.avg<double>(level));
+    case COUNT:
+      // getCount() returns int64_t, so we cast it to CounterType to be safe
+      return static_cast<CounterType>(stat.count(level));
   }
   // We intentionally avoid having a default switch statement so gcc's
   // -Wswitch flag will warn if we do not handle all enum values here.
@@ -127,7 +113,7 @@ void TimeseriesExporter::exportStat(
     // hasn't already been registered.
     counters->registerCallback(
         counterName.data(),
-        [=] { return getStatValue(*stat->rlock(), type, lev, updateOnRead); },
+        [=] { return getStatValue(*stat->wlock(), type, lev, updateOnRead); },
         /* overwrite */ false);
   }
 }
