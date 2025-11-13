@@ -121,7 +121,7 @@ class TimeseriesExporter {
    * decay properly without this if no new items are being inserted)
    */
   static CounterType
-  getStatValue(ExportedStat& stat, ExportType type, int level);
+  getStatValue(const ExportedStat& stat, ExportType type, int level);
 
   /*
    * Get the specified export value from the specified timeseries level.
@@ -132,7 +132,10 @@ class TimeseriesExporter {
    * If update is true, calls the update() method on the stat
    * before querying the value.
    */
-  static CounterType
-  getStatValue(ExportedStat& stat, ExportType type, int level, bool update);
+  static CounterType getStatValue(
+      const ExportedStat& stat,
+      ExportType type,
+      int level,
+      bool update);
 };
 } // namespace facebook::fb303
