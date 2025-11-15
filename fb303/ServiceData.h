@@ -41,8 +41,13 @@
 
 namespace facebook::fb303 {
 
+/*
+ * Get current time with millisecond granularity via CLOCK_REALTIME_COARSE.
+ */
 inline TimePoint get_current_time() {
-  return TimePoint(std::chrono::seconds(get_legacy_stats_time()));
+  return TimePoint(
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          folly::chrono::coarse_system_clock::now().time_since_epoch()));
 }
 
 /**
