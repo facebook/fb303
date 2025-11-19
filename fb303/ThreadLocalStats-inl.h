@@ -438,7 +438,7 @@ void TLHistogramT<LockTraits>::aggregate(std::chrono::seconds now) {
   if (!dirty_) {
     return;
   }
-  globalStat_.addValues(now, simpleHistogram_);
+  globalStat_.addValues(ExportedHistogramMap::TimePoint(now), simpleHistogram_);
   simpleHistogram_.clear();
   dirty_ = false;
 }

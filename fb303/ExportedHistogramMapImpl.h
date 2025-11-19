@@ -114,7 +114,7 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
      * Update the histogram to include all of the values of another given
      * histogram. The histogram remains locked for the duration of this call.
      */
-    void addValues(std::chrono::seconds now, const Histogram& values) const {
+    void addValues(TimePoint now, const Histogram& values) const {
       hist_->wlock()->addValues(now, values);
     }
     void addValues(time_t now, const Histogram& values) const {
@@ -229,7 +229,7 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
       time_t now,
       CounterType value,
       int64_t times = 1) {
-    return addValue(name, std::chrono::seconds(now), value, times);
+    return addValue(name, TimePoint(std::chrono::seconds(now)), value, times);
   }
 
   using ExportedHistogramMap::addValues;
@@ -237,7 +237,7 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
       folly::StringPiece name,
       time_t now,
       const folly::Histogram<CounterType>& values) {
-    return addValues(name, std::chrono::seconds(now), values);
+    return addValues(name, TimePoint(std::chrono::seconds(now)), values);
   }
   void addValues(
       folly::StringPiece name,
@@ -245,7 +245,8 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
       const folly::Histogram<CounterType>& values,
       const ExportedHistogram* hist,
       int percentile) {
-    return addValues(name, std::chrono::seconds(now), values, hist, percentile);
+    return addValues(
+        name, TimePoint(std::chrono::seconds(now)), values, hist, percentile);
   }
 
   void addValues(
@@ -255,7 +256,11 @@ class ExportedHistogramMapImpl : public ExportedHistogramMap {
       const ExportedHistogram* hist,
       folly::small_vector<int> percentiles) {
     return addValues(
-        name, std::chrono::seconds(now), values, hist, std::move(percentiles));
+        name,
+        TimePoint(std::chrono::seconds(now)),
+        values,
+        hist,
+        std::move(percentiles));
   }
 
  protected:

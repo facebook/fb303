@@ -66,6 +66,7 @@ class ExportedHistogramMap {
   using LockedHistogramPtr = SyncHistogram::WLockedPtr;
   using HistMap = folly::F14NodeMap<std::string, HistogramPtr>;
   using MakeExportedHistogram = folly::FunctionRef<ExportedHistogram()>;
+  using TimePoint = ExportedStatForHistogram::TimePoint;
 
   /**
    * Creates an ExportedHistogramMap and hooks it up to the given
@@ -296,7 +297,7 @@ class ExportedHistogramMap {
    */
   void addValue(
       folly::StringPiece name,
-      std::chrono::seconds now,
+      TimePoint now,
       CounterType value,
       int64_t times = 1) {
     HistogramPtr hist = getHistogramUnlocked(name);
@@ -307,7 +308,7 @@ class ExportedHistogramMap {
 
   void addValues(
       folly::StringPiece name,
-      std::chrono::seconds now,
+      TimePoint now,
       const folly::Histogram<CounterType>& values) {
     HistogramPtr hist = getHistogramUnlocked(name);
     if (hist) {
@@ -320,7 +321,7 @@ class ExportedHistogramMap {
    */
   void addValues(
       folly::StringPiece name,
-      std::chrono::seconds now,
+      TimePoint now,
       const folly::Histogram<CounterType>& values,
       const ExportedHistogram* hist,
       int percentile) {
@@ -332,7 +333,7 @@ class ExportedHistogramMap {
    */
   void addValues(
       folly::StringPiece name,
-      std::chrono::seconds now,
+      TimePoint now,
       const folly::Histogram<CounterType>& values,
       const ExportedHistogram* hist,
       const folly::small_vector<int>& percentiles) {
