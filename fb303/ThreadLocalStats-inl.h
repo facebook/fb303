@@ -107,7 +107,8 @@ void TLStatT<LockTraits>::unlink() {
   }
 
   // Before we unlink from the container, aggegrate one final time.
-  aggregate(std::chrono::seconds{get_legacy_stats_time()});
+  ExportedStat::TimePoint now{std::chrono::seconds(get_legacy_stats_time())};
+  aggregate(now);
 
   // Acquire the registry lock. This prevents ThreadLocalStats from trying to
   // call aggregate() on this TLStat while we update the link_ pointer.
@@ -278,7 +279,7 @@ void TLTimeseriesT<LockTraits>::exportStat(fb303::ExportType exportType) {
 }
 
 template <class LockTraits>
-void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
+void TLTimeseriesT<LockTraits>::aggregate(TimePoint now) {
   auto [currentCount, currentSum] = value_.reset();
   auto update = !this->shouldUpdateGlobalStatsOnRead();
   if (currentCount == 0 && !update) {
@@ -296,7 +297,7 @@ void TLTimeseriesT<LockTraits>::aggregate(std::chrono::seconds now) {
     // We must call update() after aggregation at least once so that subsequent
     // reads see it, and so that the stat decays properly even if no samples
     // were added.
-    lockedStatPtr->update(TimePoint(now));
+    lockedStatPtr->update(now);
   }
 }
 
@@ -433,12 +434,16 @@ int64_t TLHistogramT<LockTraits>::getMax() const {
 }
 
 template <class LockTraits>
-void TLHistogramT<LockTraits>::aggregate(std::chrono::seconds now) {
+void TLHistogramT<LockTraits>::aggregate(TimePoint now) {
   std::unique_lock g{this->statLock_};
   if (!dirty_) {
     return;
   }
-  globalStat_.addValues(ExportedHistogramMap::TimePoint(now), simpleHistogram_);
+  globalStat_.addValues(
+      ExportedHistogramMap::TimePoint(
+          std::chrono::duration_cast<ExportedStatForHistogram::Duration>(
+              now.time_since_epoch())),
+      simpleHistogram_);
   simpleHistogram_.clear();
   dirty_ = false;
 }
@@ -501,7 +506,7 @@ TLCounterT<LockTraits>& TLCounterT<LockTraits>::operator=(
 }
 
 template <class LockTraits>
-void TLCounterT<LockTraits>::aggregate(std::chrono::seconds /*now*/) {
+void TLCounterT<LockTraits>::aggregate(TimePoint /*now*/) {
   aggregate();
 }
 
@@ -583,9 +588,7 @@ uint64_t ThreadLocalStatsT<LockTraits>::aggregate() {
 
   auto guard = link_->lock();
 
-  // TODO: In the future it would be nice if the stats code used a
-  // std::chrono::time_point instead of just a std::chrono::duration
-  std::chrono::seconds now(get_legacy_stats_time());
+  ExportedStat::TimePoint now{std::chrono::seconds(get_legacy_stats_time())};
   for (TLStatT<LockTraits>* stat : tlStats_) {
     stat->aggregate(now);
   }

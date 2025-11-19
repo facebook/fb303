@@ -351,7 +351,7 @@ class TLStatT {
     return name_;
   }
 
-  virtual void aggregate(std::chrono::seconds now) = 0;
+  virtual void aggregate(TimePoint now) = 0;
 
  protected:
   struct SubclassMoveTag {};
@@ -581,7 +581,7 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
   }
   void exportStat() {}
 
-  void aggregate(std::chrono::seconds now) override;
+  void aggregate(TimePoint now) override;
 
   /**
    * Unsafe to call concurrently with reset() or addValue(), only for testing
@@ -732,7 +732,7 @@ class TLHistogramT : public TLStatT<LockTraits> {
         ->unexportStat(this->name(), exportArgs...);
   }
 
-  void aggregate(std::chrono::seconds now) override;
+  void aggregate(TimePoint now) override;
 
  private:
   using typename TLStatT<LockTraits>::Container;
@@ -792,7 +792,7 @@ class TLCounterT : public TLStatT<LockTraits> {
     value_.increment(amount);
   }
 
-  void aggregate(std::chrono::seconds now) override;
+  void aggregate(TimePoint now) override;
   void aggregate();
 
   fb303::CounterType value() {
