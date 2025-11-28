@@ -15,6 +15,7 @@
  */
 
 #include <fb303/ThreadLocalStats.h>
+#include <folly/system/HardwareConcurrency.h>
 
 #include <thread>
 
@@ -161,7 +162,7 @@ class TLStatNameSet::Impl {
   }
 
   static Impl& instance() {
-    static auto& ref = *new Impl(std::thread::hardware_concurrency());
+    static auto& ref = *new Impl(folly::hardware_concurrency());
     return ref;
   }
 };

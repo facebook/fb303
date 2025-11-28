@@ -252,6 +252,7 @@ cpp_library(
         "ThreadLocalStats-inl.h",
     ],
     modular_headers = True,
+    deps = ["//folly/system:hardware_concurrency"],
     exported_deps = [
         ":export_type",
         ":exported_stat_map_impl",
