@@ -75,13 +75,17 @@ void TLStatT<LockTraits>::link() {
     return;
   }
 
-  std::unique_lock<typename LockTraits::RegistryLock> guard(
-      link_->mutex_, std::try_to_lock);
+  auto guard = link_->try_lock();
 
   if (!guard.owns_lock()) {
     // Failed to acquire the lock, add to pending list
     if (link_->container_) {
-      link_->container_->linkPending_.wlock()->push_back(this);
+      auto pendingList = link_->container_->linkPending_.wlock();
+      pendingList->push_back(this);
+      // Mark the container as non-empty so aggregate() will drain pending stats
+      if (pendingList->size() == 1 && link_->container_->tlStats_.empty()) {
+        link_->container_->tlStatsEmpty_ = false;
+      }
     }
     link_.linked_ = true;
     return;

@@ -867,6 +867,14 @@ class TLStatLink {
     return guard;
   }
 
+  std::unique_lock<Lock> try_lock() {
+    auto guard = std::unique_lock{mutex_, std::try_to_lock};
+    if (guard.owns_lock() && container_) {
+      container_->completePendingLink();
+    }
+    return guard;
+  }
+
   bool shouldUpdateGlobalStatsOnRead() const {
     return updateGlobalStatsOnRead_;
   }
