@@ -189,6 +189,8 @@ void ThreadCachedServiceData::startPublishThread(milliseconds interval) {
 
   if (auto mgr = publisherManager.try_get()) {
     mgr->worker_.withWLock([&](auto& worker) {
+      LOG(INFO) << "Update ThreadCachedServiceData publish interval to "
+                << interval.count() << "ms";
       interval_.store(interval, std::memory_order_relaxed);
       worker.emplace();
     });
