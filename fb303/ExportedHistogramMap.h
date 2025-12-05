@@ -80,8 +80,11 @@ class ExportedHistogramMap {
       DynamicCounters* counters,
       DynamicStrings* strings,
       const ExportedHistogram& copyMe);
+  ~ExportedHistogramMap() = default;
   ExportedHistogramMap(const ExportedHistogramMap&) = delete;
   ExportedHistogramMap& operator=(const ExportedHistogramMap&) = delete;
+  ExportedHistogramMap(ExportedHistogramMap&&) = delete;
+  ExportedHistogramMap& operator=(ExportedHistogramMap&&) = delete;
 
   /**
    * Set defaultHist_ field.
