@@ -162,7 +162,7 @@ class TLStatNameSet::Impl {
   }
 
   static Impl& instance() {
-    static auto& ref = *new Impl(folly::hardware_concurrency());
+    static auto& ref = *new Impl(folly::available_concurrency());
     return ref;
   }
 };
