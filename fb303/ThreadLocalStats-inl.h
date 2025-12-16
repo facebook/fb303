@@ -82,8 +82,13 @@ void TLStatT<LockTraits>::link() {
     if (link_->container_) {
       auto pendingList = link_->container_->linkPending_.wlock();
       pendingList->push_back(this);
-      // Mark the container as non-empty so aggregate() will drain pending stats
-      if (pendingList->size() == 1 && link_->container_->tlStats_.empty()) {
+      // Mark the container as non-empty so aggregate() will drain pending
+      // stats. We unconditionally set this to false since having a pending stat
+      // means the container is effectively non-empty. Previously, we also
+      // checked tlStats_.empty() here, but that was racy because tlStats_ could
+      // be modified by another thread in completePendingLink() without
+      // synchronization.
+      if (pendingList->size() == 1) {
         link_->container_->tlStatsEmpty_ = false;
       }
     }

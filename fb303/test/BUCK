@@ -282,6 +282,21 @@ cpp_unittest(
     ],
 )
 
+cpp_unittest(
+    name = "thread_local_stats_link_race_test",
+    srcs = [
+        "ThreadLocalStatsLinkRaceTest.cpp",
+    ],
+    deps = [
+        "fbsource//third-party/fmt:fmt",
+        "fbsource//third-party/googletest:gtest",
+        "//fb303:service_data",
+        "//fb303:thread_local_stats",
+        "//folly:portability",
+        "//folly/synchronization/test:barrier",
+    ],
+)
+
 cpp_benchmark(
     name = "thread_local_stats_benchmark",
     srcs = ["ThreadLocalStatsBenchmark.cpp"],
