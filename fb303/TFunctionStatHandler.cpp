@@ -450,6 +450,11 @@ class StandardStatHandler : public TFunctionStatHandler {
     postConstruct();
   }
 
+  StandardStatHandler(const StandardStatHandler&) = delete;
+  StandardStatHandler& operator=(const StandardStatHandler&) = delete;
+  StandardStatHandler(StandardStatHandler&&) = delete;
+  StandardStatHandler& operator=(StandardStatHandler&&) = delete;
+
   ~StandardStatHandler() {
     preDestroy();
   }
