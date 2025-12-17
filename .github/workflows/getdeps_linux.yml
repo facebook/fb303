@@ -17,7 +17,7 @@ jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
     - name: Show disk space at start
       run: df -h
     - name: Free up disk space
@@ -605,7 +605,7 @@ jobs:
       run: python3 build/fbcode_builder/getdeps.py --allow-system-packages build --src-dir=. fb303 --project-install-prefix fb303:/usr/local
     - name: Copy artifacts
       run: python3 build/fbcode_builder/getdeps.py --allow-system-packages fixup-dyn-deps --strip --src-dir=. fb303 _artifacts/linux --project-install-prefix fb303:/usr/local --final-install-prefix /usr/local
-    - uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v6
       with:
         name: fb303
         path: _artifacts
