@@ -42,7 +42,6 @@ cpp_library(
         "//folly/functional:invoke",
         "//folly/synchronization:relaxed_atomic",
     ],
-    external_deps = ["glog"],
     exported_external_deps = [
         "glog",
     ],
@@ -274,7 +273,6 @@ cpp_library(
     ],
     external_deps = [
         "gflags",
-        "glog",
     ],
     exported_external_deps = [
         "glog",

@@ -28,7 +28,6 @@ cpp_library(
     ],
     external_deps = [
         "gflags",
-        "glog",
     ],
     exported_external_deps = [
         "gflags",
