@@ -43,8 +43,8 @@ void testExportedStatMapImpl(bool useStatPtr) {
 
   map<string, int64_t> res;
   dc.getCounters(&res);
-  FOR_EACH (it, res) {
-    LOG(INFO) << "res[\"" << it->first << "\"] = " << it->second;
+  for (const auto& [key, value] : res) {
+    LOG(INFO) << "res[\"" << key << "\"] = " << value;
   }
   EXPECT_EQ(res.size(), 4);
   EXPECT_EQ(res["test_value.avg.60"], 10);
