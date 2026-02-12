@@ -227,29 +227,42 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
       return p->stat;
     }
   }
-  auto countersWLock = counters_.wlock();
-  if (auto* p = folly::get_ptr(countersWLock->bases, name)) {
-    return p->stat;
-  }
+
+  // Construct all the map entries before acquiring the wlock. This could be
+  // done under an upgrade lock, but we instead prioritize avoiding contention
+  // on unrelated writes than avoiding wasted work. This is consistent with
+  // ServiceData::getQuantileStat() which also favors optimistic concurrency
+  // when calling this method.
+  auto slidingWindowLengths = stat->getSlidingWindowLengths();
+  std::vector<std::pair<std::string, CounterMapEntry>> counterMapEntries;
+  counterMapEntries.reserve(
+      statDefs.size() * (1 + slidingWindowLengths.size()));
   for (const auto& statDef : statDefs) {
     CounterMapEntry entry;
     entry.stat = stat;
     entry.statDef = statDef;
-    detail::cachedAddString(
-        *countersWLock, makeKey(name, statDef, folly::none), entry);
-
-    auto slidingWindowLengths = stat->getSlidingWindowLengths();
+    counterMapEntries.emplace_back(makeKey(name, statDef, folly::none), entry);
 
     for (auto slidingWindowLength : slidingWindowLengths) {
       entry.slidingWindowLength = slidingWindowLength;
-      detail::cachedAddString(
-          *countersWLock, makeKey(name, statDef, slidingWindowLength), entry);
+      counterMapEntries.emplace_back(
+          makeKey(name, statDef, slidingWindowLength), entry);
     }
   }
+
+  auto nameStr = name.str();
   StatMapEntry statMapEntry;
   statMapEntry.stat = stat;
   statMapEntry.statDefs = std::move(statDefs);
-  countersWLock->bases.emplace(std::move(name), std::move(statMapEntry));
+
+  auto countersWLock = counters_.wlock();
+  if (auto* p = folly::get_ptr(countersWLock->bases, name)) {
+    return p->stat;
+  }
+  for (auto&& [key, entry] : counterMapEntries) {
+    detail::cachedAddString(*countersWLock, std::move(key), std::move(entry));
+  }
+  countersWLock->bases.emplace(std::move(nameStr), std::move(statMapEntry));
   return stat;
 }
 
