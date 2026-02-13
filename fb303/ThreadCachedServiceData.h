@@ -42,6 +42,7 @@
 #include <folly/container/F14Map.h>
 #include <folly/experimental/FunctionScheduler.h>
 #include <folly/hash/rapidhash.h>
+#include <folly/lang/Align.h>
 #include <folly/synchronization/CallOnce.h>
 
 namespace facebook::fb303 {
@@ -423,27 +424,26 @@ struct HistogramSpec {
   }
 };
 
-namespace detail {
-struct Nothing {};
-
-template <typename CachedFieldType>
-struct CachedStorage {
-  const std::string* key;
-  CachedFieldType cached;
-};
-
-template <>
-struct CachedStorage<detail::Nothing> {
-  const std::string* key;
-  [[FOLLY_ATTR_NO_UNIQUE_ADDRESS]] detail::Nothing cached;
-};
-
-} // namespace detail
-
-template <size_t N, typename CachedType = detail::Nothing>
+template <size_t N, typename CacheFun = folly::variadic_noop_fn>
 class FormattedKeyHolder {
  private:
-  using ValueType = detail::CachedStorage<CachedType>;
+  template <typename T>
+  using ElementTypeOf = typename T::element_type;
+  using CacheFunRes = std::invoke_result_t<CacheFun const&, std::string_view>;
+  using CacheValue = folly::detected_or_t<void, ElementTypeOf, CacheFunRes>;
+  using CacheValueRef = std::add_lvalue_reference_t<CacheValue>;
+  struct ValueTypeVoid {
+    const std::string* key;
+    [[no_unique_address]] std::monostate cached;
+  };
+  struct ValueTypeReal {
+    const std::string* key;
+    std::shared_ptr<CacheValue> cached;
+  };
+  using ValueType = std::conditional_t< //
+      std::is_void_v<CacheValue>,
+      ValueTypeVoid,
+      ValueTypeReal>;
 
  public:
   using Subkey = std::variant<int64_t, std::string>;
@@ -585,10 +585,15 @@ class FormattedKeyHolder {
       SubkeyArrayHash,
       SubkeyArrayEqualTo>;
   using LocalMapIterator = typename LocalMap::iterator;
+  struct LocalEntry {
+    const std::string* key{};
+    CacheValue* cached{};
+  };
+  static_assert(folly::kMscVer || folly::is_register_pass_v<LocalEntry>);
   struct LocalMapItemRef {
     size_t hash{};
     const SubkeyArray* key{}; // null at init and after erase
-    ValueType* value{};
+    LocalEntry entry{};
   };
   static inline constexpr size_t LocalMapAndLastAlign =
       folly::hardware_constructive_interference_size;
@@ -625,10 +630,10 @@ class FormattedKeyHolder {
    * v.s. via the stack and defers the dereference operation to the cold path.
    */
   template <typename... Args>
-  std::pair<const std::string&, std::reference_wrapper<CachedType>>
+  std::pair<const std::string&, std::reference_wrapper<CacheValue>>
   getFormattedKeyWithExtra(Args&&... subkeys) {
-    auto& v = getFormattedEntry(std::forward<Args>(subkeys)...);
-    return {*v.key, v.cached};
+    auto entry = getFormattedEntry(std::forward<Args>(subkeys)...);
+    return {*entry.key, *entry.cached};
   }
 
   template <typename... Args>
@@ -653,7 +658,7 @@ class FormattedKeyHolder {
 
  private:
   template <typename... Args>
-  ValueType& getFormattedEntry(Args&&... subkeys) {
+  LocalEntry getFormattedEntry(Args&&... subkeys) {
     static_assert(sizeof...(Args) == N, "Incorrect number of subkeys.");
     static_assert(
         (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
@@ -666,7 +671,7 @@ class FormattedKeyHolder {
     if (FOLLY_LIKELY(
             local.last.key && keyhash == local.last.hash &&
             local.map.key_eq()(*local.last.key, keytup))) {
-      return *local.last.value;
+      return local.last.entry;
     }
     // calling outline folly::get_default would be a small perf hit, so call
     auto it = local.map.find( // map-find inline to avoid it
@@ -678,8 +683,12 @@ class FormattedKeyHolder {
     // if the map was updated, existing references held in local.last would be
     // invalid ... but we reset them all to the just-found item anyway, so
     // we do not hold onto invalid references
-    local.last = {keyhash, &it->first.get(), &it->second};
-    return it->second;
+    auto entry = LocalEntry{it->second.key};
+    if constexpr (!std::is_void_v<CacheValue>) {
+      entry.cached = it->second.cached.get();
+    }
+    local.last = {keyhash, &it->first.get(), entry};
+    return entry;
   }
 
   template <typename T>
@@ -706,7 +715,12 @@ class FormattedKeyHolder {
         mkvar_<int64_t>{}, mkvar_<std::string_view, std::string>{});
     auto& local = *localMap_;
     auto const& [k, v] = getFormattedKeyGlobal({mkvar(subkeys)...});
-    return local.map.emplace(std::cref(k), ValueType{&v, CachedType{}}).first;
+    ValueType value{&v, {}};
+    if constexpr (!std::is_void_v<CacheValue>) {
+      CacheFun const fn{};
+      value.cached = fn(std::string_view{v});
+    }
+    return local.map.emplace(std::cref(k), std::move(value)).first;
   }
 
   /**
@@ -1363,10 +1377,18 @@ class SubminuteMinuteOnlyHistogram : public HistogramWrapper {
  */
 template <int N> // N is the number of subkeys.
 class DynamicTimeseriesWrapper {
+ private:
+  struct GetTLTimeseriesFn {
+    std::shared_ptr<ThreadCachedServiceData::TLTimeseries> operator()(
+        std::string_view key) const {
+      ThreadCachedServiceData::ThreadLocalStatsMap& tcData =
+          *ThreadCachedServiceData::getStatsThreadLocal();
+      return tcData.getTimeseriesSafe(key);
+    }
+  };
+
  public:
-  using KeyHolder = internal::FormattedKeyHolder<
-      N,
-      std::shared_ptr<ThreadCachedServiceData::TLTimeseries>>;
+  using KeyHolder = internal::FormattedKeyHolder<N, GetTLTimeseriesFn>;
 
   DynamicTimeseriesWrapper(
       std::string keyFormat,
@@ -1481,14 +1503,8 @@ class DynamicTimeseriesWrapper {
 
   template <typename... Args>
   void addImpl(int64_t value, Args... subkeys) {
-    auto key = key_.getFormattedKeyWithExtra(subkeys...);
-    if (key.second.get() == nullptr) {
-      ThreadCachedServiceData::ThreadLocalStatsMap& tcData =
-          *ThreadCachedServiceData::getStatsThreadLocal();
-      // Cache thread local counter
-      key.second.get() = tcData.getTimeseriesSafe(key.first);
-    }
-    key.second.get()->addValue(value);
+    auto entry = key_.getFormattedKeyWithExtra(std::forward<Args>(subkeys)...);
+    entry.second.get().addValue(value);
   }
 
   inline ThreadCachedServiceData::ThreadLocalStatsMap& tcData() {

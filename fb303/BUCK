@@ -238,6 +238,7 @@ cpp_library(
         "//folly/container:f14_hash",
         "//folly/experimental:function_scheduler",
         "//folly/hash:rapidhash",
+        "//folly/lang:align",
         "//folly/synchronization:call_once",
     ],
 )

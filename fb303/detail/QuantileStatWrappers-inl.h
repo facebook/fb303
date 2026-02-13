@@ -22,12 +22,20 @@
 namespace facebook::fb303::detail {
 
 template <size_t N>
+void DynamicQuantileStatWrapper<N>::doPrepareKey(std::string_view key) {
+  ServiceData::get()->getQuantileStat(
+      key, spec_.stats, spec_.quantiles, spec_.timeseriesLengths);
+}
+
+template <size_t N>
 DynamicQuantileStatWrapper<N>::DynamicQuantileStatWrapper(
     std::string keyFormat,
     folly::Range<const ExportType*> stats,
     folly::Range<const double*> quantiles,
     folly::Range<const size_t*> timeseriesLengths)
-    : key_(std::move(keyFormat), nullptr) {
+    : key_(std::move(keyFormat), [this](std::string_view key) {
+        doPrepareKey(key);
+      }) {
   spec_.stats.insert(spec_.stats.end(), stats.begin(), stats.end());
   spec_.quantiles.insert(
       spec_.quantiles.end(), quantiles.begin(), quantiles.end());
@@ -43,16 +51,8 @@ void DynamicQuantileStatWrapper<N>::addValue(
     double value,
     std::chrono::steady_clock::time_point now,
     Args&&... subkeys) {
-  auto key = key_.getFormattedKeyWithExtra(std::forward<Args>(subkeys)...);
-  if (key.second.get() == nullptr) {
-    auto& cache = *cache_;
-    auto ptr = folly::get_ptr(cache, key.first);
-    if (!ptr) {
-      key.second.get() = cache[key.first] = ServiceData::get()->getQuantileStat(
-          key.first, spec_.stats, spec_.quantiles, spec_.timeseriesLengths);
-    }
-  }
-  key.second.get()->addValue(value, now);
+  auto entry = key_.getFormattedKeyWithExtra(std::forward<Args>(subkeys)...);
+  return entry.second.get().addValue(value, now);
 }
 
 template <size_t N>

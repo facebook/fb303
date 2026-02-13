@@ -81,8 +81,15 @@ class DynamicQuantileStatWrapper {
   using StatPtr = std::shared_ptr<QuantileStat>;
   using Cache = folly::F14FastMap<std::string_view, StatPtr>;
 
-  internal::FormattedKeyHolder<N, StatPtr> key_;
-  folly::ThreadLocal<Cache> cache_;
+  struct GetTLQuantileStatFn {
+    std::shared_ptr<QuantileStat> operator()(std::string_view key) const {
+      return ServiceData::get()->getQuantileStat(key);
+    }
+  };
+
+  void doPrepareKey(std::string_view key);
+
+  internal::FormattedKeyHolder<N, GetTLQuantileStatFn> key_;
   Spec spec_;
 };
 
