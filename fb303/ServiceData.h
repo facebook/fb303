@@ -359,14 +359,12 @@ class ServiceData {
    *
    * To add values to the stat, call addValue on the QuantileStat returned.
    *
-   * There are some helper consts in ExportType.h to make using this function
-   * easier to use:
+   * There are some helper consts in ExportType.h to make it easier to change
+   * the default parameters if needed, for example:
    *
-   * ServiceData::get()->getQuantileStat(
-   *    "foo",
-   *    ExportTypeConsts::kSumCountAvg,
-   *    QuantileConsts::kP95_P99_P999,
-   *    SlidingWindowPeriodConsts::kOneMinTenMinHour);
+   * - ExportTypeConsts::kSumCountAvg
+   * - QuantileConsts::kP95_P99_P999
+   * - SlidingWindowPeriodConsts::kOneMinTenMinHour
    *
    * While this function is relatively fast, it is better to reuse the pointer
    * to the QuantileStat returned.
