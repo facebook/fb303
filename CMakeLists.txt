@@ -95,7 +95,7 @@ target_include_directories(fb303 PUBLIC
 )
 
 target_link_libraries(fb303
-  fb303_thrift_cpp
+  fb303_core_cpp
   Folly::folly
   FBThrift::thrift
 )
