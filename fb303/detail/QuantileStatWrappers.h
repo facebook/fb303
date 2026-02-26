@@ -23,6 +23,9 @@
 #include <fb303/QuantileStat.h>
 #include <fb303/ThreadCachedServiceData.h>
 #include <folly/Range.h>
+#include <folly/Synchronized.h>
+#include <folly/ThreadLocal.h>
+#include <folly/container/F14Set.h>
 #include <folly/json/dynamic.h>
 
 namespace facebook::fb303::detail {
@@ -54,7 +57,12 @@ class QuantileStatWrapper {
 };
 
 template <size_t N>
-class DynamicQuantileStatWrapper {
+class DynamicQuantileStatWrapper : internal::SubkeyUtils<N> {
+  using typename internal::SubkeyUtils<N>::Subkey;
+  using typename internal::SubkeyUtils<N>::SubkeyArray;
+  using typename internal::SubkeyUtils<N>::SubkeyArrayHash;
+  using typename internal::SubkeyUtils<N>::SubkeyArrayEqualTo;
+
  public:
   explicit DynamicQuantileStatWrapper(
       std::string keyFormat,
@@ -78,19 +86,59 @@ class DynamicQuantileStatWrapper {
     std::vector<double> quantiles;
     std::vector<size_t> timeseriesLengths;
   };
-  using StatPtr = std::shared_ptr<QuantileStat>;
-  using Cache = folly::F14FastMap<std::string_view, StatPtr>;
 
-  struct GetTLQuantileStatFn {
-    std::shared_ptr<QuantileStat> operator()(std::string_view key) const {
-      return ServiceData::get()->getQuantileStat(key);
+  struct Entry {
+    SubkeyArray subkeys;
+    std::shared_ptr<QuantileStat> stat;
+  };
+
+  struct GetKey {
+    const SubkeyArray& operator()(const Entry& e) const {
+      return e.subkeys;
+    }
+    const SubkeyArray& operator()(const Entry* e) const {
+      return e->subkeys;
+    }
+    const SubkeyArray& operator()(const SubkeyArray& a) const {
+      return a;
+    }
+    template <typename... A, std::enable_if_t<sizeof...(A) == N, int> = 0>
+    const std::tuple<A...>& operator()(const std::tuple<A...>& t) const {
+      return t;
     }
   };
 
-  void doPrepareKey(std::string_view key);
+  struct Hash {
+    using is_transparent = void;
+    using folly_is_avalanching = std::true_type;
+    template <typename T>
+    size_t operator()(const T& val) const {
+      return SubkeyArrayHash{}(GetKey{}(val));
+    }
+  };
+  struct EqualTo {
+    using is_transparent = void;
+    template <typename L, typename R>
+    bool operator()(const L& lhs, const R& rhs) const {
+      return SubkeyArrayEqualTo{}(GetKey{}(lhs), GetKey{}(rhs));
+    }
+  };
 
-  internal::FormattedKeyHolder<N, GetTLQuantileStatFn> key_;
+  // F14NodeSet for reference stability: the local cache stores
+  // pointers into the global cache, so entries must not move.
+  using GlobalCache = folly::F14NodeSet<Entry, Hash, EqualTo>;
+  using LocalCache = folly::F14FastSet<const Entry*, Hash, EqualTo>;
+
+  template <typename... Args>
+  QuantileStat& getStatEntry(Args&&... subkeys);
+  template <typename... Args>
+  QuantileStat& getStatEntrySlow(Args&&... subkeys);
+  const Entry& getOrCreateGlobal(SubkeyArray subkeyArray);
+
+  std::string keyFormat_;
   Spec spec_;
+  folly::Synchronized<GlobalCache> globalCache_;
+  folly::ThreadLocal<LocalCache> localCache_;
 };
 
 } // namespace facebook::fb303::detail

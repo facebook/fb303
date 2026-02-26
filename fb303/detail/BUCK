@@ -49,8 +49,10 @@ cpp_library(
         "//fb303:quantile_stat",
         "//fb303:service_data",
         "//fb303:thread_cached_service_data",
-        "//folly:map_util",
         "//folly:range",
+        "//folly:synchronized",
+        "//folly:thread_local",
+        "//folly/container:f14_hash",
         "//folly/json:dynamic",
     ],
 )
