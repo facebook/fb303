@@ -424,30 +424,8 @@ struct HistogramSpec {
   }
 };
 
-template <size_t N, typename CacheFun = folly::variadic_noop_fn>
-class FormattedKeyHolder {
- private:
-  template <typename T>
-  using ElementTypeOf = typename T::element_type;
-  using CacheFunRes = std::invoke_result_t<CacheFun const&, std::string_view>;
-  using CacheValue = folly::detected_or_t<void, ElementTypeOf, CacheFunRes>;
-  using CacheValueRef = std::add_lvalue_reference_t<CacheValue>;
-  struct ValueTypeVoid {
-    const std::string* key;
-    [[no_unique_address]] std::monostate cached;
-  };
-  struct ValueTypeReal {
-    const std::string* key;
-    std::shared_ptr<CacheValue> cached;
-  };
-  using ValueType = std::conditional_t< //
-      std::is_void_v<CacheValue>,
-      ValueTypeVoid,
-      ValueTypeReal>;
-
- public:
+struct SubkeyUtilsBase {
   using Subkey = std::variant<int64_t, std::string>;
-  using SubkeyArray = std::array<Subkey, N>;
 
   // Sanity check that our set of arguments contains only integers or strings.
   // This provides better type-safety because otherwise we could implicitly
@@ -473,7 +451,6 @@ class FormattedKeyHolder {
   static_assert(int64_hasher::folly_is_avalanching::value);
   static_assert(string_view_hasher::folly_is_avalanching::value);
 
-  // Hash function
   struct SubkeyHash : private int64_hasher, private string_view_hasher {
     using is_transparent = void;
     using folly_is_avalanching = std::true_type;
@@ -485,6 +462,24 @@ class FormattedKeyHolder {
       return std::visit(*this, v);
     }
   };
+
+  template <typename T>
+  struct decay_ {
+    FOLLY_ERASE constexpr T operator()(T const& t) const {
+      return t;
+    }
+  };
+  template <typename T, typename S = T>
+  struct mkvar_ {
+    FOLLY_ERASE Subkey operator()(T const& t) const {
+      return Subkey(std::in_place_type<S>, t);
+    }
+  };
+};
+
+template <size_t N>
+struct SubkeyUtils : SubkeyUtilsBase {
+  using SubkeyArray = std::array<Subkey, N>;
 
   class SubkeyArrayHash : private SubkeyHash {
    public:
@@ -551,6 +546,77 @@ class FormattedKeyHolder {
     }
   };
 
+  static std::string formatKey(
+      std::string_view keyFormat,
+      const SubkeyArray& subkeyArray) {
+    std::array<std::string, N> subkeyStrings;
+    for (size_t i = 0; i < N; ++i) {
+      subkeyStrings[i] = folly::variant_match(
+          subkeyArray[i],
+          [](int64_t v) { return std::to_string(v); },
+          [](std::string const& v) { return v; });
+    }
+    return doFormatKey(keyFormat, subkeyStrings, std::make_index_sequence<N>{});
+  }
+
+  template <typename... Args>
+  static auto decaySubkeys(Args&&... subkeys) {
+    static_assert(sizeof...(Args) == N, "Incorrect number of subkeys.");
+    static_assert(
+        (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
+        "Arguments must be strings or integers");
+    auto decay = folly::overload(decay_<int64_t>{}, decay_<std::string_view>{});
+    return std::tuple{decay(subkeys)...};
+  }
+
+  template <typename... Args>
+  static SubkeyArray makeSubkeyArray(Args&&... subkeys) {
+    static_assert(sizeof...(Args) == N, "Incorrect number of subkeys.");
+    static_assert(
+        (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
+        "Arguments must be strings or integers");
+    auto mkvar = folly::overload(
+        mkvar_<int64_t>{}, mkvar_<std::string_view, std::string>{});
+    return SubkeyArray{mkvar(subkeys)...};
+  }
+
+ private:
+  template <size_t... Idx>
+  static std::string doFormatKey(
+      std::string_view keyFormat,
+      const std::array<std::string, N>& subkeyStrings,
+      std::index_sequence<Idx...>) {
+    return fmt::format(fmt::runtime(keyFormat), subkeyStrings[Idx]...);
+  }
+};
+
+template <size_t N, typename CacheFun = folly::variadic_noop_fn>
+class FormattedKeyHolder : SubkeyUtils<N> {
+ private:
+  template <typename T>
+  using ElementTypeOf = typename T::element_type;
+  using CacheFunRes = std::invoke_result_t<CacheFun const&, std::string_view>;
+  using CacheValue = folly::detected_or_t<void, ElementTypeOf, CacheFunRes>;
+  using CacheValueRef = std::add_lvalue_reference_t<CacheValue>;
+  struct ValueTypeVoid {
+    const std::string* key;
+    [[no_unique_address]] std::monostate cached;
+  };
+  struct ValueTypeReal {
+    const std::string* key;
+    std::shared_ptr<CacheValue> cached;
+  };
+  using ValueType = std::conditional_t< //
+      std::is_void_v<CacheValue>,
+      ValueTypeVoid,
+      ValueTypeReal>;
+
+  using typename SubkeyUtils<N>::Subkey;
+  using typename SubkeyUtils<N>::SubkeyArray;
+  using typename SubkeyUtils<N>::SubkeyArrayHash;
+  using typename SubkeyUtils<N>::SubkeyArrayEqualTo;
+
+ public:
   // The global map maps subkeys to formatted keys and also remembers
   // which formatted keys have already been registered with ServiceData.
   using GlobalMap = folly::F14NodeMap< //
@@ -643,14 +709,8 @@ class FormattedKeyHolder {
 
   template <typename... Args>
   void eraseFormattedKey(Args&&... subkeys) {
-    static_assert(sizeof...(Args) == N, "Incorrect number of subkeys.");
-    static_assert(
-        (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
-        "Arguments must be strings or integers");
-
-    auto decay = folly::overload(decay_<int64_t>{}, decay_<std::string_view>{});
     auto& local = *localMap_;
-    local.map.erase(std::tuple{decay(subkeys)...});
+    local.map.erase(SubkeyUtils<N>::decaySubkeys(subkeys...));
     // any update to the map structure invalidates all references, so we clear
     // the references held in local.last
     local.last = {};
@@ -659,14 +719,8 @@ class FormattedKeyHolder {
  private:
   template <typename... Args>
   LocalEntry getFormattedEntry(Args&&... subkeys) {
-    static_assert(sizeof...(Args) == N, "Incorrect number of subkeys.");
-    static_assert(
-        (IsValidSubkey<folly::remove_cvref_t<Args>> && ...),
-        "Arguments must be strings or integers");
-
-    auto decay = folly::overload(decay_<int64_t>{}, decay_<std::string_view>{});
     auto& local = *localMap_;
-    auto const keytup = std::tuple{decay(subkeys)...};
+    auto const keytup = SubkeyUtils<N>::decaySubkeys(subkeys...);
     auto const keyhash = local.map.hash_function()(keytup);
     if (FOLLY_LIKELY(
             local.last.key && keyhash == local.last.hash &&
@@ -691,19 +745,6 @@ class FormattedKeyHolder {
     return entry;
   }
 
-  template <typename T>
-  struct decay_ {
-    FOLLY_ERASE constexpr T operator()(T const& t) const {
-      return t;
-    }
-  };
-  template <typename T, typename S = T>
-  struct mkvar_ {
-    FOLLY_ERASE Subkey operator()(T const& t) const {
-      return Subkey(std::in_place_type<S>, t);
-    }
-  };
-
   /**
    * Assumes a subkey-array is not in the local map. Gets it from the global
    * map, inserting if necessary, inserts it into the local map, and returns the
@@ -711,10 +752,9 @@ class FormattedKeyHolder {
    */
   template <typename... Args>
   LocalMapIterator getFormattedKeySlow(Args&&... subkeys) {
-    auto mkvar = folly::overload(
-        mkvar_<int64_t>{}, mkvar_<std::string_view, std::string>{});
     auto& local = *localMap_;
-    auto const& [k, v] = getFormattedKeyGlobal({mkvar(subkeys)...});
+    auto const& [k, v] =
+        getFormattedKeyGlobal(SubkeyUtils<N>::makeSubkeyArray(subkeys...));
     ValueType value{&v, {}};
     if constexpr (!std::is_void_v<CacheValue>) {
       CacheFun const fn{};
@@ -760,15 +800,7 @@ class FormattedKeyHolder {
     // We still did not find it.
     // Create a formatted key and switch to a writer-lock and update the
     // global stats map.
-    std::array<std::string, N> subkeyStrings;
-    for (size_t i = 0; i < N; ++i) {
-      subkeyStrings[i] = folly::variant_match(
-          subkeyArray[i],
-          [](int64_t v) { return std::to_string(v); },
-          [](std::string const& v) { return v; });
-    }
-    auto formattedKey = doFormatKeyGlobal(
-        keyFormat_, subkeyStrings, std::make_index_sequence<N>{});
+    auto formattedKey = SubkeyUtils<N>::formatKey(keyFormat_, subkeyArray);
     if (prepareKey_) {
       prepareKey_(formattedKey);
     }
@@ -776,14 +808,6 @@ class FormattedKeyHolder {
     auto writePtr = upgradePtr.moveFromUpgradeToWrite();
     iter = writePtr->emplace(subkeyArray, std::move(formattedKey)).first;
     return ReturnType(iter->first, iter->second);
-  }
-
-  template <size_t... Idx>
-  static std::string doFormatKeyGlobal(
-      std::string_view keyFormat,
-      std::array<std::string, N> subkeyStrings,
-      std::index_sequence<Idx...>) {
-    return fmt::format(fmt::runtime(keyFormat), subkeyStrings[Idx]...);
   }
 
  private:
