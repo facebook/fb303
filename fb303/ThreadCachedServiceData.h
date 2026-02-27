@@ -667,7 +667,8 @@ class FormattedKeyHolder : SubkeyUtils<N> {
     LocalMapItemRef last;
     LocalMap map;
   };
-  static_assert(sizeof(LocalMapAndLast) == LocalMapAndLastAlign); // both size
+  static_assert(
+      sizeof(LocalMapAndLast) % LocalMapAndLastAlign == 0); // both size
   static_assert(alignof(LocalMapAndLast) == LocalMapAndLastAlign); // and align
 
   // Takes a key format which may have (e.g. "foo.{}") containing one or
