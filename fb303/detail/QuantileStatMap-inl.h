@@ -267,6 +267,37 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
 }
 
 template <typename ClockT>
+void BasicQuantileStatMap<ClockT>::forgetStatsFor(folly::StringPiece name) {
+  auto countersWLock = counters_.wlock();
+  auto baseIt = countersWLock->bases.find(name);
+  if (baseIt == countersWLock->bases.end()) {
+    return;
+  }
+
+  const auto& statDefs = baseIt->second.statDefs;
+  const auto& stat = baseIt->second.stat;
+  auto slidingWindowLengths = stat->getSlidingWindowLengths();
+
+  for (const auto& statDef : statDefs) {
+    auto key = makeKey(name, statDef, folly::none);
+    if (auto it = countersWLock->map.find(key);
+        it != countersWLock->map.end()) {
+      detail::cachedEraseString(*countersWLock, it);
+    }
+
+    for (auto slidingWindowLength : slidingWindowLengths) {
+      auto keyWithWindow = makeKey(name, statDef, slidingWindowLength);
+      if (auto it = countersWLock->map.find(keyWithWindow);
+          it != countersWLock->map.end()) {
+        detail::cachedEraseString(*countersWLock, it);
+      }
+    }
+  }
+
+  countersWLock->bases.erase(baseIt);
+}
+
+template <typename ClockT>
 std::string BasicQuantileStatMap<ClockT>::makeKey(
     folly::StringPiece base,
     const BasicQuantileStatMap<ClockT>::StatDef& statDef,

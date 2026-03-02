@@ -16,6 +16,9 @@
 
 #include <fb303/detail/QuantileStatMap.h>
 
+#include <atomic>
+#include <thread>
+
 #include <gtest/gtest.h>
 
 using namespace facebook::fb303;
@@ -259,4 +262,161 @@ TEST_F(QuantileStatMapTest, getSnapshotEntry) {
   EXPECT_EQ(snapshot.now, MockClock::Now);
   EXPECT_EQ(snapshot.creationTime, MockClock::Now - std::chrono::seconds{1});
   EXPECT_EQ(snapshot.slidingWindowSnapshot.size(), 3);
+}
+
+TEST_F(QuantileStatMapTest, ForgetStatsFor) {
+  // Forgetting nonexistent name is a no-op.
+  statMap.forgetStatsFor("DoesNotExist");
+  EXPECT_EQ(statMap.getNumKeys(), 24);
+  EXPECT_TRUE(statMap.contains("StatName.sum"));
+  EXPECT_NE(statMap.get("StatName"), nullptr);
+
+  // Add data, verify it's present, then forget.
+  MockClock::Now += std::chrono::seconds{1};
+  stat->addValue(42);
+  MockClock::Now += std::chrono::seconds{1};
+  EXPECT_EQ(*statMap.getValue("StatName.sum"), 42);
+
+  statMap.forgetStatsFor("StatName");
+
+  // All accessors should reflect removal.
+  EXPECT_EQ(statMap.getNumKeys(), 0);
+  EXPECT_FALSE(statMap.contains("StatName.sum"));
+  EXPECT_FALSE(statMap.getValue("StatName.sum").has_value());
+  EXPECT_EQ(statMap.get("StatName"), nullptr);
+  EXPECT_FALSE(statMap.getSnapshotEntry("StatName").has_value());
+  std::vector<std::string> keys;
+  statMap.getKeys(keys);
+  EXPECT_TRUE(keys.empty());
+  std::map<std::string, int64_t> values;
+  statMap.getValues(values);
+  EXPECT_TRUE(values.empty());
+
+  // Second call is idempotent.
+  statMap.forgetStatsFor("StatName");
+  EXPECT_EQ(statMap.getNumKeys(), 0);
+}
+
+TEST_F(QuantileStatMapTest, ForgetAndReRegister) {
+  // Register a second stat.
+  auto stat2 = std::make_shared<TestStat>(slidingWindowDefs);
+  std::vector<TestStatMap::StatDef> statDefs2;
+  statDefs2.push_back(TestStatMap::StatDef{ExportType::SUM, 0.0});
+  statDefs2.push_back(TestStatMap::StatDef{ExportType::AVG, 0.0});
+  statMap.registerQuantileStat("OtherStat", stat2, statDefs2);
+  EXPECT_EQ(statMap.getNumKeys(), 32); // 24 + 8
+
+  // Forget one stat; the other survives.
+  statMap.forgetStatsFor("StatName");
+  EXPECT_EQ(statMap.getNumKeys(), 8);
+  EXPECT_FALSE(statMap.contains("StatName.sum"));
+  EXPECT_TRUE(statMap.contains("OtherStat.sum"));
+  EXPECT_TRUE(statMap.contains("OtherStat.avg.60"));
+  EXPECT_EQ(statMap.get("StatName"), nullptr);
+  EXPECT_EQ(statMap.get("OtherStat"), stat2);
+
+  // Re-register the forgotten stat with different defs.
+  std::vector<TestStatMap::StatDef> newDefs;
+  newDefs.push_back(TestStatMap::StatDef{ExportType::SUM, 0.0});
+  newDefs.push_back(TestStatMap::StatDef{ExportType::COUNT, 0.0});
+  auto newStat = std::make_shared<TestStat>(slidingWindowDefs);
+  statMap.registerQuantileStat("StatName", newStat, newDefs);
+  EXPECT_EQ(statMap.getNumKeys(), 16); // 8 + 8
+  EXPECT_TRUE(statMap.contains("StatName.sum"));
+  EXPECT_TRUE(statMap.contains("StatName.count"));
+  EXPECT_EQ(statMap.get("StatName"), newStat);
+
+  // forgetAll clears everything.
+  statMap.forgetAll();
+  EXPECT_EQ(statMap.getNumKeys(), 0);
+}
+
+// Stress test: one thread continuously registers and forgets stats,
+// another reads values, and a third queries keys.
+TEST(QuantileStatMapConcurrency, ConcurrentForgetAndRegister) {
+  TestStatMap statMap;
+
+  std::atomic<uint64_t> registerIterations{0};
+  std::atomic<uint64_t> forgetIterations{0};
+  std::atomic<uint64_t> queryIterations{0};
+
+  auto end = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+  std::atomic<bool> done{false};
+
+  std::thread registerThread([&] {
+    while (std::chrono::steady_clock::now() < end) {
+      for (int n = 0; n < 100; ++n) {
+        auto stat = std::make_shared<TestStat>(slidingWindowDefs);
+        std::vector<TestStatMap::StatDef> statDefs;
+        statDefs.push_back(TestStatMap::StatDef{ExportType::SUM, 0.0});
+        statDefs.push_back(TestStatMap::StatDef{ExportType::PERCENT, 0.99});
+        statMap.registerQuantileStat("ConcurrentStat", stat, statDefs);
+        ++registerIterations;
+      }
+    }
+    done = true;
+  });
+
+  std::thread forgetThread([&] {
+    while (!done) {
+      statMap.forgetStatsFor("ConcurrentStat");
+      ++forgetIterations;
+    }
+  });
+
+  std::thread queryThread([&] {
+    while (!done) {
+      std::map<std::string, int64_t> values;
+      statMap.getValues(values);
+      statMap.getValue("ConcurrentStat.sum");
+      std::vector<std::string> keys;
+      statMap.getKeys(keys);
+      ++queryIterations;
+    }
+  });
+
+  registerThread.join();
+  forgetThread.join();
+  queryThread.join();
+
+  EXPECT_GT(registerIterations.load(), 1000);
+  EXPECT_GT(forgetIterations.load(), 1000);
+  EXPECT_GT(queryIterations.load(), 100);
+}
+
+// Stress test: multiple stats being forgotten concurrently.
+TEST(QuantileStatMapConcurrency, ConcurrentForgetMultipleStats) {
+  TestStatMap statMap;
+
+  constexpr int kNumStats = 10;
+
+  // Register multiple stats.
+  std::vector<std::shared_ptr<TestStat>> stats;
+  for (int i = 0; i < kNumStats; ++i) {
+    auto stat = std::make_shared<TestStat>(slidingWindowDefs);
+    stats.push_back(stat);
+    std::vector<TestStatMap::StatDef> statDefs;
+    statDefs.push_back(TestStatMap::StatDef{ExportType::SUM, 0.0});
+    statDefs.push_back(TestStatMap::StatDef{ExportType::PERCENT, 0.95});
+    statMap.registerQuantileStat("Stat" + std::to_string(i), stat, statDefs);
+  }
+
+  // 2 stat defs x 4 windows x 10 stats = 80 keys
+  EXPECT_EQ(statMap.getNumKeys(), 80);
+
+  // Forget all stats concurrently from different threads.
+  std::vector<std::thread> threads;
+  for (int i = 0; i < kNumStats; ++i) {
+    threads.emplace_back(
+        [&statMap, i] { statMap.forgetStatsFor("Stat" + std::to_string(i)); });
+  }
+  for (auto& t : threads) {
+    t.join();
+  }
+
+  EXPECT_EQ(statMap.getNumKeys(), 0);
+
+  std::vector<std::string> keys;
+  statMap.getKeys(keys);
+  EXPECT_TRUE(keys.empty());
 }

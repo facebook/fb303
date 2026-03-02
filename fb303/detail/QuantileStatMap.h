@@ -116,6 +116,8 @@ class BasicQuantileStatMap {
     countersWLock->bases.clear();
   }
 
+  void forgetStatsFor(folly::StringPiece name);
+
   void trimRegexCache(const folly::RegexMatchCache::time_point expiry) {
     detail::cachedTrimStale(counters_, expiry);
   }
