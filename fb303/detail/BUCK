@@ -14,6 +14,7 @@ cpp_library(
     modular_headers = True,
     exported_deps = [
         "fbsource//third-party/fmt:fmt",
+        "fbsource//third-party/glog:glog",
         ":regex_util",
         "//fb303:export_type",
         "//fb303:quantile_stat",
@@ -31,7 +32,6 @@ cpp_library(
     ],
     exported_external_deps = [
         "gflags",
-        "glog",
     ],
 )
 

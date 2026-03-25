@@ -31,6 +31,7 @@ cpp_library(
     ],
     modular_headers = True,
     exported_deps = [
+        "fbsource//third-party/glog:glog",
         "//fb303/detail:regex_util",
         "//folly:chrono",
         "//folly:map_util",
@@ -41,9 +42,6 @@ cpp_library(
         "//folly/container:reserve",
         "//folly/functional:invoke",
         "//folly/synchronization:relaxed_atomic",
-    ],
-    exported_external_deps = [
-        "glog",
     ],
 )
 
@@ -153,6 +151,7 @@ cpp_library(
     ],
     modular_headers = True,
     deps = [
+        "fbsource//third-party/glog:glog",
         ":legacy_clock",
         ":timeseries_exporter",
         "//folly:format",
@@ -167,9 +166,6 @@ cpp_library(
         "//folly:small_vector",
         "//folly:synchronized",
         "//folly/container:f14_hash",
-    ],
-    external_deps = [
-        "glog",
     ],
 )
 
@@ -209,9 +205,7 @@ cpp_library(
     name = "simple_lru_map",
     headers = ["SimpleLRUMap.h"],
     modular_headers = True,
-    exported_external_deps = [
-        "glog",
-    ],
+    exported_deps = ["fbsource//third-party/glog:glog"],
 )
 
 cpp_library(
@@ -254,6 +248,7 @@ cpp_library(
     modular_headers = True,
     deps = ["//folly/system:hardware_concurrency"],
     exported_deps = [
+        "fbsource//third-party/glog:glog",
         ":export_type",
         ":exported_stat_map_impl",
         ":histogram_exporter",
@@ -274,9 +269,6 @@ cpp_library(
     ],
     external_deps = [
         "gflags",
-    ],
-    exported_external_deps = [
-        "glog",
     ],
 )
 
@@ -319,6 +311,7 @@ cpp_library(
     headers = ["TimeseriesExporter.h"],
     modular_headers = True,
     deps = [
+        "fbsource//third-party/glog:glog",
         ":dynamic_counters",
         ":legacy_clock",
         "//folly:small_vector",
@@ -327,9 +320,6 @@ cpp_library(
         ":export_type",
         ":timeseries",
         "//folly:synchronized",
-    ],
-    external_deps = [
-        "glog",
     ],
 )
 

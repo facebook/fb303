@@ -240,6 +240,7 @@ cpp_unittest(
     name = "simple_lru_map_test",
     srcs = ["SimpleLRUMapTest.cpp"],
     deps = [
+        "fbsource//third-party/glog:glog",
         "fbsource//third-party/googletest:gtest",
         "//common/base:stl_util",
         "//common/datastruct:simple_lru_map",
@@ -247,9 +248,6 @@ cpp_unittest(
         "//folly:conv",
         "//folly:range",
         "//folly:utility",
-    ],
-    external_deps = [
-        "glog",
     ],
 )
 
