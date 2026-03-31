@@ -18,7 +18,7 @@
 
 #include <fb303/BaseService.h>
 #include <folly/container/F14Map.h>
-#include <folly/experimental/FunctionScheduler.h>
+#include <folly/executors/FunctionScheduler.h>
 #include <thrift/lib/cpp/TProcessor.h>
 
 #include <string_view>

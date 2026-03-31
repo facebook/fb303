@@ -102,7 +102,7 @@ cpp_library(
     exported_deps = [
         ":base_service",
         "//folly/container:f14_hash",
-        "//folly/experimental:function_scheduler",
+        "//folly/executors:function_scheduler",
         "//thrift/lib/cpp:event_handler_base",
     ],
 )
@@ -230,7 +230,7 @@ cpp_library(
         "//folly:synchronized",
         "//folly:thread_local",
         "//folly/container:f14_hash",
-        "//folly/experimental:function_scheduler",
+        "//folly/executors:function_scheduler",
         "//folly/hash:rapidhash",
         "//folly/lang:align",
         "//folly/synchronization:call_once",
