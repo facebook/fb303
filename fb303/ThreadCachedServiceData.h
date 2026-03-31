@@ -40,7 +40,7 @@
 #include <folly/Synchronized.h>
 #include <folly/ThreadLocal.h>
 #include <folly/container/F14Map.h>
-#include <folly/experimental/FunctionScheduler.h>
+#include <folly/executors/FunctionScheduler.h>
 #include <folly/hash/rapidhash.h>
 #include <folly/lang/Align.h>
 #include <folly/synchronization/CallOnce.h>
