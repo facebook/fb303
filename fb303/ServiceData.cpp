@@ -356,7 +356,7 @@ void ServiceData::getCounters(std::map<std::string, int64_t>& _return) const {
   {
     auto countersRLock = counters_.rlock();
     for (auto const& [name, value] : countersRLock->map) {
-      _return.emplace(name, value.load(std::memory_order_relaxed));
+      _return.try_emplace(name, value.load(std::memory_order_relaxed));
     }
   }
 
