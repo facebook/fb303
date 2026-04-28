@@ -47,7 +47,7 @@ void CallbackValuesMap<T>::getValues(ValuesMap* output) const {
     T result;
     // if the entry was unregistered underneath, getValue returns false
     if (it->getValue(&result)) {
-      output->try_emplace(it->name(), std::move(result));
+      (*output)[it->name()] = std::move(result);
     }
   }
 }
