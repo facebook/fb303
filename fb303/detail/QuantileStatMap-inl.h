@@ -259,6 +259,7 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
   if (auto* p = folly::get_ptr(countersWLock->bases, name)) {
     return p->stat;
   }
+  folly::grow_capacity_by(countersWLock->map, counterMapEntries.size());
   for (auto&& [key, entry] : counterMapEntries) {
     detail::cachedAddString(*countersWLock, std::move(key), std::move(entry));
   }
