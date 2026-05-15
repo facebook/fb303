@@ -18,6 +18,7 @@
 
 #include <fb303/detail/RegexUtil.h>
 #include <fmt/core.h>
+#include <fmt/format.h>
 #include <folly/MapUtil.h>
 #include <folly/container/Reserve.h>
 
@@ -303,20 +304,24 @@ std::string BasicQuantileStatMap<ClockT>::makeKey(
     folly::StringPiece base,
     const BasicQuantileStatMap<ClockT>::StatDef& statDef,
     const folly::Optional<std::chrono::seconds>& slidingWindowLength) {
-  std::string tail = slidingWindowLength
-      ? fmt::format(".{}", slidingWindowLength->count())
-      : "";
+  const fmt::format_int windowBuf(
+      slidingWindowLength ? slidingWindowLength->count() : 0);
+  const folly::StringPiece dot = slidingWindowLength ? "." : "";
+  const folly::StringPiece window = slidingWindowLength
+      ? folly::StringPiece(windowBuf.data(), windowBuf.size())
+      : folly::StringPiece();
   switch (statDef.type) {
     case ExportType::PERCENT:
-      return fmt::format("{}.p{:g}{}", base, statDef.quantile * 100.0, tail);
+      return fmt::format(
+          "{}.p{:g}{}{}", base, statDef.quantile * 100.0, dot, window);
     case ExportType::SUM:
-      return fmt::format("{}.sum{}", base, tail);
+      return fmt::format("{}.sum{}{}", base, dot, window);
     case ExportType::COUNT:
-      return fmt::format("{}.count{}", base, tail);
+      return fmt::format("{}.count{}{}", base, dot, window);
     case ExportType::AVG:
-      return fmt::format("{}.avg{}", base, tail);
+      return fmt::format("{}.avg{}{}", base, dot, window);
     case ExportType::RATE:
-      return fmt::format("{}.rate{}", base, tail);
+      return fmt::format("{}.rate{}{}", base, dot, window);
   }
   LOG(FATAL) << "Unknown export type: " << statDef.type;
   return "";
