@@ -149,7 +149,7 @@ jobs:
       run: python3 build/fbcode_builder/getdeps.py --allow-system-packages fetch --no-tests fbthrift
 
     - name: Build fb303
-      run: python3 build/fbcode_builder/getdeps.py --allow-system-packages build --build-type RelWithDebInfo --recursive --src-dir=. fb303 --project-install-prefix fb303:/usr/local
+      run: python3 build/fbcode_builder/getdeps.py --allow-system-packages build --build-type RelWithDebInfo --src-dir=. fb303 --project-install-prefix fb303:/usr/local
 
     - name: Show sccache stats
       if: always()
