@@ -1,6 +1,7 @@
 load("@fbcode_macros//build_defs:cpp_benchmark.bzl", "cpp_benchmark")
 load("@fbcode_macros//build_defs:cpp_unittest.bzl", "cpp_unittest")
 load("@fbcode_macros//build_defs:thrift_library.bzl", "thrift_library")
+load("@fbsource//tools/build_defs/testinfra:network_access_utils.bzl", "network_access_utils")
 
 oncall("thrift")
 
@@ -24,6 +25,7 @@ cpp_unittest(
     srcs = [
         "GetCountersConcurrencyTest.cpp",
     ],
+    network_access = network_access_utils.all(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         ":if-cpp2-services",
@@ -37,6 +39,7 @@ cpp_unittest(
     srcs = [
         "GetCountersWithLimitTest.cpp",
     ],
+    network_access = network_access_utils.all(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         ":if-cpp2-services",
@@ -96,6 +99,7 @@ cpp_unittest(
     srcs = [
         "GetRegexCountersCachedMultithreadTest.cpp",
     ],
+    network_access = network_access_utils.all(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:service_data",
@@ -113,6 +117,7 @@ cpp_unittest(
 cpp_unittest(
     name = "CallbackValuesMapTest",
     srcs = ["CallbackValuesMapTest.cpp"],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:callback_values_map",
@@ -128,6 +133,7 @@ cpp_unittest(
     srcs = [
         "LegacyClockTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:legacy_clock",
@@ -139,6 +145,7 @@ cpp_unittest(
     srcs = [
         "ExportedHistogramTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:histogram_exporter",
@@ -150,6 +157,7 @@ cpp_unittest(
     srcs = [
         "ExportedStatMapTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:dynamic_counters",
@@ -162,6 +170,7 @@ cpp_unittest(
     srcs = [
         "ExportedStatMapLoadTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//common/stats:service_data",
@@ -205,6 +214,7 @@ cpp_unittest(
     srcs = [
         "QuantileStatTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:quantile_stat",
@@ -216,6 +226,7 @@ cpp_unittest(
     srcs = [
         "QuantileStatMapTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303/detail:quantile_stat_map",
@@ -227,6 +238,7 @@ cpp_unittest(
     srcs = [
         "ServiceDataTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//common/stats:service_data",
@@ -239,6 +251,7 @@ cpp_unittest(
 cpp_unittest(
     name = "simple_lru_map_test",
     srcs = ["SimpleLRUMapTest.cpp"],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/glog:glog",
         "fbsource//third-party/googletest:gtest",
@@ -266,6 +279,7 @@ cpp_unittest(
     srcs = [
         "ThreadLocalStatsTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:service_data",
@@ -285,6 +299,7 @@ cpp_unittest(
     srcs = [
         "ThreadLocalStatsLinkRaceTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/fmt:fmt",
         "fbsource//third-party/googletest:gtest",
@@ -310,6 +325,7 @@ cpp_unittest(
     srcs = [
         "TimeseriesExporterTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:timeseries_exporter",
@@ -321,6 +337,7 @@ cpp_unittest(
     srcs = [
         "TLStatsAsyncAggregatorTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:tl_stats_async_aggregator",
@@ -333,6 +350,7 @@ cpp_unittest(
     srcs = [
         "TimeseriesHistogramTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:timeseries_histogram",
@@ -344,6 +362,7 @@ cpp_unittest(
     srcs = [
         "TimeseriesTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:timeseries",
@@ -355,6 +374,7 @@ cpp_unittest(
     srcs = [
         "FollyLoggingHandlerTest.cpp",
     ],
+    network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
         "//fb303:logging",
