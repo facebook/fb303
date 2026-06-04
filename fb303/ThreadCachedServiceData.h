@@ -774,10 +774,9 @@ class FormattedKeyHolder : SubkeyUtils<N> {
       const typename GlobalMap::key_type&,
       const typename GlobalMap::mapped_type&>
   getFormattedKeyGlobal(const SubkeyArray& subkeyArray) {
-    typedef std::pair<
+    using ReturnType = std::pair<
         const typename GlobalMap::key_type&,
-        const typename GlobalMap::mapped_type&>
-        ReturnType;
+        const typename GlobalMap::mapped_type&>;
 
     // Try looking up the subkeyArray in our global stats map
     {
