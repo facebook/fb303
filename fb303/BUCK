@@ -1,6 +1,17 @@
 load("@fbcode_macros//build_defs:cpp_library.bzl", "cpp_library")
+load("@fbsource//tools/build_defs:fb_native_wrapper.bzl", "fb_native")
 
 oncall("thrift")
+
+# Exposes the fb303 source tree (incl. the detail/, thrift/ and github/
+# sub-packages) so the conda fb303 feedstock can build OSS fb303 from the
+# in-fbsource sources via local_source_tree. Mirrors //folly:src-tree.
+fb_native.export_file(
+    name = "src-tree",
+    src = ".",
+    mode = "reference",
+    visibility = ["PUBLIC"],
+)
 
 cpp_library(
     name = "base_service",
