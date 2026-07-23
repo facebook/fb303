@@ -24,6 +24,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
@@ -1427,8 +1428,8 @@ class DynamicTimeseriesWrapper {
   template <
       typename... Args,
       typename std::enable_if_t<
-          folly::Conjunction<
-              typename std::is_convertible<Args, ExportType>::type...>::value,
+          std::conjunction_v<
+              typename std::is_convertible<Args, ExportType>::type...>,
           bool> = true>
   DynamicTimeseriesWrapper(std::string keyFormat, Args... exportTypes)
       : DynamicTimeseriesWrapper(keyFormat, {exportTypes...}) {}
