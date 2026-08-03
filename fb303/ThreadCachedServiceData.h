@@ -34,6 +34,7 @@
 #include <fb303/SimpleLRUMap.h>
 #include <fb303/ThreadLocalStatsMap.h>
 #include <folly/ConcurrentLazy.h>
+#include <folly/CppAttributes.h>
 #include <folly/Format.h>
 #include <folly/MapUtil.h>
 #include <folly/Overload.h>
@@ -601,7 +602,7 @@ class FormattedKeyHolder : SubkeyUtils<N> {
   using CacheValueRef = std::add_lvalue_reference_t<CacheValue>;
   struct ValueTypeVoid {
     const std::string* key;
-    [[no_unique_address]] std::monostate cached;
+    [[FOLLY_ATTR_NO_UNIQUE_ADDRESS]] std::monostate cached;
   };
   struct ValueTypeReal {
     const std::string* key;

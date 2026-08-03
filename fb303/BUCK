@@ -235,6 +235,7 @@ cpp_library(
         ":simple_lru_map",
         ":thread_local_stats_map",
         "//folly:concurrent_lazy",
+        "//folly:cpp_attributes",
         "//folly:format",
         "//folly:map_util",
         "//folly:overload",
