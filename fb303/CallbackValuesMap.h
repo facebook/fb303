@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <array>
 #include <functional>
 #include <map>
 #include <string>
@@ -26,6 +27,7 @@
 #include <folly/container/F14Set.h>
 #include <folly/container/RegexMatchCache.h>
 #include <folly/functional/Invoke.h>
+#include <folly/hash/Hash.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
 namespace facebook {
@@ -171,7 +173,14 @@ class CallbackValuesMap {
     folly::RegexMatchCache matches;
   };
 
-  folly::Synchronized<CallbackMap> callbackMap_;
+  static constexpr size_t kNumShards = 128;
+
+  static size_t getShard(folly::StringPiece name) {
+    return folly::hash::twang_mix64(typename CallbackMap::Hash{}(name)) %
+        kNumShards;
+  }
+
+  std::array<folly::Synchronized<CallbackMap>, kNumShards> callbackMaps_;
 };
 
 } // namespace fb303

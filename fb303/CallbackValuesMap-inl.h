@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include <bit>
-
 #include <fb303/detail/RegexUtil.h>
 #include <folly/MapUtil.h>
 #include <folly/container/Reserve.h>
@@ -33,15 +31,16 @@ void CallbackValuesMap<T>::getValues(ValuesMap* output) const {
   // if callbacks were to be invoked under the lock, that could deadlock
   // so copy under the shared lock and invoke after the lock is released
   std::vector<std::shared_ptr<CallbackEntry>> mapCopy;
-  // bit-ceil gracefully (amortized) handles the loaded size being stale
-  const auto mapSize = callbackMap_.rlock()->map.size(); // unlock then reserve
-  mapCopy.reserve(std::bit_ceil(mapSize));
-  callbackMap_.withRLock([&](auto const& map) {
-    // avoid vector::assign() since std::distance() would have to walk the set
-    for (const auto& entry : map.map) {
-      mapCopy.push_back(entry);
-    }
-  });
+  for (const auto& callbackMap : callbackMaps_) {
+    const auto mapSize = callbackMap.rlock()->map.size();
+    folly::grow_capacity_by(mapCopy, mapSize);
+    callbackMap.withRLock([&](auto const& map) {
+      // avoid vector::assign() since std::distance() would walk the set
+      for (const auto& entry : map.map) {
+        mapCopy.push_back(entry);
+      }
+    });
+  }
 
   for (auto& it : mapCopy) {
     T result;
@@ -65,15 +64,17 @@ bool CallbackValuesMap<T>::getValue(folly::StringPiece name, T* output) const {
 
 template <typename T>
 bool CallbackValuesMap<T>::contains(folly::StringPiece name) const {
-  return callbackMap_.rlock()->map.contains(name);
+  return callbackMaps_[getShard(name)].rlock()->map.contains(name);
 }
 
 template <typename T>
 void CallbackValuesMap<T>::getKeys(std::vector<std::string>* keys) const {
-  auto rlock = callbackMap_.rlock();
-  folly::grow_capacity_by(*keys, rlock->map.size());
-  for (const auto& entry : rlock->map) {
-    keys->emplace_back(entry->name());
+  for (const auto& callbackMap : callbackMaps_) {
+    auto rlock = callbackMap.rlock();
+    folly::grow_capacity_by(*keys, rlock->map.size());
+    for (const auto& entry : rlock->map) {
+      keys->emplace_back(entry->name());
+    }
   }
 }
 
@@ -82,12 +83,18 @@ void CallbackValuesMap<T>::getRegexKeys(
     std::vector<std::string>& keys,
     const folly::RegexMatchCache::regex_key_and_view& regex,
     const folly::RegexMatchCache::time_point now) const {
-  detail::cachedFindMatches(keys, callbackMap_, regex, now);
+  for (const auto& callbackMap : callbackMaps_) {
+    detail::cachedFindMatches(keys, callbackMap, regex, now);
+  }
 }
 
 template <typename T>
 size_t CallbackValuesMap<T>::getNumKeys() const {
-  return callbackMap_.rlock()->map.size();
+  size_t size = 0;
+  for (const auto& callbackMap : callbackMaps_) {
+    size += callbackMap.rlock()->map.size();
+  }
+  return size;
 }
 
 template <typename T>
@@ -95,11 +102,12 @@ void CallbackValuesMap<T>::registerCallback(
     folly::StringPiece name,
     Callback cob,
     bool overwrite) {
-  if (!overwrite && callbackMap_.rlock()->map.contains(name)) {
+  auto& callbackMap = callbackMaps_[getShard(name)];
+  if (!overwrite && callbackMap.rlock()->map.contains(name)) {
     return;
   }
 
-  auto ulock = callbackMap_.ulock();
+  auto ulock = callbackMap.ulock();
   auto iter = ulock->map.find(name);
   if (!overwrite && iter != ulock->map.end()) {
     return;
@@ -116,7 +124,7 @@ void CallbackValuesMap<T>::registerCallback(
 
 template <typename T>
 bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
-  auto wlock = callbackMap_.wlock();
+  auto wlock = callbackMaps_[getShard(name)].wlock();
   auto iter = wlock->map.find(name);
   if (iter == wlock->map.end()) {
     return false;
@@ -133,23 +141,27 @@ bool CallbackValuesMap<T>::unregisterCallback(folly::StringPiece name) {
 
 template <typename T>
 void CallbackValuesMap<T>::clear() {
-  auto wlock = callbackMap_.wlock();
-  for (auto& entry : wlock->map) {
-    entry->clear();
+  for (auto& callbackMap : callbackMaps_) {
+    auto wlock = callbackMap.wlock();
+    for (auto& entry : wlock->map) {
+      entry->clear();
+    }
+    detail::cachedClearStrings(*wlock);
   }
-  detail::cachedClearStrings(*wlock);
 }
 
 template <typename T>
 void CallbackValuesMap<T>::trimRegexCache(
     const folly::RegexMatchCache::time_point expiry) {
-  detail::cachedTrimStale(callbackMap_, expiry);
+  for (auto& callbackMap : callbackMaps_) {
+    detail::cachedTrimStale(callbackMap, expiry);
+  }
 }
 
 template <typename T>
 std::shared_ptr<typename CallbackValuesMap<T>::CallbackEntry>
 CallbackValuesMap<T>::getCallback(folly::StringPiece name) const {
-  auto map = callbackMap_.rlock();
+  auto map = callbackMaps_[getShard(name)].rlock();
   auto iter = map->map.find(name);
   return iter != map->map.end() ? *iter : nullptr;
 }

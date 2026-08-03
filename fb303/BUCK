@@ -52,6 +52,7 @@ cpp_library(
         "//folly/container:regex_match_cache",
         "//folly/container:reserve",
         "//folly/functional:invoke",
+        "//folly/hash:hash",
         "//folly/synchronization:relaxed_atomic",
     ],
 )

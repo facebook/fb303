@@ -17,6 +17,7 @@
 #include <fb303/CallbackValuesMap.h>
 
 #include <mutex>
+#include <set>
 #include <thread>
 
 #include <boost/bind.hpp>
@@ -146,4 +147,36 @@ TEST(CallbackValuesMapTest, DoubleDynamicCounterDeadlock) {
   ASSERT_TRUE(baton.try_wait_for(std::chrono::seconds(10)));
   t2.join();
   SUCCEED();
+}
+
+TEST(CallbackValuesMapTest, AggregatesAcrossShards) {
+  TestCallbackValuesMap map;
+  constexpr size_t kKeys = 1000;
+  std::set<string> expected;
+  for (size_t i = 0; i < kKeys; ++i) {
+    auto key = "key_" + std::to_string(i);
+    expected.insert(key);
+    map.registerCallback(key, bind(echo, i));
+  }
+
+  EXPECT_EQ(kKeys, map.getNumKeys());
+  TestCallbackValuesMap::ValuesMap values;
+  map.getValues(&values);
+  EXPECT_EQ(kKeys, values.size());
+
+  std::vector<string> keys;
+  map.getKeys(&keys);
+  EXPECT_EQ(expected, std::set<string>(keys.begin(), keys.end()));
+
+  keys.clear();
+  map.getRegexKeys(keys, "key_.*");
+  EXPECT_EQ(expected, std::set<string>(keys.begin(), keys.end()));
+
+  for (size_t i = 0; i < kKeys; i += 2) {
+    EXPECT_TRUE(map.unregisterCallback("key_" + std::to_string(i)));
+  }
+  EXPECT_EQ(kKeys / 2, map.getNumKeys());
+
+  map.clear();
+  EXPECT_EQ(0, map.getNumKeys());
 }
