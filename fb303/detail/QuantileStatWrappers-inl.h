@@ -54,9 +54,8 @@ template <typename... Args>
 QuantileStat& DynamicQuantileStatWrapper<N>::getStatEntry(Args&&... subkeys) {
   auto& local = *localCache_;
   auto const keytup = internal::SubkeyUtils<N>::decaySubkeys(subkeys...);
-  auto it = local.find(keytup);
-  if (FOLLY_LIKELY(it != local.end())) {
-    return *(*it)->stat;
+  if (const Entry* entry = local.find(keytup); FOLLY_LIKELY(entry != nullptr)) {
+    return *entry->stat;
   }
   return getStatEntrySlow(std::forward<Args>(subkeys)...);
 }

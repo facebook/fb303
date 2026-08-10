@@ -18,6 +18,8 @@
 
 #include <chrono>
 #include <memory>
+#include <variant>
+#include <vector>
 
 #include <fb303/ExportType.h>
 #include <fb303/QuantileStat.h>
@@ -127,7 +129,47 @@ class DynamicQuantileStatWrapper : internal::SubkeyUtils<N> {
   // F14NodeSet for reference stability: the local cache stores
   // pointers into the global cache, so entries must not move.
   using GlobalCache = folly::F14NodeSet<Entry, Hash, EqualTo>;
-  using LocalCache = folly::F14FastSet<const Entry*, Hash, EqualTo>;
+
+  // Per-thread cache mapping subkeys to their resolved Entry. Nearly all call
+  // sites use only a handful of distinct subkeys, so entries are kept in a flat
+  // vector scanned linearly, which avoids hashing the subkeys on every
+  // addValue(). Once the number of distinct subkeys exceeds
+  // kLinearScanThreshold we promote to an F14FastSet so lookups stay O(1) for
+  // large key spaces. A variant holds only the currently active representation.
+  class LocalCache {
+   public:
+    template <typename Key>
+    const Entry* find(const Key& key) const {
+      if (const auto* set = std::get_if<Set>(&storage_)) {
+        const auto it = set->find(key);
+        return it != set->end() ? *it : nullptr;
+      }
+      for (const Entry* entry : std::get<Vec>(storage_)) {
+        if (EqualTo{}(entry, key)) {
+          return entry;
+        }
+      }
+      return nullptr;
+    }
+
+    void insert(const Entry* entry) {
+      if (auto* set = std::get_if<Set>(&storage_)) {
+        set->insert(entry);
+        return;
+      }
+      auto& vec = std::get<Vec>(storage_);
+      vec.push_back(entry);
+      if (vec.size() > kLinearScanThreshold) {
+        storage_ = Set(vec.begin(), vec.end());
+      }
+    }
+
+   private:
+    static constexpr size_t kLinearScanThreshold = 8;
+    using Vec = std::vector<const Entry*>;
+    using Set = folly::F14FastSet<const Entry*, Hash, EqualTo>;
+    std::variant<Vec, Set> storage_;
+  };
 
   template <typename... Args>
   QuantileStat& getStatEntry(Args&&... subkeys);
