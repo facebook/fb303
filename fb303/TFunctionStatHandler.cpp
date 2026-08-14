@@ -17,6 +17,7 @@
 #include <fb303/ServiceData.h>
 #include <fb303/TFunctionStatHandler.h>
 
+#include <atomic>
 #include <mutex>
 
 #include <fb303/LegacyClock.h>
@@ -24,6 +25,16 @@
 namespace {
 int64_t count_usec(std::chrono::steady_clock::duration d) {
   return std::chrono::duration_cast<std::chrono::microseconds>(d).count();
+}
+
+// Process-unique, never-reused id for the current thread. Because ids are
+// never reused, equal ids prove the same live thread (no ABA). Starts at 1 so
+// 0 works as an "unset" sentinel.
+uint64_t currentThreadStatsId() {
+  static std::atomic<uint64_t> counter{0};
+  static thread_local const uint64_t id =
+      counter.fetch_add(1, std::memory_order_relaxed) + 1;
+  return id;
 }
 } // namespace
 
@@ -66,6 +77,8 @@ TStatsPerThread::~TStatsPerThread() = default;
 
 TStatsRequestContext* TStatsPerThread::getContext() {
   auto context = new TStatsRequestContext();
+  context->stats_ = this;
+  context->originThreadId_ = currentThreadStatsId();
   std::unique_lock lock(mutex_);
   // evaluate sampling
   sampleTimer_ += sampleRate_;
@@ -157,7 +170,13 @@ TFunctionStatHandler::TFunctionStatHandler(
 void TFunctionStatHandler::freeContext(void* ctx, std::string_view fn_name) {
   if (ctx != nullptr) {
     auto context = static_cast<TStatsRequestContext*>(ctx);
-    getStats(fn_name)->logContextData(*context);
+    // On the creating thread, its TStatsPerThread is still owned by that
+    // thread's live stats map, so log into it directly and skip the map lookup.
+    // Otherwise resolve the current thread's stats via getStats.
+    auto* spt = context->originThreadId_ == currentThreadStatsId()
+        ? context->stats_
+        : getStats(fn_name);
+    spt->logContextData(*context);
     delete context;
   }
 }

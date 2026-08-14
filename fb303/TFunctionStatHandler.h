@@ -25,6 +25,8 @@
 
 namespace facebook::fb303 {
 
+class TStatsPerThread;
+
 struct TStatsRequestContext {
   using clock = std::chrono::steady_clock;
   using time_point = clock::time_point;
@@ -43,6 +45,12 @@ struct TStatsRequestContext {
   time_point readEndTime_{};
   time_point writeBeginTime_{};
   time_point writeEndTime_{};
+
+  // The TStatsPerThread that created this context and the process-unique id of
+  // the creating thread; used by freeContext to skip the map lookup on the
+  // creating thread.
+  TStatsPerThread* stats_ = nullptr;
+  uint64_t originThreadId_ = 0;
 
   void readBegin() {
     readBeginCalled_ = true;
