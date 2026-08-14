@@ -189,10 +189,22 @@ class TFunctionStatHandler
 
   /**
    * Mapping from thrift functions to their respective
-   * TStatsPerThread objects for a single thread
+   * TStatsPerThread objects for a single thread, plus a single-entry
+   * cache (a view of the most recent getStats() lookup).
    */
-  using TStatsAggregator =
-      folly::F14FastMap<std::string, std::shared_ptr<TStatsPerThread>>;
+  struct TStatsAggregator {
+    folly::F14FastMap<std::string, std::shared_ptr<TStatsPerThread>> map;
+
+    // Single-entry cache of the last getStats() lookup. cachedFnName is a
+    // non-owning view of the map key (no per-call string copy). Both members
+    // stay valid because the map is only ever mutated by getStats() on this
+    // same thread and the cache is refreshed immediately after any insert, so
+    // no rehash can invalidate them between calls. cachedStats points at the
+    // heap-allocated TStatsPerThread owned by the map's shared_ptr, which never
+    // moves.
+    std::string_view cachedFnName;
+    TStatsPerThread* cachedStats = nullptr;
+  };
 
   class Tag;
   folly::ThreadLocalPtr<TStatsAggregator, Tag> tlFunctionMap_;

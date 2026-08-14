@@ -282,7 +282,7 @@ int32_t TFunctionStatHandler::consolidateThread(
     time_t now,
     TStatsAggregator& functionMap) {
   auto calls = 0;
-  for (auto& stats : functionMap) {
+  for (auto& stats : functionMap.map) {
     if (!stats.second) {
       continue;
     }
@@ -426,11 +426,16 @@ TStatsPerThread* TFunctionStatHandler::getStats(std::string_view fnName) {
     std::unique_lock lock(statMutex_);
     tlFunctionMap_.reset(mapPtr, deleter);
   }
+  // Single-entry cache: repeated lookups of the same function name skip the
+  // map find. Matched by content, so any caller name buffer is safe.
+  if (mapPtr->cachedStats != nullptr && fnName == mapPtr->cachedFnName) {
+    return mapPtr->cachedStats;
+  }
   // Find TStatsPerThread in TStatsAggregator's map - the map is only updated
   // from one thread (the current one, owner of the TStatsAggregator); no
   // update should be needed in the common case, so we just use statMutex_
   // to guard it
-  auto& map = *mapPtr;
+  auto& map = mapPtr->map;
   auto it = map.find(fnName);
   if (it == map.end()) {
     auto stats = createStatsPerThread(fnName);
@@ -439,10 +444,14 @@ TStatsPerThread* TFunctionStatHandler::getStats(std::string_view fnName) {
 
     // we're going to be writing the map, so lock out stat aggregation ftm
     std::unique_lock lock(statMutex_);
-    map[fnName] = stats;
-    return stats.get();
+    it = map.emplace(fnName, std::move(stats)).first;
   }
-  return it->second.get();
+  // Cache a view of the owning map key (no copy) and the raw stats pointer.
+  // Both stay valid until the next getStats() call on this thread, the only
+  // path that mutates the map.
+  mapPtr->cachedFnName = it->first;
+  mapPtr->cachedStats = it->second.get();
+  return mapPtr->cachedStats;
 }
 
 namespace {
