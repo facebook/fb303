@@ -181,12 +181,11 @@ TEST(ThreadLocalStatsLinkRace, HighContentionLinkRace) {
  *    may be modifying tlStats_
  */
 TEST(ThreadLocalStatsLinkRace, TryLockFailurePath) {
-  ServiceData data;
-
   // Reduce iterations for TSAN mode which is much slower
   constexpr int kNumIterations = folly::kIsSanitizeThread ? 100 : 1000;
 
   for (int iter = 0; iter < kNumIterations; ++iter) {
+    ServiceData data;
     auto container =
         std::make_shared<ThreadLocalStatsT<TLStatsThreadSafe>>(&data);
 
