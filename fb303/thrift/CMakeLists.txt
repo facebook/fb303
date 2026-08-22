@@ -27,7 +27,10 @@ add_fbthrift_library(
     BaseService
 )
 if (BUILD_SHARED_LIBS)
-  set_property(TARGET fb303_thrift_cpp PROPERTY VERSION ${PACKAGE_VERSION})
+  set_property(
+    TARGET fb303_thrift_cpp
+    PROPERTY VERSION ${PACKAGE_VERSION} SOVERSION ${FB303_SOVERSION}
+  )
 endif ()
 
 install(

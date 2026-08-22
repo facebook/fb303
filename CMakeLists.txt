@@ -19,6 +19,11 @@ if (NOT DEFINED PACKAGE_VERSION)
   set(PACKAGE_VERSION "1.0.0")
 endif()
 
+# The shared library SONAME should stay stable across minor and patch
+# releases, so it is derived from the major version of PACKAGE_VERSION
+# rather than the full version string.
+string(REGEX MATCH "^[0-9]+" FB303_SOVERSION "${PACKAGE_VERSION}")
+
 if (NOT DEFINED CPACK_GENERATOR)
   set(CPACK_GENERATOR "RPM")
 endif()
@@ -83,7 +88,10 @@ install(
 
 add_library(fb303 ${fb303_SOURCES} ${fb303_HEADERS})
 if (BUILD_SHARED_LIBS)
-  set_property(TARGET fb303 PROPERTY VERSION ${PACKAGE_VERSION})
+  set_property(
+    TARGET fb303
+    PROPERTY VERSION ${PACKAGE_VERSION} SOVERSION ${FB303_SOVERSION}
+  )
 endif ()
 
 target_include_directories(fb303 PUBLIC
