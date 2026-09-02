@@ -170,7 +170,7 @@ class CallbackValuesMap {
     // CallbackEntry, so they are stable regardless of map type.
     // Use a vector-set to optimize for iteration in getValues().
     folly::F14VectorSet<SPtr, Hash, EqualTo> map;
-    folly::RegexMatchCache matches;
+    mutable folly::RegexMatchCache matches;
   };
 
   static constexpr size_t kNumShards = 128;

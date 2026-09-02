@@ -84,7 +84,7 @@ void CallbackValuesMap<T>::getRegexKeys(
     const folly::RegexMatchCache::regex_key_and_view& regex,
     const folly::RegexMatchCache::time_point now) const {
   for (const auto& callbackMap : callbackMaps_) {
-    detail::cachedFindMatches(keys, callbackMap, regex, now);
+    detail::cachedFindMatchesSnapshot(keys, callbackMap, regex, now);
   }
 }
 

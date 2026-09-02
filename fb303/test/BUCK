@@ -119,12 +119,29 @@ cpp_unittest(
     srcs = ["CallbackValuesMapTest.cpp"],
     network_access = network_access_utils.none(),
     deps = [
+        "fbsource//third-party/fmt:fmt",
         "fbsource//third-party/googletest:gtest",
         "//fb303:callback_values_map",
         "//folly/synchronization:baton",
     ],
     external_deps = [
         "boost",
+    ],
+)
+
+cpp_unittest(
+    name = "regex_util_test",
+    srcs = ["RegexUtilTest.cpp"],
+    network_access = network_access_utils.none(),
+    deps = [
+        "fbsource//third-party/fmt:fmt",
+        "fbsource//third-party/googletest:gtest",
+        "//fb303/detail:regex_util",
+        "//folly:synchronized",
+        "//folly/container:f14_hash",
+        "//folly/container:regex_match_cache",
+        "//folly/lang:hint",
+        "//folly/synchronization:baton",
     ],
 )
 

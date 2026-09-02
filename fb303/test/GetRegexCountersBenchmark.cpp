@@ -19,6 +19,7 @@
 #include <folly/init/Init.h>
 #include <folly/json/DynamicConverter.h>
 #include <ctime>
+#include <vector>
 #include "common/stats/ServiceData.h"
 
 using namespace folly;
@@ -72,6 +73,41 @@ BENCHMARK(GetRegexCountersBenchmarkAll, iters) {
   for (int iter = 0; iter < iters; iter++) {
     std::map<std::string, int64_t> counters = fb303Data.getRegexCounters(".*");
   }
+}
+
+/* setCounter() populates counters_ only, so the rows above never exercise
+ * dynamicCounters_. A fresh ServiceData per invocation keeps the build cold --
+ * a reused map would time a cached read.
+ *
+ * The regex is deliberately trivial. The off-lock build adds O(keys)
+ * bookkeeping whose cost does not depend on match cost, so a cheap regex
+ * maximizes that signal; a caller with an expensive regex sees a proportionally
+ * smaller delta.
+ */
+constexpr int kColdBuildIter = 30000;
+
+BENCHMARK_MULTI(GetRegexKeysColdBuildDynamic) {
+  BenchmarkSuspender startup;
+  ServiceData serviceData;
+  DynamicCounters& dynamicCounters = *serviceData.getDynamicCounters();
+  for (int iter = 0; iter < kColdBuildIter; iter++) {
+    dynamicCounters.registerCallback(
+        "matchingCounter" + folly::convertTo<std::string>(iter),
+        [iter] { return static_cast<CounterType>(iter); });
+  }
+  for (int iter = 0; iter < 2 * kColdBuildIter; iter++) {
+    dynamicCounters.registerCallback(
+        "counter" + folly::convertTo<std::string>(iter),
+        [iter] { return static_cast<CounterType>(iter); });
+  }
+  startup.dismiss();
+
+  std::vector<std::string> keys;
+  dynamicCounters.getRegexKeys(keys, "matching.*");
+
+  startup.rehire();
+  CHECK_EQ(static_cast<size_t>(kColdBuildIter), keys.size());
+  return 1;
 }
 
 int main(int argc, char** argv) {
