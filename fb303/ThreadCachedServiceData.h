@@ -538,7 +538,8 @@ struct SubkeyUtils : SubkeyUtilsBase {
     }
     template <typename T, typename A>
     static bool eq(A a, const Subkey& b) {
-      return std::holds_alternative<T>(b) && a == std::get<T>(b);
+      auto* p = std::get_if<T>(&b);
+      return p && a == *p;
     }
     static bool eq(int64_t a, const Subkey& b) {
       return eq<int64_t>(a, b);
