@@ -24,6 +24,7 @@
 #include <fb303/ExportType.h>
 #include <fb303/QuantileStat.h>
 #include <fb303/ThreadCachedServiceData.h>
+#include <folly/Chrono.h>
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
 #include <folly/ThreadLocal.h>
@@ -31,6 +32,23 @@
 #include <folly/json/dynamic.h>
 
 namespace facebook::fb303::detail {
+
+// The estimator rounds timestamps up to its one-second buffer duration, so
+// sub-second precision is discarded and a coarse read will do.
+//
+// Reinterpreting one clock's duration as the other's is only sound if they
+// share an epoch, which the standard does not promise for `steady_clock`.
+// folly does: `steady_clock_spec` is documented as "All clocks with this spec
+// share epoch and tick rate". Assert that both still carry it, so this stops
+// compiling rather than silently skewing if that ever changes.
+inline std::chrono::steady_clock::time_point coarseNow() noexcept {
+  using Coarse = folly::chrono::coarse_steady_clock;
+  static_assert(std::is_same_v<
+                folly::chrono::clock_traits<std::chrono::steady_clock>::spec,
+                folly::chrono::clock_traits<Coarse>::spec>);
+  return std::chrono::steady_clock::time_point(
+      Coarse::now().time_since_epoch());
+}
 
 class QuantileStatWrapper {
  public:
@@ -50,8 +68,7 @@ class QuantileStatWrapper {
 
   void addValue(
       double value,
-      std::chrono::steady_clock::time_point now =
-          std::chrono::steady_clock::now());
+      std::chrono::steady_clock::time_point now = coarseNow());
 
  private:
   using QuantileStat = BasicQuantileStat<std::chrono::steady_clock>;

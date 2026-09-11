@@ -49,6 +49,7 @@ cpp_library(
         "//fb303:quantile_stat",
         "//fb303:service_data",
         "//fb303:thread_cached_service_data",
+        "//folly:chrono",
         "//folly:range",
         "//folly:synchronized",
         "//folly:thread_local",

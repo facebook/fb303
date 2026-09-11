@@ -45,8 +45,7 @@ void DynamicQuantileStatWrapper<N>::addValue(
 template <size_t N>
 template <typename... Args>
 void DynamicQuantileStatWrapper<N>::addValue(double value, Args&&... subkeys) {
-  addValue(
-      value, std::chrono::steady_clock::now(), std::forward<Args>(subkeys)...);
+  addValue(value, coarseNow(), std::forward<Args>(subkeys)...);
 }
 
 template <size_t N>
