@@ -55,6 +55,7 @@ cpp_library(
         "//folly:thread_local",
         "//folly/container:f14_hash",
         "//folly/json:dynamic",
+        "//folly/lang:align",
     ],
 )
 

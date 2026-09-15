@@ -18,7 +18,7 @@
 
 #include <chrono>
 #include <memory>
-#include <variant>
+#include <span>
 #include <vector>
 
 #include <fb303/ExportType.h>
@@ -30,6 +30,7 @@
 #include <folly/ThreadLocal.h>
 #include <folly/container/F14Set.h>
 #include <folly/json/dynamic.h>
+#include <folly/lang/Align.h>
 
 namespace facebook::fb303::detail {
 
@@ -99,11 +100,10 @@ class DynamicQuantileStatWrapper : internal::SubkeyUtils<N> {
   template <typename... Args>
   void addValue(double value, Args&&... subkeys);
 
-  // Nearly all call sites use only a handful of distinct subkeys. At or below
-  // this size getStatEntry() scans the local cache linearly, which avoids
-  // hashing the subkeys on every addValue(); above it, lookups use the set's
-  // hash-based find() so they stay O(1) for large key spaces. Public so tests
-  // can exercise both sides of the threshold.
+  // Expect subkey distribution to be heavy skewed, eg geometric or power law.
+  // Many cases with few subkeys, few cases with many subkeys. Up to this size,
+  // lookups scan the local cache linearly, avoiding hashing subkeys on every
+  // addValue(). Above it, lookups use the set's hash-based find() to stay O(1).
   static constexpr size_t kLocalCacheLinearScanThreshold = 8;
 
  private:
@@ -154,46 +154,13 @@ class DynamicQuantileStatWrapper : internal::SubkeyUtils<N> {
   // pointers into the global cache, so entries must not move.
   using GlobalCache = folly::F14NodeSet<Entry, Hash, EqualTo>;
 
-  // Per-thread cache mapping subkeys to their resolved Entry. Nearly all call
-  // sites use only a handful of distinct subkeys, so entries are kept in a flat
-  // vector scanned linearly, which avoids hashing the subkeys on every
-  // addValue(). Once the number of distinct subkeys exceeds
-  // kLinearScanThreshold we promote to an F14FastSet so lookups stay O(1) for
-  // large key spaces. A variant holds only the currently active representation.
-  class LocalCache {
-   public:
-    template <typename Key>
-    const Entry* find(const Key& key) const {
-      if (const auto* set = std::get_if<Set>(&storage_)) {
-        const auto it = set->find(key);
-        return it != set->end() ? *it : nullptr;
-      }
-      for (const Entry* entry : std::get<Vec>(storage_)) {
-        if (EqualTo{}(entry, key)) {
-          return entry;
-        }
-      }
-      return nullptr;
-    }
-
-    void insert(const Entry* entry) {
-      if (auto* set = std::get_if<Set>(&storage_)) {
-        set->insert(entry);
-        return;
-      }
-      auto& vec = std::get<Vec>(storage_);
-      vec.push_back(entry);
-      if (vec.size() > kLinearScanThreshold) {
-        storage_ = Set(vec.begin(), vec.end());
-      }
-    }
-
-   private:
-    static constexpr size_t kLinearScanThreshold = 8;
-    using Vec = std::vector<const Entry*>;
-    using Set = folly::F14FastSet<const Entry*, Hash, EqualTo>;
-    std::variant<Vec, Set> storage_;
+  // Per-thread cache mapping subkeys to their resolved Entry.
+  struct alignas(folly::hardware_constructive_interference_size) LocalCache {
+    folly::F14VectorSet<const Entry*, Hash, EqualTo> set;
+    std::span<const Entry* const> span; // cache of set.as_span()
   };
+  static_assert(
+      sizeof(LocalCache) <= folly::hardware_constructive_interference_size);
 
   template <typename... Args>
   QuantileStat& getStatEntry(Args&&... subkeys);

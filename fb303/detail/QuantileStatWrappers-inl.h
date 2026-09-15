@@ -53,8 +53,14 @@ template <typename... Args>
 QuantileStat& DynamicQuantileStatWrapper<N>::getStatEntry(Args&&... subkeys) {
   auto& local = *localCache_;
   auto const keytup = internal::SubkeyUtils<N>::decaySubkeys(subkeys...);
-  if (const Entry* entry = local.find(keytup); FOLLY_LIKELY(entry != nullptr)) {
-    return *entry->stat;
+  if (local.span.size() <= kLocalCacheLinearScanThreshold) {
+    for (const Entry* entry : local.span) {
+      if (EqualTo{}(entry, keytup)) {
+        return *entry->stat;
+      }
+    }
+  } else if (auto it = local.set.find(keytup); it != local.set.end()) {
+    return *(*it)->stat;
   }
   return getStatEntrySlow(std::forward<Args>(subkeys)...);
 }
@@ -66,7 +72,8 @@ QuantileStat& DynamicQuantileStatWrapper<N>::getStatEntrySlow(
   auto& local = *localCache_;
   const auto& entry =
       getOrCreateGlobal(internal::SubkeyUtils<N>::makeSubkeyArray(subkeys...));
-  local.insert(&entry);
+  local.set.insert(&entry);
+  local.span = local.set.as_span();
   return *entry.stat;
 }
 
