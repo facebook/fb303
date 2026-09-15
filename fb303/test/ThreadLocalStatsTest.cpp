@@ -32,6 +32,20 @@
 
 using namespace facebook::fb303;
 
+// The point of the repack, pinned. Upper bounds rather than equalities: the
+// diffs above this one shrink these further, and an equality would have to be
+// edited in each of them for no benefit. What matters is that a later change
+// cannot quietly give the bytes back -- these sizes decide which jemalloc size
+// class every stat object lands in, and there is one per thread per name.
+TEST(TLStatLayout, StaysWithinItsSizeBudget) {
+  EXPECT_LE(sizeof(TLCounterT<TLStatsThreadSafe>), 48u);
+  EXPECT_LE(sizeof(TLTimeseriesT<TLStatsThreadSafe>), 88u);
+  EXPECT_LE(sizeof(TLHistogramT<TLStatsThreadSafe>), 112u);
+  EXPECT_LE(sizeof(TLCounterT<TLStatsNoLocking>), 48u);
+  EXPECT_LE(sizeof(TLTimeseriesT<TLStatsNoLocking>), 64u);
+  EXPECT_LE(sizeof(TLHistogramT<TLStatsNoLocking>), 104u);
+}
+
 DEFINE_int32(
     num_threads,
     20,

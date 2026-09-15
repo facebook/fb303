@@ -71,7 +71,7 @@ void TLStatT<LockTraits>::preDestroy() {
 
 template <class LockTraits>
 void TLStatT<LockTraits>::link() {
-  if (link_.linked_) {
+  if (link_.isLinked()) {
     return;
   }
 
@@ -92,7 +92,7 @@ void TLStatT<LockTraits>::link() {
         link_->container_->tlStatsEmpty_ = false;
       }
     }
-    link_.linked_ = true;
+    link_.setLinked(true);
     return;
   }
 
@@ -106,12 +106,12 @@ void TLStatT<LockTraits>::link() {
       link_->container_->tlStatsEmpty_ = false;
     }
   }
-  link_.linked_ = true;
+  link_.setLinked(true);
 }
 
 template <class LockTraits>
 void TLStatT<LockTraits>::unlink() {
-  if (!link_.linked_) {
+  if (!link_.isLinked()) {
     return;
   }
 
@@ -131,7 +131,7 @@ void TLStatT<LockTraits>::unlink() {
       link_->container_->tlStatsEmpty_ = true;
     }
   }
-  link_.linked_ = false;
+  link_.setLinked(false);
 }
 
 /*

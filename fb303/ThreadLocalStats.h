@@ -440,9 +440,12 @@ class TLStatT {
    *
    * If the space matters, we can buy a word by storing name_ in a
    * folly::fbstring.
+   *
+   * The lock itself now lives in TLHistogramT, the only subclass that takes
+   * it: held here it cost every TLTimeseriesT and TLCounterT eight bytes for
+   * a lock they never lock. The note above is kept because it is about the
+   * lock's history and choice of type, which have not changed.
    */
-  using StatLock = typename LockTraits::StatLock;
-  [[FOLLY_ATTR_NO_UNIQUE_ADDRESS]] mutable StatLock statLock_;
 
  private:
   /**
@@ -638,6 +641,10 @@ class TLTimeseriesT : public TLStatT<LockTraits> {
  */
 template <class LockTraits>
 class TLHistogramT : public TLStatT<LockTraits> {
+  // First derived member: at any later offset padding eats the saving.
+  using StatLock = typename LockTraits::StatLock;
+  [[FOLLY_ATTR_NO_UNIQUE_ADDRESS]] mutable StatLock statLock_;
+
  public:
   TLHistogramT(
       ThreadLocalStatsT<LockTraits>* stats,
@@ -673,6 +680,9 @@ class TLHistogramT : public TLStatT<LockTraits> {
       const ExportedHistogramMapImpl::LockableHistogram& globalStat);
 
   ~TLHistogramT() override;
+
+  TLHistogramT(const TLHistogramT&) = delete;
+  TLHistogramT& operator=(const TLHistogramT&) = delete;
 
   /**
    * Move construction.
@@ -923,43 +933,53 @@ class TLStatLinkPtr {
    * Construct the initial link pointer, owned by the container. This
    * one is always unlinked.
    */
-  explicit TLStatLinkPtr(TLStatLink<LockTraits>* ptr) : ptr_{ptr} {
-    DCHECK(ptr_);
-    DCHECK_EQ(1u, ptr_->refCount_);
+  explicit TLStatLinkPtr(TLStatLink<LockTraits>* ptr)
+      : ptr_{reinterpret_cast<uintptr_t>(ptr)} {
+    DCHECK(get());
+    DCHECK_EQ(1u, get()->refCount_);
     // Starts in unlinked state.
   }
 
   /**
    * Given an existing link pointer, create a new unlinked one.
    */
-  TLStatLinkPtr(FromOther, const TLStatLinkPtr& other) : ptr_{other.ptr_} {
-    ptr_->incRef();
+  TLStatLinkPtr(FromOther, const TLStatLinkPtr& other)
+      : ptr_{other.ptr_ & ~kLinked} {
+    get()->incRef();
   }
 
   ~TLStatLinkPtr() {
-    DCHECK(!linked_)
+    DCHECK(!isLinked())
         << "The owner of this linked pointer must unlink before destroying it";
-    ptr_->decRef();
+    get()->decRef();
   }
 
   void replaceFromOther(const TLStatLinkPtr& other) {
-    DCHECK(!linked_) << "Must be unlinked before replacing";
+    DCHECK(!isLinked()) << "Must be unlinked before replacing";
     DCHECK_NE(this, &other) << "Cannot replace with self";
-    ptr_->decRef();
-    ptr_ = other.ptr_;
-    ptr_->incRef();
+    get()->decRef();
+    ptr_ = other.ptr_ & ~kLinked;
+    get()->incRef();
   }
 
   TLStatLink<LockTraits>* operator->() const {
-    return ptr_;
+    return get();
   }
 
   TLStatLink<LockTraits>* get() const {
-    return ptr_;
+    return reinterpret_cast<TLStatLink<LockTraits>*>(ptr_ & ~kLinked);
   }
 
   bool isLinked() const {
-    return linked_;
+    return (ptr_ & kLinked) != 0;
+  }
+
+  void setLinked(bool linked) {
+    if (linked) {
+      ptr_ |= kLinked;
+    } else {
+      ptr_ &= ~kLinked;
+    }
   }
 
  private:
@@ -974,17 +994,15 @@ class TLStatLinkPtr {
   TLStatLinkPtr& operator=(const TLStatLinkPtr&) = delete;
   TLStatLinkPtr& operator=(TLStatLinkPtr&&) = delete;
 
-  TLStatLink<LockTraits>* ptr_ = nullptr;
+  static constexpr uintptr_t kLinked = 1;
+  static_assert(
+      alignof(TLStatLink<LockTraits>) >= 2,
+      "the low bit of ptr_ must be free to carry the linked flag");
 
-  /**
-   * Represents whether this Ptr currently represents a valid link
-   * between ThreadLocalStats and a TLStat. Transient during a move
-   * operation.
-   *
-   * TODO: Reusing the bottom bit of ptr_ as the linked state would
-   * save a pointer in every TLStat.
-   */
-  bool linked_ = false;
+  // The link pointer, with the linked flag in bit 0. link()'s deferred path
+  // sets the flag without the registry lock held, so the word is atomic; the
+  // pointer half never changes while linked, so relaxed is enough.
+  folly::relaxed_atomic<uintptr_t> ptr_{0};
 
   friend class TLStatT<LockTraits>;
 };
