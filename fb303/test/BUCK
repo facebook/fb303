@@ -216,10 +216,12 @@ cpp_benchmark(
     name = "quantile_stat_benchmark",
     srcs = ["QuantileStatBenchmark.cpp"],
     deps = [
+        "fbsource//third-party/glog:glog",
         "//common/stats:macros",
         "//fb303:thread_cached_service_data",
         "//folly:benchmark",
         "//folly/init:init",
+        "//folly/lang:keep",
     ],
     external_deps = [
         ("boost", None, "boost_thread"),

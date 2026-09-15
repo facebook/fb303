@@ -20,8 +20,17 @@
 #include <fb303/ThreadCachedServiceData.h>
 #include <folly/Benchmark.h>
 #include <folly/init/Init.h>
+#include <folly/lang/Keep.h>
+#include <glog/logging.h>
 
 using namespace facebook::fb303;
+
+extern "C" FOLLY_KEEP void check_dynamic_quantile_stat_wrapper_i_add_value(
+    detail::DynamicQuantileStatWrapper<1>& stat,
+    double value,
+    int64_t subkey0) {
+  stat.addValue(value, subkey0);
+}
 
 DEFINE_quantile_stat(
     basic_1_level,
@@ -45,6 +54,43 @@ DEFINE_dynamic_quantile_stat(
     ExportTypeConsts::kAvg,
     QuantileConsts::kP99,
     SlidingWindowPeriodConsts::kOneMinTenMinHour);
+
+DEFINE_dynamic_quantile_stat(
+    scan_1,
+    "scan1.{}",
+    ExportTypeConsts::kAvg,
+    QuantileConsts::kP99,
+    SlidingWindowPeriodConsts::kOneMin);
+DEFINE_dynamic_quantile_stat(
+    scan_4,
+    "scan4.{}",
+    ExportTypeConsts::kAvg,
+    QuantileConsts::kP99,
+    SlidingWindowPeriodConsts::kOneMin);
+DEFINE_dynamic_quantile_stat(
+    scan_8,
+    "scan8.{}",
+    ExportTypeConsts::kAvg,
+    QuantileConsts::kP99,
+    SlidingWindowPeriodConsts::kOneMin);
+DEFINE_dynamic_quantile_stat(
+    scan_9,
+    "scan9.{}",
+    ExportTypeConsts::kAvg,
+    QuantileConsts::kP99,
+    SlidingWindowPeriodConsts::kOneMin);
+DEFINE_dynamic_quantile_stat(
+    scan_16,
+    "scan16.{}",
+    ExportTypeConsts::kAvg,
+    QuantileConsts::kP99,
+    SlidingWindowPeriodConsts::kOneMin);
+DEFINE_dynamic_quantile_stat(
+    scan_64,
+    "scan64.{}",
+    ExportTypeConsts::kAvg,
+    QuantileConsts::kP99,
+    SlidingWindowPeriodConsts::kOneMin);
 
 DEFINE_histogram(
     basic_histogram_1_level,
@@ -187,6 +233,55 @@ unsigned int dynamic(
     }
   }
   return iters;
+}
+
+// Drives DynamicQuantileStatWrapper::getStatEntry's local-cache lookup with a
+// controlled number of distinct subkeys, to straddle
+// kLocalCacheLinearScanThreshold (8): at or below it the lookup is a linear
+// EqualTo scan, above it the set's hash find(). Each count gets its own stat,
+// because the cache lives on the wrapper -- sharing one would leave a later,
+// larger run's entries behind and push the small cases onto the hash path.
+// The cache is thread-local, so there is no cross-thread interaction to
+// measure; a single thread suffices.
+//
+// Subkeys are pre-rendered and the timestamp is hoisted, so what is timed is
+// the lookup rather than std::to_string or the clock read.
+void subkey_scan(unsigned int iters, size_t nSubkeys) {
+  folly::BenchmarkSuspender suspender;
+
+  std::vector<std::string> keys;
+  keys.reserve(nSubkeys);
+  for (size_t i = 0; i < nSubkeys; ++i) {
+    keys.push_back(std::to_string(i));
+  }
+
+  auto* const stat = [&]() -> decltype(&STATS_scan_1) {
+    switch (nSubkeys) {
+      case 1:
+        return &STATS_scan_1;
+      case 4:
+        return &STATS_scan_4;
+      case 8:
+        return &STATS_scan_8;
+      case 9:
+        return &STATS_scan_9;
+      case 16:
+        return &STATS_scan_16;
+      case 64:
+        return &STATS_scan_64;
+    }
+    LOG(FATAL) << "unregistered subkey count " << nSubkeys;
+    return nullptr;
+  }();
+
+  auto const now = std::chrono::steady_clock::now();
+  size_t idx = 0;
+  suspender.dismissing([&] {
+    for (size_t iter = 0; iter < iters; ++iter) {
+      stat->addValue(iter, now, keys[idx]);
+      idx = (idx + 1 == keys.size()) ? 0 : idx + 1;
+    }
+  });
 }
 
 BENCHMARK_NAMED_PARAM_MULTI(basic, 1thread_1level_hist, 1, false, true, 1)
@@ -429,6 +524,15 @@ BENCHMARK_DRAW_LINE();
  * ============================================================================
  *
  */
+BENCHMARK_DRAW_LINE();
+BENCHMARK_NAMED_PARAM(subkey_scan, 1key, 1)
+BENCHMARK_RELATIVE_NAMED_PARAM(subkey_scan, 4keys, 4)
+BENCHMARK_RELATIVE_NAMED_PARAM(subkey_scan, 8keys, 8)
+BENCHMARK_RELATIVE_NAMED_PARAM(subkey_scan, 9keys, 9)
+BENCHMARK_RELATIVE_NAMED_PARAM(subkey_scan, 16keys, 16)
+BENCHMARK_RELATIVE_NAMED_PARAM(subkey_scan, 64keys, 64)
+BENCHMARK_DRAW_LINE();
+
 int main(int argc, char* argv[]) {
   const folly::Init init(&argc, &argv, true);
   folly::runBenchmarks();
