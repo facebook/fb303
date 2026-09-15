@@ -99,6 +99,13 @@ class DynamicQuantileStatWrapper : internal::SubkeyUtils<N> {
   template <typename... Args>
   void addValue(double value, Args&&... subkeys);
 
+  // Nearly all call sites use only a handful of distinct subkeys. At or below
+  // this size getStatEntry() scans the local cache linearly, which avoids
+  // hashing the subkeys on every addValue(); above it, lookups use the set's
+  // hash-based find() so they stay O(1) for large key spaces. Public so tests
+  // can exercise both sides of the threshold.
+  static constexpr size_t kLocalCacheLinearScanThreshold = 8;
+
  private:
   struct Spec {
     std::vector<ExportType> stats;

@@ -251,6 +251,19 @@ cpp_unittest(
 )
 
 cpp_unittest(
+    name = "quantile_stat_wrappers_test",
+    srcs = [
+        "QuantileStatWrappersTest.cpp",
+    ],
+    network_access = network_access_utils.none(),
+    deps = [
+        "fbsource//third-party/googletest:gtest",
+        "//fb303:service_data",
+        "//fb303/detail:quantile_stat_wrappers",
+    ],
+)
+
+cpp_unittest(
     name = "service_data_test",
     srcs = [
         "ServiceDataTest.cpp",
