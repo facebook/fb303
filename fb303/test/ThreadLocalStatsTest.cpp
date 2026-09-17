@@ -20,7 +20,6 @@
 #include <fb303/ThreadCachedServiceData.h>
 #include <folly/Singleton.h>
 #include <folly/synchronization/test/Barrier.h>
-#include <folly/test/TestUtils.h>
 
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
@@ -28,7 +27,10 @@
 #include <memory>
 #include <random>
 #include <string>
+#include <string_view>
 #include <thread>
+#include <utility>
+#include <vector>
 
 using namespace facebook::fb303;
 
@@ -39,7 +41,9 @@ using namespace facebook::fb303;
 // class every stat object lands in, and there is one per thread per name.
 TEST(TLStatLayout, StaysWithinItsSizeBudget) {
   EXPECT_LE(sizeof(TLCounterT<TLStatsThreadSafe>), 48u);
-  EXPECT_LE(sizeof(TLTimeseriesT<TLStatsThreadSafe>), 88u);
+  // 104 rather than 88: the seqlock carries 128-bit totals and a baseline.
+  // Still inside the 128-byte class, with 8 bytes to spare before the next one.
+  EXPECT_LE(sizeof(TLTimeseriesT<TLStatsThreadSafe>), 104u);
   EXPECT_LE(sizeof(TLHistogramT<TLStatsThreadSafe>), 112u);
   EXPECT_LE(sizeof(TLCounterT<TLStatsNoLocking>), 48u);
   EXPECT_LE(sizeof(TLTimeseriesT<TLStatsNoLocking>), 64u);
@@ -102,6 +106,284 @@ TEST(ThreadLocalStats, SaturateTimeseries) {
     SCOPED_TRACE("TLStatsNoLocking");
     testSaturateTimeseries<TLStatsNoLocking>();
   }
+}
+
+namespace {
+
+using ThreadSafeTimeseries =
+    TLStatsThreadSafe::TimeSeriesType<facebook::fb303::CounterType>;
+
+// Runs `write` on one thread while `readers` others spin on `drain`, then
+// drains once more. `drain` returns how many stats it found data in, and the
+// total of those is the return value. Loop iterations would not do: most take
+// reset()'s fast path without reaching the protocol at all.
+template <typename Write, typename Drain>
+int64_t raceWithWriter(Write write, Drain drain, int readers = 1) {
+  std::atomic<bool> done{false};
+  std::atomic<int64_t> drains{0};
+  std::thread writer([&] {
+    write();
+    done.store(true, std::memory_order_release);
+  });
+  std::vector<std::thread> threads;
+  threads.reserve(readers);
+  for (int i = 0; i < readers; ++i) {
+    threads.emplace_back([&] {
+      int64_t local = 0;
+      while (!done.load(std::memory_order_acquire)) {
+        local += drain();
+      }
+      drains.fetch_add(local, std::memory_order_relaxed);
+    });
+  }
+  writer.join();
+  for (auto& thread : threads) {
+    thread.join();
+  }
+  return drains.load(std::memory_order_relaxed) + drain();
+}
+
+// Below this a "concurrent" test never interleaved and proves nothing.
+constexpr int64_t kMinContendedDrains = 100;
+
+} // namespace
+
+// The edges clamp() has to read correctly out of a 128-bit delta.
+TEST(ThreadLocalStats, Saturation) {
+  using lim = std::numeric_limits<int64_t>;
+  using Add = std::pair<int64_t, int64_t>; // value, count
+  const Add kMin{lim::min(), 1};
+
+  struct Case {
+    std::string_view name;
+    std::vector<Add> adds;
+    int64_t count;
+    int64_t sum;
+  };
+  const Case cases[] = {
+      {"exactly max does not saturate", {{lim::max(), 1}}, 1, lim::max()},
+      {"past max", {{lim::max(), 1}, {1, 1}}, 2, lim::max()},
+      {"below min", {kMin, {-1, 1}}, 2, lim::min()},
+      // Four puts the high word at -2, past the single-borrow case, and the
+      // low word back at 0. Three would leave it at 2^63, which reads as
+      // INT64_MIN on its own and would pass without the final clamp.
+      {"four unsigned ranges below min",
+       {kMin, kMin, kMin, kMin},
+       4,
+       lim::min()},
+      {"count saturates, sum does not",
+       {{1, lim::max()}, {2, 1}},
+       lim::max(),
+       3},
+      // The sequence already counts the call, so the block takes count - 1,
+      // which int64_t cannot hold here.
+      {"count at the minimum", {{1, lim::min()}}, lim::min(), 1},
+      // Values totalling 2^64 with no count: the low word returns to its
+      // baseline while the carry stands, which reset()'s fast path must not
+      // read as "no writes happened".
+      {"carry returns the low word to the baseline",
+       {{lim::max(), 0}, {lim::max(), 0}, {2, 0}},
+       0,
+       lim::max()},
+  };
+
+  for (const auto& c : cases) {
+    SCOPED_TRACE(c.name);
+    ThreadSafeTimeseries stat;
+    for (auto [value, count] : c.adds) {
+      if (count == 1) { // has its own fast path; do not go through the other
+        stat.addValue(value);
+      } else {
+        stat.addValue(value, count);
+      }
+    }
+    EXPECT_EQ(std::make_pair(c.count, c.sum), stat.reset());
+
+    // reset() consumes the saturation, so the next window is its own.
+    stat.addValue(4);
+    EXPECT_EQ(std::make_pair(int64_t{1}, int64_t{4}), stat.reset());
+  }
+}
+
+TEST(ThreadLocalStats, ResetDelimitsWindows) {
+  using Pair = std::pair<int64_t, int64_t>;
+  ThreadSafeTimeseries stat;
+  EXPECT_EQ(Pair(0, 0), stat.reset());
+
+  stat.addValue(-5);
+  stat.addValue(3);
+  EXPECT_EQ(2, stat.count());
+  EXPECT_EQ(-2, stat.sum());
+  EXPECT_EQ(Pair(2, -2), stat.reset());
+
+  // Nothing written since: reset() takes its unlocked fast path.
+  EXPECT_EQ(Pair(0, 0), stat.reset());
+
+  // A count of zero moves the sum on its own, so a fast path keyed on the
+  // count would silently drop it.
+  stat.addValue(7, 0);
+  EXPECT_EQ(Pair(0, 7), stat.reset());
+
+  // Park both totals on 2^64-1, then step over the boundary.
+  stat.addValue(/*value=*/-8, /*count=*/-1);
+  stat.reset();
+  stat.addValue(5, 3);
+  EXPECT_EQ(Pair(3, 5), stat.reset());
+}
+
+TEST(ThreadLocalStats, AggregatedUpdateAfterPlainUpdates) {
+  // The surplus block is allocated on the first count != 1 update, so it did
+  // not exist for the windows before it and has no baseline to difference.
+  using Pair = std::pair<int64_t, int64_t>;
+  ThreadSafeTimeseries stat;
+  for (int i = 0; i < 5; ++i) {
+    stat.addValue(2);
+  }
+  EXPECT_EQ(Pair(5, 10), stat.reset());
+
+  stat.addValue(3, 4);
+  EXPECT_EQ(Pair(4, 3), stat.reset());
+
+  stat.addValue(9);
+  EXPECT_EQ(Pair(1, 9), stat.reset());
+}
+
+// The call count shares its 128-bit accumulator with the sum, whose low word
+// is as wide as T. A T narrower than the count wraps that word more than once
+// per window, and counting a single wrap would report a count far below the
+// truth instead of a saturated one. Nothing instantiates a narrow T today, but
+// the static_asserts on TimeSeriesType admit one.
+TEST(ThreadLocalStats, CallCountSaturatesAcrossNarrowLowWordWraps) {
+  TLStatsThreadSafe::TimeSeriesType<int16_t> stat;
+  for (int i = 0; i < 70000; ++i) { // past 2^16 twice over
+    stat.addValue(0);
+  }
+  const auto [count, sum] = stat.reset();
+  EXPECT_EQ(std::numeric_limits<int16_t>::max(), count);
+  EXPECT_EQ(0, sum);
+}
+
+TEST(ThreadLocalStats, ConcurrentResetSeesConsistentCountAndSum) {
+  constexpr int64_t kValuePerCall = 7;
+  constexpr int64_t kWrites = 2'000'000;
+  ThreadSafeTimeseries stat;
+
+  int64_t totalCount = 0;
+  int64_t totalSum = 0;
+  int64_t torn = 0;
+  const auto drains = raceWithWriter(
+      [&] {
+        for (int64_t i = 0; i < kWrites; ++i) {
+          stat.addValue(kValuePerCall);
+        }
+      },
+      [&] {
+        auto [count, sum] = stat.reset();
+        // Zero tolerance: a band of even one update would let a genuine
+        // one-update tear pass.
+        torn += sum != count * kValuePerCall;
+        totalCount += count;
+        totalSum += sum;
+        return int64_t{count != 0};
+      });
+
+  EXPECT_EQ(0, torn) << "reader observed a torn count/sum pair";
+  EXPECT_EQ(kWrites, totalCount) << "an update was lost or double-counted";
+  EXPECT_EQ(kWrites * kValuePerCall, totalSum);
+  EXPECT_GT(drains, kMinContendedDrains) << "reader never interleaved";
+}
+
+TEST(ThreadLocalStats, ConcurrentResetNeverTearsTheCarry) {
+  // Half the range, so every second update carries the low word rather than
+  // one in 2^64.
+  constexpr int64_t kValue = std::numeric_limits<int64_t>::max() / 2;
+  constexpr int64_t kWrites = 4'000'000;
+  ThreadSafeTimeseries stat;
+
+  int64_t negative = 0;
+  const auto drains = raceWithWriter(
+      [&] {
+        for (int64_t i = 0; i < kWrites; ++i) {
+          stat.addValue(kValue);
+        }
+      },
+      [&] {
+        auto [count, sum] = stat.reset();
+        negative += sum < 0;
+        return int64_t{count != 0};
+      });
+
+  // Windows saturate -- kValue is huge on purpose -- but a window of
+  // exclusively positive updates can never be negative.
+  EXPECT_EQ(0, negative) << "torn carry: " << negative << " of " << drains
+                         << " windows were negative";
+  EXPECT_GT(drains, kMinContendedDrains) << "reader never interleaved";
+}
+
+TEST(ThreadLocalStats, ConcurrentDrainAcrossFirstAggregatedUpdate) {
+  // The hazard lasts one instant per stat: the surplus pointer going non-null.
+  // One stat is therefore not a test, whatever the iteration count. 20k stats
+  // give the drainer 20k transitions to land on.
+  constexpr int64_t kValuePerCall = 7;
+  constexpr int64_t kSamples = 3;
+  constexpr int64_t kPlain = 2;
+  constexpr int64_t kAgg = 2;
+  constexpr size_t kStats = 20'000;
+
+  std::vector<ThreadSafeTimeseries> stats(kStats);
+  int64_t totalCount = 0;
+  int64_t totalSum = 0;
+  const auto drains = raceWithWriter(
+      [&] {
+        for (auto& stat : stats) {
+          for (int64_t i = 0; i < kPlain; ++i) {
+            stat.addValue(kValuePerCall);
+          }
+          for (int64_t i = 0; i < kAgg; ++i) {
+            stat.addValue(kValuePerCall, kSamples);
+          }
+        }
+      },
+      [&] {
+        int64_t swept = 0;
+        for (auto& stat : stats) {
+          auto [count, sum] = stat.reset();
+          totalCount += count;
+          totalSum += sum;
+          swept += count != 0;
+        }
+        return swept;
+      });
+
+  const int64_t n = static_cast<int64_t>(kStats);
+  EXPECT_EQ(n * (kPlain + kAgg * kSamples), totalCount);
+  EXPECT_EQ(n * (kPlain + kAgg) * kValuePerCall, totalSum);
+  EXPECT_GT(drains, kMinContendedDrains) << "reader never interleaved";
+}
+
+TEST(ThreadLocalStats, ConcurrentResetFromMultipleReaders) {
+  // Two readers at once put the fast path's unclaimed baseline read against
+  // another reader publishing a new baseline under the claim. Double counting
+  // shows up as a total above kWrites, a lost update as one below.
+  constexpr int64_t kWrites = 1'000'000;
+  ThreadSafeTimeseries stat;
+
+  std::atomic<int64_t> drained{0};
+  const auto drains = raceWithWriter(
+      [&] {
+        for (int64_t i = 0; i < kWrites; ++i) {
+          stat.addValue(1);
+        }
+      },
+      [&] {
+        const auto count = stat.reset().first;
+        drained.fetch_add(count, std::memory_order_relaxed);
+        return int64_t{count != 0};
+      },
+      /*readers=*/2);
+
+  EXPECT_EQ(kWrites, drained.load(std::memory_order_relaxed));
+  EXPECT_GT(drains, kMinContendedDrains) << "readers never interleaved";
 }
 
 class WorkerThread {
@@ -662,6 +944,41 @@ TEST(ThreadLocalStats, CompletePendingLinkUpdatesEmptyFlag) {
 }
 
 // Test concurrent registration via pending stats list
+TEST(ThreadLocalStats, DestroyingAStatRacesTheSweepDrainingIt) {
+  // unlink() drains before taking the registry lock, so a stat being destroyed
+  // and a sweep can be inside drain() on the same stat at once. This is the
+  // only place in fb303 where two drains collide, and it is ordinary rather
+  // than exotic: every thread that exits while the publisher runs does it.
+  ServiceData data;
+  ThreadLocalStatsT<TLStatsThreadSafe> stats(&data);
+
+  constexpr int kRounds = 4000;
+  constexpr int64_t kPerStat = 7;
+
+  std::atomic<bool> done{false};
+  std::thread churn([&] {
+    for (int i = 0; i < kRounds; ++i) {
+      TLTimeseriesT<TLStatsThreadSafe> stat(&stats, "churn", SUM);
+      stat.addValue(kPerStat);
+      // Destructor here: unlink() drains, then takes the registry lock.
+    }
+    done.store(true, std::memory_order_release);
+  });
+
+  uint64_t sweeps = 0;
+  while (!done.load(std::memory_order_acquire)) {
+    stats.aggregate();
+    ++sweeps;
+  }
+  churn.join();
+  stats.aggregate();
+
+  // The all-time level, so the assertion is about what was published rather
+  // than about what a window still holds.
+  EXPECT_EQ(kRounds * kPerStat, data.getCounter("churn.sum"))
+      << "lost or double-counted an update over " << sweeps << " sweeps";
+}
+
 TEST(ThreadLocalStats, ConcurrentPendingRegistration) {
   ServiceData data;
   ThreadLocalStatsT<TLStatsThreadSafe> tlstats(&data);
@@ -727,4 +1044,31 @@ TEST(ThreadLocalStats, StatLifecycle) {
 
   // After stat is destroyed, aggregate should still work
   EXPECT_EQ(0, tlstats.aggregate());
+}
+
+// The sequence doubles as the call counter, so it looks as though addValue(v,
+// n) could advance it by 2n and the surplus block could go. It cannot:
+//  - n == 0 would not move the sequence, so reset() takes its nothing-to-do
+//    early-out and the value sits invisible in the accumulator.
+//  - n < 0 would run the sequence backwards, and the unsigned difference would
+//    report an enormous count.
+// A test that only ever passes n == 1 catches neither. TLStatsNoLocking is a
+// plain non-atomic accumulator, so agreeing with it is agreeing with the
+// arithmetic.
+TEST(ThreadLocalStats, AggregatedCountMatchesReferenceForAwkwardCounts) {
+  using lim = std::numeric_limits<int64_t>;
+  for (int64_t n :
+       {lim::min(),
+        int64_t(-1),
+        int64_t(0),
+        int64_t(1),
+        int64_t(2),
+        int64_t(1001),
+        lim::max()}) {
+    TLStatsThreadSafe::TimeSeriesType<int64_t> stat;
+    TLStatsNoLocking::TimeSeriesType<int64_t> reference;
+    stat.addValue(5, n);
+    reference.addValue(5, n);
+    EXPECT_EQ(reference.reset(), stat.reset()) << "count " << n;
+  }
 }

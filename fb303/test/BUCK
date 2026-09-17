@@ -319,7 +319,6 @@ cpp_unittest(
         "//fb303:thread_local_stats",
         "//folly:singleton",
         "//folly/synchronization/test:barrier",
-        "//folly/test:test_utils",
     ],
     external_deps = [
         "gflags",
