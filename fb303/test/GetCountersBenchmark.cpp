@@ -163,6 +163,6 @@ int main(int argc, char** argv) {
 ============================================================================
 fbcode/fb303/test/GetCountersBenchmark.cpp     relative  time/iter   iters/s
 ============================================================================
-GetCountersIntoEmptyMap                                   523.49ms      1.91
-GetCountersIntoSeededMap                                  525.76ms      1.90
+GetCountersIntoEmptyMap                                   190.66ms      5.25
+GetCountersIntoSeededMap                                  216.58ms      4.62
 */

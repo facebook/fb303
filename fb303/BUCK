@@ -48,6 +48,7 @@ cpp_library(
         "//folly:map_util",
         "//folly:range",
         "//folly:synchronized",
+        "//folly/algorithm:binary_heap",
         "//folly/container:f14_hash",
         "//folly/container:regex_match_cache",
         "//folly/container:reserve",

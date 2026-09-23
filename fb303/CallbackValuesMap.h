@@ -20,6 +20,7 @@
 #include <functional>
 #include <map>
 #include <string>
+#include <vector>
 
 #include <folly/Chrono.h>
 #include <folly/Range.h>

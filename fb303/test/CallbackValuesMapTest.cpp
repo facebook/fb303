@@ -193,6 +193,22 @@ TEST(CallbackValuesMapTest, AggregatesAcrossShards) {
   EXPECT_EQ(0, map.getNumKeys());
 }
 
+// getValues merges into a non-empty map: pre-existing keys are kept and
+// overlapping keys take the callback value.
+TEST(CallbackValuesMapTest, GetValuesIntoNonEmptyMap) {
+  TestCallbackValuesMap map;
+  map.registerCallback("b_2", bind(echo, 2));
+  map.registerCallback("a_1", bind(echo, 1));
+  map.registerCallback("c_3", bind(echo, 3));
+
+  TestCallbackValuesMap::ValuesMap values{{"a_1", -1}, {"b_0", 0}, {"c_4", 4}};
+  map.getValues(&values);
+  EXPECT_EQ(
+      values,
+      (TestCallbackValuesMap::ValuesMap{
+          {"a_1", 1}, {"b_0", 0}, {"b_2", 2}, {"c_3", 3}, {"c_4", 4}}));
+}
+
 // getRegexKeys returns exactly the matching keys, and reflects keys registered
 // or unregistered after the regex was first built.
 TEST(CallbackValuesMapTest, GetRegexKeysMatchesAndCoalesces) {
