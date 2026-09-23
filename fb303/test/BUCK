@@ -83,6 +83,18 @@ cpp_benchmark(
 )
 
 cpp_benchmark(
+    name = "get_counters_benchmark",
+    srcs = ["GetCountersBenchmark.cpp"],
+    deps = [
+        "//fb303:service_data",
+        "//folly:benchmark",
+        "//folly:benchmark_util",
+        "//folly:conv",
+        "//folly/init:init",
+    ],
+)
+
+cpp_benchmark(
     name = "get_regex_counters_mt_bench",
     srcs = ["GetRegexCountersMtBench.cpp"],
     deps = [
