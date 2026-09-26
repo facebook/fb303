@@ -228,6 +228,7 @@ cpp_library(
     modular_headers = True,
     deps = [
         "//folly:indestructible",
+        "//folly:memory",
         "//folly:singleton",
     ],
     exported_deps = [

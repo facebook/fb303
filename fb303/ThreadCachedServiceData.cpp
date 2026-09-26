@@ -17,6 +17,7 @@
 #include <fb303/ThreadCachedServiceData.h>
 
 #include <folly/Indestructible.h>
+#include <folly/Memory.h>
 #include <folly/Singleton.h>
 
 using namespace std::literals;
@@ -145,8 +146,7 @@ ThreadCachedServiceData* ThreadCachedServiceData::get() {
   return &getInternal();
 }
 std::shared_ptr<ThreadCachedServiceData> ThreadCachedServiceData::getShared() {
-  return std::shared_ptr<ThreadCachedServiceData>(
-      std::shared_ptr<void>{}, ThreadCachedServiceData::get());
+  return folly::to_shared_ptr_non_owning(ThreadCachedServiceData::get());
 }
 
 ThreadCachedServiceData::ThreadCachedServiceData()
