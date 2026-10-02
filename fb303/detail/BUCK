@@ -64,6 +64,7 @@ cpp_library(
     srcs = [
         "RegexUtil.cpp",
     ],
+    headers = ["RegexUtil.h"],
     modular_headers = True,
     exported_deps = [
         "//folly:chrono",

@@ -185,6 +185,7 @@ cpp_library(
 cpp_library(
     name = "service_data",
     srcs = ["ServiceData.cpp"],
+    headers = ["ServiceData.h"],
     modular_headers = True,
     deps = [
         "//fb303/detail:regex_util",
