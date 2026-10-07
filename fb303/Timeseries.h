@@ -296,6 +296,26 @@ class MinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
       : MultiLevelTimeSeries<T>(NUM_LEVELS, 60, kMinuteOnlyDurations) {}
 };
 
+const std::chrono::milliseconds kMinuteFiveMinuteOnlyDurations[] = {
+    std::chrono::seconds(60),
+    std::chrono::seconds(300)};
+
+template <class T>
+class MinuteFiveMinuteOnlyTimeSeries : public MultiLevelTimeSeries<T> {
+ public:
+  enum Levels {
+    MINUTE,
+    FIVE_MINUTE,
+    NUM_LEVELS,
+  };
+
+  MinuteFiveMinuteOnlyTimeSeries()
+      : MultiLevelTimeSeries<T>(
+            NUM_LEVELS,
+            60,
+            kMinuteFiveMinuteOnlyDurations) {}
+};
+
 const std::chrono::milliseconds kTenMinuteOnlyDurations[] = {
     std::chrono::seconds(600)};
 

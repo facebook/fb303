@@ -39,6 +39,15 @@ std::ostream& operator<<(
   return os;
 }
 
+TEST(MinuteFiveMinuteOnlyTimeSeries, Durations) {
+  using IntMFMOTS = MinuteFiveMinuteOnlyTimeSeries<int>;
+  IntMFMOTS series;
+
+  EXPECT_EQ(series.numLevels(), IntMFMOTS::NUM_LEVELS);
+  EXPECT_EQ(series.getLevel(IntMFMOTS::MINUTE).duration(), 60s);
+  EXPECT_EQ(series.getLevel(IntMFMOTS::FIVE_MINUTE).duration(), 300s);
+}
+
 TEST(MinuteHourTimeSeries, Basic) {
   using IntMHTS = MinuteHourTimeSeries<int>;
   IntMHTS mhts;
