@@ -74,6 +74,7 @@ cpp_benchmark(
         "GetRegexCountersBenchmark.cpp",
     ],
     deps = [
+        "fbsource//third-party/fmt:fmt",
         "//common/stats:service_data",
         "//folly:benchmark",
         "//folly:string",
@@ -98,11 +99,12 @@ cpp_benchmark(
     name = "get_regex_counters_mt_bench",
     srcs = ["GetRegexCountersMtBench.cpp"],
     deps = [
+        "fbsource//third-party/fmt:fmt",
         "//fb303:service_data",
         "//folly:benchmark",
-        "//folly:conv",
         "//folly:random",
         "//folly/init:init",
+        "//folly/synchronization:latch",
     ],
 )
 

@@ -14,12 +14,19 @@
  * limitations under the License.
  */
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <map>
+#include <string>
+#include <vector>
+
+#include <fmt/format.h>
 #include <folly/Benchmark.h>
 #include <folly/String.h>
 #include <folly/init/Init.h>
 #include <folly/json/DynamicConverter.h>
-#include <ctime>
-#include <vector>
+
 #include "common/stats/ServiceData.h"
 
 using namespace folly;
@@ -28,6 +35,60 @@ using namespace facebook::stats;
 ServiceData fb303Data;
 
 constexpr int kMaxIter = 3000;
+constexpr std::size_t kMediumCounterCount = 2500;
+constexpr std::size_t kLargeCounterCount = 9000;
+
+const std::string kOneOrdinaryCounterRegex =
+    R"(fb303\.synthetic\.ordinary_counter\.0)";
+
+std::string ordinaryCounterName(std::size_t index) {
+  return fmt::format("fb303.synthetic.ordinary_counter.{}", index);
+}
+
+void populateOrdinaryCounters(ServiceData& serviceData, std::size_t count) {
+  for (std::size_t index = 0; index < count; ++index) {
+    serviceData.setCounter(
+        ordinaryCounterName(index), static_cast<int64_t>(index));
+  }
+}
+
+struct OrdinaryCounterFixture {
+  explicit OrdinaryCounterFixture(std::size_t count)
+      : presentKey{ordinaryCounterName(count - 1)},
+        absentKey{ordinaryCounterName(count)} {
+    populateOrdinaryCounters(serviceData, count);
+    const auto selectedCount = std::min<std::size_t>(count, 8);
+    selectedKeys.reserve(selectedCount);
+    for (std::size_t index = 0; index < selectedCount; ++index) {
+      selectedKeys.emplace_back(ordinaryCounterName(index));
+    }
+  }
+
+  ServiceData serviceData;
+  std::string presentKey;
+  std::string absentKey;
+  std::vector<std::string> selectedKeys;
+};
+
+const OrdinaryCounterFixture& ordinaryFixture(std::size_t count) {
+  if (count == kMediumCounterCount) {
+    static const OrdinaryCounterFixture mediumScale{kMediumCounterCount};
+    return mediumScale;
+  }
+  CHECK_EQ(count, kLargeCounterCount);
+  static const OrdinaryCounterFixture largeScale{kLargeCounterCount};
+  return largeScale;
+}
+
+OrdinaryCounterFixture& mutableOrdinaryFixture(std::size_t count) {
+  if (count == kMediumCounterCount) {
+    static OrdinaryCounterFixture mediumScale{kMediumCounterCount};
+    return mediumScale;
+  }
+  CHECK_EQ(count, kLargeCounterCount);
+  static OrdinaryCounterFixture largeScale{kLargeCounterCount};
+  return largeScale;
+}
 
 // sets up service data and initializes the counters
 void prepareData() {
@@ -74,6 +135,156 @@ BENCHMARK(GetRegexCountersBenchmarkAll, iters) {
     std::map<std::string, int64_t> counters = fb303Data.getRegexCounters(".*");
   }
 }
+
+void SetExisting(unsigned iterations, std::size_t count) {
+  BenchmarkSuspender setup;
+  auto& data = mutableOrdinaryFixture(count);
+  setup.dismiss();
+
+  while (iterations-- > 0) {
+    doNotOptimizeAway(data.serviceData.setCounter(data.presentKey, 1));
+  }
+}
+
+void IncrementExisting(unsigned iterations, std::size_t count) {
+  BenchmarkSuspender setup;
+  auto& data = mutableOrdinaryFixture(count);
+  setup.dismiss();
+
+  while (iterations-- > 0) {
+    doNotOptimizeAway(data.serviceData.incrementCounter(data.presentKey));
+  }
+}
+
+void GetCounterIfExistsPresent(unsigned iterations, std::size_t count) {
+  BenchmarkSuspender setup;
+  const auto& data = ordinaryFixture(count);
+  setup.dismiss();
+
+  while (iterations-- > 0) {
+    doNotOptimizeAway(data.serviceData.getCounterIfExists(data.presentKey));
+  }
+}
+
+void GetCounterIfExistsAbsent(unsigned iterations, std::size_t count) {
+  BenchmarkSuspender setup;
+  const auto& data = ordinaryFixture(count);
+  setup.dismiss();
+
+  while (iterations-- > 0) {
+    doNotOptimizeAway(data.serviceData.getCounterIfExists(data.absentKey));
+  }
+}
+
+void GetSelectedCounters(unsigned iterations, std::size_t count) {
+  BenchmarkSuspender setup;
+  const auto& data = ordinaryFixture(count);
+  std::map<std::string, int64_t> values;
+  setup.dismiss();
+
+  while (iterations-- > 0) {
+    values.clear();
+    data.serviceData.getSelectedCounters(values, data.selectedKeys);
+    doNotOptimizeAway(values);
+  }
+}
+
+void GetCounters(unsigned iterations, std::size_t count) {
+  BenchmarkSuspender setup;
+  const auto& data = ordinaryFixture(count);
+  std::map<std::string, int64_t> values;
+  setup.dismiss();
+
+  while (iterations-- > 0) {
+    values.clear();
+    data.serviceData.getCounters(values);
+    doNotOptimizeAway(values);
+  }
+}
+
+void GetCounterKeys(unsigned iterations, std::size_t count) {
+  BenchmarkSuspender setup;
+  const auto& data = ordinaryFixture(count);
+  setup.dismiss();
+
+  while (iterations-- > 0) {
+    doNotOptimizeAway(data.serviceData.getCounterKeys());
+  }
+}
+
+void getRegexCountersCold(std::size_t count) {
+  BenchmarkSuspender setup;
+  ServiceData serviceData;
+  populateOrdinaryCounters(serviceData, count);
+  setup.dismiss();
+
+  const auto counters = serviceData.getRegexCounters(kOneOrdinaryCounterRegex);
+  doNotOptimizeAway(counters);
+
+  setup.rehire();
+  CHECK_EQ(counters.size(), 1);
+}
+
+void GetRegexCountersWarm(unsigned iterations, std::size_t count) {
+  BenchmarkSuspender setup;
+  const auto& data = ordinaryFixture(count);
+  const auto first =
+      data.serviceData.getRegexCounters(kOneOrdinaryCounterRegex);
+  CHECK_EQ(first.size(), 1);
+  setup.dismiss();
+
+  while (iterations-- > 0) {
+    const auto counters =
+        data.serviceData.getRegexCounters(kOneOrdinaryCounterRegex);
+    doNotOptimizeAway(counters);
+  }
+}
+
+void InsertClear(unsigned iterations, std::size_t count) {
+  BenchmarkSuspender setup;
+  auto& data = mutableOrdinaryFixture(count);
+  const std::string cycleKey{"fb303.synthetic.ordinary_counter.cycle"};
+  setup.dismiss();
+
+  while (iterations-- > 0) {
+    data.serviceData.setCounter(cycleKey, 1);
+    data.serviceData.clearCounter(cycleKey);
+  }
+}
+
+BENCHMARK_NAMED_PARAM(SetExisting, Medium, kMediumCounterCount)
+BENCHMARK_NAMED_PARAM(SetExisting, Large, kLargeCounterCount)
+BENCHMARK_DRAW_LINE();
+BENCHMARK_NAMED_PARAM(IncrementExisting, Medium, kMediumCounterCount)
+BENCHMARK_NAMED_PARAM(IncrementExisting, Large, kLargeCounterCount)
+BENCHMARK_DRAW_LINE();
+BENCHMARK_NAMED_PARAM(GetCounterIfExistsPresent, Medium, kMediumCounterCount)
+BENCHMARK_NAMED_PARAM(GetCounterIfExistsPresent, Large, kLargeCounterCount)
+BENCHMARK_DRAW_LINE();
+BENCHMARK_NAMED_PARAM(GetCounterIfExistsAbsent, Medium, kMediumCounterCount)
+BENCHMARK_NAMED_PARAM(GetCounterIfExistsAbsent, Large, kLargeCounterCount)
+BENCHMARK_DRAW_LINE();
+BENCHMARK_NAMED_PARAM(GetSelectedCounters, Medium, kMediumCounterCount)
+BENCHMARK_NAMED_PARAM(GetSelectedCounters, Large, kLargeCounterCount)
+BENCHMARK_DRAW_LINE();
+BENCHMARK_NAMED_PARAM(GetCounters, Medium, kMediumCounterCount)
+BENCHMARK_NAMED_PARAM(GetCounters, Large, kLargeCounterCount)
+BENCHMARK_DRAW_LINE();
+BENCHMARK_NAMED_PARAM(GetCounterKeys, Medium, kMediumCounterCount)
+BENCHMARK_NAMED_PARAM(GetCounterKeys, Large, kLargeCounterCount)
+BENCHMARK_DRAW_LINE();
+BENCHMARK(GetRegexCountersColdMedium) {
+  getRegexCountersCold(kMediumCounterCount);
+}
+BENCHMARK(GetRegexCountersColdLarge) {
+  getRegexCountersCold(kLargeCounterCount);
+}
+BENCHMARK_DRAW_LINE();
+BENCHMARK_NAMED_PARAM(GetRegexCountersWarm, Medium, kMediumCounterCount)
+BENCHMARK_NAMED_PARAM(GetRegexCountersWarm, Large, kLargeCounterCount)
+BENCHMARK_DRAW_LINE();
+BENCHMARK_NAMED_PARAM(InsertClear, Medium, kMediumCounterCount)
+BENCHMARK_NAMED_PARAM(InsertClear, Large, kLargeCounterCount)
 
 /* setCounter() populates counters_ only, so the rows above never exercise
  * dynamicCounters_. A fresh ServiceData per invocation keeps the build cold --
