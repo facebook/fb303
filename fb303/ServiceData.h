@@ -26,6 +26,7 @@
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
+#include <folly/container/F14Set.h>
 #include <folly/container/RegexMatchCache.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
@@ -35,8 +36,10 @@
 #include <cinttypes>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace facebook::fb303 {
@@ -586,6 +589,51 @@ class ServiceData {
     Counter(Counter&& other) noexcept
         : std::atomic<int64_t>{other.load(std::memory_order_relaxed)} {}
   };
+
+  struct CounterEntry {
+    CounterEntry(std::string nameIn, int64_t valueIn) noexcept
+        : name{std::move(nameIn)}, value{valueIn} {}
+
+    const std::string name;
+    Counter value;
+  };
+
+  struct CounterMap {
+    using EntryPtr = std::shared_ptr<CounterEntry>;
+
+    struct KeyAccessor {
+      constexpr std::string_view operator()(
+          std::string_view name) const noexcept {
+        return name;
+      }
+      const std::string& operator()(const EntryPtr& entry) const noexcept {
+        return entry->name;
+      }
+    };
+    static constexpr KeyAccessor keyAccessor{};
+    static constexpr KeyAccessor fb303_key_accessor{};
+
+    using HashBase = folly::HeterogeneousAccessHash<std::string_view>;
+    using EqualToBase = folly::HeterogeneousAccessEqualTo<std::string_view>;
+
+    struct Hash : HashBase {
+      size_t operator()(
+          folly::passable_to<KeyAccessor> auto const& value) const noexcept {
+        return HashBase::operator()(keyAccessor(value));
+      }
+    };
+    struct EqualTo : EqualToBase {
+      bool operator()(
+          folly::passable_to<KeyAccessor> auto const& lhs,
+          folly::passable_to<KeyAccessor> auto const& rhs) const noexcept {
+        return EqualToBase::operator()(keyAccessor(lhs), keyAccessor(rhs));
+      }
+    };
+
+    folly::F14VectorSet<EntryPtr, Hash, EqualTo> map;
+    folly::RegexMatchCache matches;
+  };
+
   template <typename Mapped>
   using StringKeyedMap = folly::F14FastMap<std::string, Mapped>;
 
@@ -599,14 +647,7 @@ class ServiceData {
   std::atomic<bool> useOptionsAsFlags_;
   folly::Synchronized<StringKeyedMap<std::string>> options_;
 
-  // Combining counters map with cache and epoch numbers.  If epochs
-  // match, cache is valid.
-  template <typename Mapped>
-  struct MapWithKeyCache {
-    std::map<std::string, Mapped, std::less<>> map;
-    folly::RegexMatchCache matches; // requires map to have reference stability
-  };
-  folly::Synchronized<MapWithKeyCache<Counter>> counters_;
+  folly::Synchronized<CounterMap> counters_;
 
   folly::Synchronized<StringKeyedMap<folly::Synchronized<std::string>>>
       exportedValues_;

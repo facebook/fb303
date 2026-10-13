@@ -16,6 +16,12 @@
 
 #include "common/stats/ServiceData.h"
 
+#include <barrier>
+#include <cstdint>
+#include <set>
+#include <thread>
+#include <vector>
+
 #include <gflags/gflags.h>
 #include <gtest/gtest.h>
 
@@ -128,6 +134,72 @@ TEST_F(ServiceDataTest, clearCounter) {
 
   data.clearCounter(key);
   EXPECT_TRUE(data.getCounters().empty());
+}
+
+TEST_F(ServiceDataTest, SetAndIncrementExistingCounter) {
+  EXPECT_EQ(7, data.setCounter("counter", 7));
+  EXPECT_EQ(10, data.incrementCounter("counter", 3));
+  EXPECT_EQ(10, data.getCounter("counter"));
+}
+
+TEST_F(ServiceDataTest, ConcurrentIncrementOfAbsentCounter) {
+  constexpr int kThreadCount = 8;
+  constexpr int kIncrementsPerThread = 1000;
+  std::barrier start{kThreadCount};
+  std::vector<std::thread> threads;
+  threads.reserve(kThreadCount);
+
+  for (int thread = 0; thread < kThreadCount; ++thread) {
+    threads.emplace_back([&] {
+      start.arrive_and_wait();
+      for (int increment = 0; increment < kIncrementsPerThread; ++increment) {
+        data.incrementCounter("counter");
+      }
+    });
+  }
+  for (auto& thread : threads) {
+    thread.join();
+  }
+
+  EXPECT_EQ(kThreadCount * kIncrementsPerThread, data.getCounter("counter"));
+  const auto keys = data.getCounterKeys();
+  EXPECT_EQ(set<string>{"counter"}, set<string>(keys.begin(), keys.end()));
+}
+
+TEST_F(ServiceDataTest, RegexCounterReflectsClearAndReAdd) {
+  data.setCounter("ordinary.counter", 1);
+  EXPECT_EQ(
+      (map<string, int64_t>{{"ordinary.counter", 1}}),
+      data.getRegexCounters("ordinary\\..*"));
+
+  data.clearCounter("ordinary.counter");
+  data.setCounter("ordinary.counter", 2);
+
+  EXPECT_EQ(
+      (map<string, int64_t>{{"ordinary.counter", 2}}),
+      data.getRegexCounters("ordinary\\..*"));
+}
+
+TEST_F(ServiceDataTest, ZeroStatsResetsOrdinaryCounters) {
+  data.setCounter("first", 10);
+  data.setCounter("second", -4);
+
+  data.zeroStats();
+
+  const map<string, int64_t> expected = {{"first", 0}, {"second", 0}};
+  EXPECT_EQ(expected, data.getCounters());
+}
+
+TEST_F(ServiceDataTest, ResetAllDataRemovesOrdinaryCounters) {
+  data.setCounter("ordinary.counter", 1);
+  EXPECT_FALSE(data.getRegexCounters("ordinary\\..*").empty());
+
+  data.resetAllData();
+
+  EXPECT_FALSE(data.hasCounter("ordinary.counter"));
+  EXPECT_TRUE(data.getSelectedCounters({"ordinary.counter"}).empty());
+  EXPECT_TRUE(data.getRegexCounters("ordinary\\..*").empty());
+  EXPECT_TRUE(data.getCounterKeys().empty());
 }
 
 TEST_F(ServiceDataTest, allowedFlags) {

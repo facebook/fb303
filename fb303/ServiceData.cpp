@@ -82,9 +82,8 @@ void ServiceData::resetAllData() {
 void ServiceData::zeroStats() {
   {
     auto countersRLock = counters_.rlock();
-    // this mutation is safe: the lock protects the map structure only
-    for (auto& elem : countersRLock.asNonConstUnsafe().map) {
-      elem.second.store(0, std::memory_order_relaxed);
+    for (const auto& entry : countersRLock->map) {
+      entry->value.store(0, std::memory_order_relaxed);
     }
   }
 
@@ -292,16 +291,18 @@ int64_t ServiceData::modifyCounter(folly::StringPiece key, F f) {
     //  optimistically, the key is certainly present; update under rlock
     auto countersRLock = counters_.rlock();
     //  this mutation is safe: the lock protects the map structure only
-    if (auto ptr = folly::get_ptr(countersRLock.asNonConstUnsafe().map, key)) {
-      return f(*ptr);
+    if (auto it = countersRLock->map.find(key);
+        it != countersRLock->map.end()) {
+      return f((*it)->value);
     }
   }
 
   //  pessimistically, the key is possibly absent; upsert under wlock
+  auto candidate = std::make_shared<CounterEntry>(key.str(), 0);
   auto countersWLock = counters_.wlock();
-  auto& ref = detail::cachedAddString(*countersWLock, key, 0).first->second;
+  auto [it, _] = detail::cachedAddString(*countersWLock, std::move(candidate));
 
-  return f(ref);
+  return f((*it)->value);
 }
 
 int64_t ServiceData::incrementCounter(StringPiece key, int64_t amount) {
@@ -337,9 +338,10 @@ folly::Optional<int64_t> ServiceData::getCounterIfExists(
   }
 
   auto countersRLock = counters_.rlock();
-  auto ptr = folly::get_ptr(countersRLock->map, key);
-  return ptr ? folly::make_optional(ptr->load(std::memory_order_relaxed))
-             : folly::none;
+  auto it = countersRLock->map.find(key);
+  return it != countersRLock->map.end()
+      ? folly::make_optional((*it)->value.load(std::memory_order_relaxed))
+      : folly::none;
 }
 
 int64_t ServiceData::getCounter(StringPiece key) const {
@@ -355,8 +357,9 @@ int64_t ServiceData::getCounter(StringPiece key) const {
 void ServiceData::getCounters(std::map<std::string, int64_t>& _return) const {
   {
     auto countersRLock = counters_.rlock();
-    for (auto const& [name, value] : countersRLock->map) {
-      _return.try_emplace(name, value.load(std::memory_order_relaxed));
+    for (const auto& entry : countersRLock->map) {
+      _return.try_emplace(
+          entry->name, entry->value.load(std::memory_order_relaxed));
     }
   }
 
@@ -368,8 +371,8 @@ void ServiceData::getCounters(std::map<std::string, int64_t>& _return) const {
 void ServiceData::getKeys(std::vector<std::string>& keys) const {
   auto countersRLock = counters_.rlock();
   keys.reserve(keys.size() + countersRLock->map.size());
-  for (const auto& [key, _] : countersRLock->map) {
-    keys.emplace_back(key);
+  for (const auto& entry : countersRLock->map) {
+    keys.emplace_back(entry->name);
   }
 }
 
@@ -409,9 +412,9 @@ void ServiceData::getSelectedCounters(
   {
     auto countersRLock = counters_.rlock();
     for (const auto& key : keys) {
-      auto ptr = folly::get_ptr(countersRLock->map, key);
-      if (ptr) {
-        output[key] = ptr->load(std::memory_order_relaxed);
+      if (auto it = countersRLock->map.find(key);
+          it != countersRLock->map.end()) {
+        output[key] = (*it)->value.load(std::memory_order_relaxed);
       }
     }
   }
