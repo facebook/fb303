@@ -41,27 +41,28 @@ std::chrono::seconds statDuration(
 template <typename ClockT>
 folly::Optional<int64_t> BasicQuantileStatMap<ClockT>::getValue(
     folly::StringPiece key) const {
-  CounterMapEntry cme;
+  std::shared_ptr<const CounterMapEntry> cme;
   {
     auto countersRLock = counters_.rlock();
-    if (auto* p = folly::get_ptr(countersRLock->map, key)) {
-      cme = *p;
+    if (auto it = countersRLock->map.find(key);
+        it != countersRLock->map.end()) {
+      cme = *it;
     } else {
       return {};
     }
   }
   folly::Range<const double*> r;
-  if (cme.statDef.type == ExportType::PERCENT) {
-    r = folly::Range<const double*>(&cme.statDef.quantile, 1);
+  if (cme->statDef.type == ExportType::PERCENT) {
+    r = folly::Range<const double*>(&cme->statDef.quantile, 1);
   }
 
-  auto estimates = cme.stat->getEstimates(r);
+  auto estimates = cme->stat->getEstimates(r);
 
   const folly::QuantileEstimates* qe = nullptr;
-  if (cme.slidingWindowLength) {
+  if (cme->slidingWindowLength) {
     for (const auto& slidingWindow : estimates.slidingWindows) {
       auto slidingWindowLength = slidingWindow.slidingWindowLength();
-      if (slidingWindowLength == cme.slidingWindowLength) {
+      if (slidingWindowLength == cme->slidingWindowLength) {
         qe = &slidingWindow.estimate;
         break;
       }
@@ -75,9 +76,10 @@ folly::Optional<int64_t> BasicQuantileStatMap<ClockT>::getValue(
   }
 
   return extractValue(
-      cme.statDef,
+      cme->statDef,
       *qe,
-      statDuration<ClockT>(cme.slidingWindowLength, cme.stat->creationTime()));
+      statDuration<ClockT>(
+          cme->slidingWindowLength, cme->stat->creationTime()));
 }
 
 template <typename ClockT>
@@ -115,15 +117,15 @@ template <typename ClockT>
 void BasicQuantileStatMap<ClockT>::getSelectedValues(
     std::map<std::string, int64_t>& out,
     const std::vector<std::string>& keys) const {
-  std::map<
-      stat_type*,
-      std::vector<std::pair<const std::string*, CounterMapEntry>>>
-      stats;
+  using ret_elem =
+      std::pair<const std::string*, std::shared_ptr<const CounterMapEntry>>;
+  std::map<stat_type*, std::vector<ret_elem>> stats;
   {
     auto countersRLock = counters_.rlock();
     for (const auto& key : keys) {
-      if (auto* p = folly::get_ptr(countersRLock->map, key)) {
-        stats[p->stat.get()].emplace_back(&key, *p);
+      if (auto it = countersRLock->map.find(key);
+          it != countersRLock->map.end()) {
+        stats[(*it)->stat.get()].emplace_back(&key, *it);
       }
     }
   }
@@ -131,27 +133,27 @@ void BasicQuantileStatMap<ClockT>::getSelectedValues(
   for (const auto& [stat, vec] : stats) {
     std::vector<double> quantiles;
     for (const auto& [_, cme] : vec) {
-      if (cme.statDef.type == ExportType::PERCENT) {
-        quantiles.push_back(cme.statDef.quantile);
+      if (cme->statDef.type == ExportType::PERCENT) {
+        quantiles.push_back(cme->statDef.quantile);
       }
     }
     auto estimates = stat->getEstimates(quantiles, now);
     auto timeSinceCreation = std::chrono::duration_cast<std::chrono::seconds>(
         now - stat->creationTime());
     for (const auto& [pkey, cme] : vec) {
-      if (cme.slidingWindowLength) {
+      if (cme->slidingWindowLength) {
         for (const auto& slidingWindow : estimates.slidingWindows) {
           auto slidingWindowLength = slidingWindow.slidingWindowLength();
-          if (slidingWindowLength == *cme.slidingWindowLength) {
+          if (slidingWindowLength == *cme->slidingWindowLength) {
             auto duration = std::min(slidingWindowLength, timeSinceCreation);
             out[*pkey] =
-                extractValue(cme.statDef, slidingWindow.estimate, duration);
+                extractValue(cme->statDef, slidingWindow.estimate, duration);
             break;
           }
         }
       } else {
         out[*pkey] = extractValue(
-            cme.statDef, estimates.allTimeEstimate, timeSinceCreation);
+            cme->statDef, estimates.allTimeEstimate, timeSinceCreation);
       }
     }
   }
@@ -177,8 +179,8 @@ void BasicQuantileStatMap<ClockT>::getKeys(
     std::vector<std::string>& keys) const {
   auto countersRLock = counters_.rlock();
   folly::grow_capacity_by(keys, countersRLock->map.size());
-  for (const auto& [key, _] : countersRLock->map) {
-    keys.emplace_back(key);
+  for (const auto& entry : countersRLock->map) {
+    keys.emplace_back(entry->name);
   }
 }
 
@@ -235,19 +237,21 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
   // ServiceData::getQuantileStat() which also favors optimistic concurrency
   // when calling this method.
   auto slidingWindowLengths = stat->getSlidingWindowLengths();
-  std::vector<std::pair<std::string, CounterMapEntry>> counterMapEntries;
+  std::vector<std::shared_ptr<const CounterMapEntry>> counterMapEntries;
   counterMapEntries.reserve(
       statDefs.size() * (1 + slidingWindowLengths.size()));
   for (const auto& statDef : statDefs) {
-    CounterMapEntry entry;
-    entry.stat = stat;
-    entry.statDef = statDef;
-    counterMapEntries.emplace_back(makeKey(name, statDef, folly::none), entry);
+    counterMapEntries.emplace_back(
+        std::make_shared<const CounterMapEntry>(
+            makeKey(name, statDef, folly::none), stat, statDef, folly::none));
 
     for (auto slidingWindowLength : slidingWindowLengths) {
-      entry.slidingWindowLength = slidingWindowLength;
       counterMapEntries.emplace_back(
-          makeKey(name, statDef, slidingWindowLength), entry);
+          std::make_shared<const CounterMapEntry>(
+              makeKey(name, statDef, slidingWindowLength),
+              stat,
+              statDef,
+              slidingWindowLength));
     }
   }
 
@@ -261,8 +265,8 @@ BasicQuantileStatMap<ClockT>::registerQuantileStat(
     return p->stat;
   }
   folly::grow_capacity_by(countersWLock->map, counterMapEntries.size());
-  for (auto&& [key, entry] : counterMapEntries) {
-    detail::cachedAddString(*countersWLock, std::move(key), std::move(entry));
+  for (auto&& entry : counterMapEntries) {
+    detail::cachedAddString(*countersWLock, std::move(entry));
   }
   countersWLock->bases.emplace(std::move(nameStr), std::move(statMapEntry));
   return stat;

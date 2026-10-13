@@ -19,6 +19,7 @@
 #include <functional>
 #include <map>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -29,7 +30,9 @@
 #include <folly/Optional.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
+#include <folly/container/F14Set.h>
 #include <folly/container/RegexMatchCache.h>
+#include <folly/hash/Hash.h>
 #include <folly/synchronization/RelaxedAtomic.h>
 
 #include <fb303/ExportType.h>
@@ -103,9 +106,9 @@ class BasicQuantileStatMap {
   // rebuild the digests.
   void flushAll() {
     auto countersRLock = counters_.rlock();
-    for (auto& p : countersRLock->map) {
-      if (p.second.stat != nullptr) {
-        p.second.stat->flush();
+    for (const auto& entry : countersRLock->map) {
+      if (entry->stat != nullptr) {
+        entry->stat->flush();
       }
     }
   }
@@ -124,6 +127,17 @@ class BasicQuantileStatMap {
 
  private:
   struct CounterMapEntry {
+    CounterMapEntry(
+        std::string nameIn,
+        std::shared_ptr<stat_type> statIn,
+        StatDef statDefIn,
+        folly::Optional<std::chrono::seconds> slidingWindowLengthIn)
+        : name{std::move(nameIn)},
+          stat{std::move(statIn)},
+          statDef{statDefIn},
+          slidingWindowLength{slidingWindowLengthIn} {}
+
+    std::string name;
     std::shared_ptr<stat_type> stat;
     StatDef statDef;
     folly::Optional<std::chrono::seconds> slidingWindowLength;
@@ -134,17 +148,44 @@ class BasicQuantileStatMap {
     std::vector<StatDef> statDefs;
   };
 
-  // Combining counters map with cache and epoch numbers.  If epochs
-  // match, cache is valid.
-  template <typename Mapped>
-  struct MapWithKeyCache {
-    // The key to this map is the fully qualified stat name, e.g. MyStat.p99.60
-    folly::F14NodeMap<std::string, Mapped> map;
+  struct CounterMap {
+    using EntryPtr = std::shared_ptr<const CounterMapEntry>;
+
+    struct KeyAccessor {
+      constexpr std::string_view operator()(
+          std::string_view name) const noexcept {
+        return name;
+      }
+      const std::string& operator()(const EntryPtr& entry) const noexcept {
+        return entry->name;
+      }
+    };
+    static constexpr KeyAccessor keyAccessor{};
+    static constexpr KeyAccessor fb303_key_accessor{};
+
+    using HashBase = folly::HeterogeneousAccessHash<std::string_view>;
+    using EqualToBase = folly::HeterogeneousAccessEqualTo<std::string_view>;
+
+    struct Hash : HashBase {
+      size_t operator()(
+          folly::passable_to<KeyAccessor> auto const& value) const noexcept {
+        return HashBase::operator()(keyAccessor(value));
+      }
+    };
+    struct EqualTo : EqualToBase {
+      bool operator()(
+          folly::passable_to<KeyAccessor> auto const& lhs,
+          folly::passable_to<KeyAccessor> auto const& rhs) const noexcept {
+        return EqualToBase::operator()(keyAccessor(lhs), keyAccessor(rhs));
+      }
+    };
+
+    folly::F14VectorSet<EntryPtr, Hash, EqualTo> map;
     // The key to this map is the base of the stat name, e.g. MyStat.
     folly::F14NodeMap<std::string, StatMapEntry> bases;
-    folly::RegexMatchCache matches; // requires map to have reference stability
+    folly::RegexMatchCache matches;
   };
-  folly::Synchronized<MapWithKeyCache<CounterMapEntry>> counters_;
+  folly::Synchronized<CounterMap> counters_;
 
   static std::string makeKey(
       folly::StringPiece base,

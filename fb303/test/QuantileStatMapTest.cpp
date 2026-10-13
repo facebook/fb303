@@ -17,6 +17,8 @@
 #include <fb303/detail/QuantileStatMap.h>
 
 #include <atomic>
+#include <barrier>
+#include <set>
 #include <thread>
 
 #include <gtest/gtest.h>
@@ -70,6 +72,14 @@ class QuantileStatMapTest : public ::testing::Test {
     statMap.registerQuantileStat("StatName", stat, statDefs);
   }
 };
+
+std::set<std::string> getRegexKeySet(
+    const TestStatMap& statMap,
+    const std::string& regex) {
+  std::vector<std::string> keys;
+  statMap.getRegexKeys(keys, regex);
+  return {keys.begin(), keys.end()};
+}
 
 TEST_F(QuantileStatMapTest, GetValues) {
   std::map<std::string, int64_t> values;
@@ -199,6 +209,23 @@ TEST_F(QuantileStatMapTest, getKeys) {
   std::vector<std::string> keys;
   statMap.getKeys(keys);
   EXPECT_EQ(24, keys.size());
+}
+
+TEST_F(QuantileStatMapTest, GetRegexKeysColdAndWarm) {
+  const std::set<std::string> expected = {
+      "StatName.p95",
+      "StatName.p95.60",
+      "StatName.p95.600",
+      "StatName.p95.3600",
+      "StatName.sum",
+      "StatName.sum.60",
+      "StatName.sum.600",
+      "StatName.sum.3600",
+  };
+  const std::string regex{"StatName\\.(p95|sum)(\\..*)?"};
+
+  EXPECT_EQ(expected, getRegexKeySet(statMap, regex));
+  EXPECT_EQ(expected, getRegexKeySet(statMap, regex));
 }
 
 TEST_F(QuantileStatMapTest, getSelectedValues) {
@@ -331,19 +358,72 @@ TEST_F(QuantileStatMapTest, ForgetAndReRegister) {
   EXPECT_EQ(statMap.getNumKeys(), 0);
 }
 
+TEST_F(QuantileStatMapTest, RegexKeysForgetAndReRegister) {
+  const std::string regex{"StatName.*"};
+  EXPECT_EQ(24, getRegexKeySet(statMap, regex).size());
+
+  statMap.forgetStatsFor("StatName");
+  EXPECT_TRUE(getRegexKeySet(statMap, regex).empty());
+
+  auto replacement = std::make_shared<TestStat>(slidingWindowDefs);
+  const std::vector<TestStatMap::StatDef> replacementDefs = {
+      {ExportType::SUM, 0.0},
+      {ExportType::COUNT, 0.0},
+  };
+  statMap.registerQuantileStat("StatName", replacement, replacementDefs);
+
+  const std::set<std::string> expected = {
+      "StatName.count",
+      "StatName.count.60",
+      "StatName.count.600",
+      "StatName.count.3600",
+      "StatName.sum",
+      "StatName.sum.60",
+      "StatName.sum.600",
+      "StatName.sum.3600",
+  };
+  EXPECT_EQ(expected, getRegexKeySet(statMap, regex));
+}
+
+TEST_F(QuantileStatMapTest, DuplicateRegistrationKeepsExistingFamily) {
+  auto candidate = std::make_shared<TestStat>(slidingWindowDefs);
+  const std::vector<TestStatMap::StatDef> candidateDefs = {
+      {ExportType::COUNT, 0.0},
+  };
+
+  EXPECT_EQ(
+      stat, statMap.registerQuantileStat("StatName", candidate, candidateDefs));
+  EXPECT_EQ(24, statMap.getNumKeys());
+  EXPECT_FALSE(statMap.contains("StatName.count"));
+  EXPECT_EQ(stat, statMap.get("StatName"));
+}
+
 // Stress test: one thread continuously registers and forgets stats,
 // another reads values, and a third queries keys.
 TEST(QuantileStatMapConcurrency, ConcurrentForgetAndRegister) {
   TestStatMap statMap;
 
+  const std::set<std::string> completeFamily = {
+      "ConcurrentStat.p99",
+      "ConcurrentStat.p99.60",
+      "ConcurrentStat.p99.600",
+      "ConcurrentStat.p99.3600",
+      "ConcurrentStat.sum",
+      "ConcurrentStat.sum.60",
+      "ConcurrentStat.sum.600",
+      "ConcurrentStat.sum.3600",
+  };
   std::atomic<uint64_t> registerIterations{0};
   std::atomic<uint64_t> forgetIterations{0};
   std::atomic<uint64_t> queryIterations{0};
+  std::atomic<uint64_t> invalidSnapshots{0};
 
   auto end = std::chrono::steady_clock::now() + std::chrono::seconds(2);
   std::atomic<bool> done{false};
+  std::barrier start{3};
 
   std::thread registerThread([&] {
+    start.arrive_and_wait();
     while (std::chrono::steady_clock::now() < end) {
       for (int n = 0; n < 100; ++n) {
         auto stat = std::make_shared<TestStat>(slidingWindowDefs);
@@ -358,6 +438,7 @@ TEST(QuantileStatMapConcurrency, ConcurrentForgetAndRegister) {
   });
 
   std::thread forgetThread([&] {
+    start.arrive_and_wait();
     while (!done) {
       statMap.forgetStatsFor("ConcurrentStat");
       ++forgetIterations;
@@ -365,12 +446,17 @@ TEST(QuantileStatMapConcurrency, ConcurrentForgetAndRegister) {
   });
 
   std::thread queryThread([&] {
+    start.arrive_and_wait();
     while (!done) {
       std::map<std::string, int64_t> values;
       statMap.getValues(values);
       statMap.getValue("ConcurrentStat.sum");
       std::vector<std::string> keys;
       statMap.getKeys(keys);
+      const std::set<std::string> snapshot{keys.begin(), keys.end()};
+      if (!snapshot.empty() && snapshot != completeFamily) {
+        ++invalidSnapshots;
+      }
       ++queryIterations;
     }
   });
@@ -382,6 +468,7 @@ TEST(QuantileStatMapConcurrency, ConcurrentForgetAndRegister) {
   EXPECT_GT(registerIterations.load(), 1000);
   EXPECT_GT(forgetIterations.load(), 1000);
   EXPECT_GT(queryIterations.load(), 100);
+  EXPECT_EQ(invalidSnapshots.load(), 0);
 }
 
 // Stress test: multiple stats being forgotten concurrently.
