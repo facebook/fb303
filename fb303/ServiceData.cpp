@@ -444,7 +444,7 @@ void ServiceData::getRegexCounters(
   const auto key = folly::RegexMatchCache::regex_key_and_view(regex);
   const auto now = folly::RegexMatchCache::clock::now();
   std::vector<std::string> keys;
-  detail::cachedFindMatches(keys, counters_, key, now);
+  detail::cachedFindMatchesSnapshot(keys, counters_, key, now);
   quantileMap_.getRegexKeys(keys, key, now);
   dynamicCounters_.getRegexKeys(keys, key, now);
   getSelectedCounters(_return, keys);

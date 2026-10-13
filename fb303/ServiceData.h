@@ -631,7 +631,7 @@ class ServiceData {
     };
 
     folly::F14VectorSet<EntryPtr, Hash, EqualTo> map;
-    folly::RegexMatchCache matches;
+    mutable folly::RegexMatchCache matches;
   };
 
   template <typename Mapped>

@@ -126,7 +126,7 @@ void cachedFindMatches(
   if (!r->matches.isReadyToFindMatches(regex)) {
     r = {};
     auto w = map.wlock();
-    const_cast<folly::RegexMatchCache&>(w->matches).prepareToFindMatches(regex);
+    w->matches.prepareToFindMatches(regex);
     r = w.moveFromWriteToRead(); // atomic transition is required here
   }
   cachedFindMatchesCopyUnderSharedLock(out, r->matches, regex, now);

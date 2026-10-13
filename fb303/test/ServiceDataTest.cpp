@@ -202,6 +202,50 @@ TEST_F(ServiceDataTest, ResetAllDataRemovesOrdinaryCounters) {
   EXPECT_TRUE(data.getCounterKeys().empty());
 }
 
+TEST_F(ServiceDataTest, RegexResultsRemainValidDuringClearAndReAdd) {
+  constexpr int kFillerCount = 1000;
+  constexpr int kColdReads = 20;
+  for (int index = 0; index < kFillerCount; ++index) {
+    data.setCounter("filler." + to_string(index), index);
+  }
+
+  atomic<bool> done{false};
+  atomic<uint64_t> writes{0};
+  atomic<uint64_t> invalidResults{0};
+  barrier start{2};
+
+  thread writer([&] {
+    start.arrive_and_wait();
+    uint64_t value = 1;
+    while (!done) {
+      data.setCounter("ordinary.counter", value++);
+      data.clearCounter("ordinary.counter");
+      ++writes;
+    }
+  });
+
+  thread reader([&] {
+    start.arrive_and_wait();
+    for (int read = 0; read < kColdReads; ++read) {
+      const auto counters = data.getRegexCounters(
+          "ordinary\\.counter|NeverMatches" + to_string(read));
+      if (counters.size() > 1 ||
+          (!counters.empty() &&
+           (counters.begin()->first != "ordinary.counter" ||
+            counters.begin()->second <= 0))) {
+        ++invalidResults;
+      }
+    }
+    done = true;
+  });
+
+  writer.join();
+  reader.join();
+
+  EXPECT_GT(writes.load(), 0);
+  EXPECT_EQ(invalidResults.load(), 0);
+}
+
 TEST_F(ServiceDataTest, allowedFlags) {
   auto getflags = []() -> std::map<std::string, std::string> {
     std::map<std::string, std::string> _return;
