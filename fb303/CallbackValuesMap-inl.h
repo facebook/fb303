@@ -17,6 +17,7 @@
 #pragma once
 
 #include <algorithm>
+#include <optional>
 #include <span>
 #include <utility>
 
@@ -133,8 +134,10 @@ void CallbackValuesMap<T>::getRegexKeys(
     std::vector<std::string>& keys,
     const folly::RegexMatchCache::regex_key_and_view& regex,
     const folly::RegexMatchCache::time_point now) const {
+  std::optional<folly::RegexMatchCache::Matcher> sharedMatcher;
   for (const auto& callbackMap : callbackMaps_) {
-    detail::cachedFindMatchesSnapshot(keys, callbackMap, regex, now);
+    detail::cachedFindMatchesSnapshot(
+        keys, callbackMap, regex, now, sharedMatcher);
   }
 }
 

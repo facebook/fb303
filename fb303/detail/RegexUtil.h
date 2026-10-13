@@ -140,12 +140,16 @@ void cachedFindMatches(
 /// reader and writer for seconds. A single off-lock pass handles the common
 /// case; strings added during the scan, or a purge that evicted the in-flight
 /// regex, are drained synchronously under the lock.
+/// sharedMatcher is initialized lazily. An engaged matcher must have been
+/// compiled from regex, must not have been moved from, and may be reused only
+/// with that regex.
 template <typename SyncMap>
 void cachedFindMatchesSnapshot(
     std::vector<std::string>& out,
     SyncMap& map,
     folly::RegexMatchCacheKeyAndView const& regex,
-    folly::RegexMatchCache::time_point const now) {
+    folly::RegexMatchCache::time_point const now,
+    std::optional<folly::RegexMatchCache::Matcher>& sharedMatcher) {
   using EntryPtr =
       typename std::decay_t<decltype(map.rlock()->map)>::value_type;
 
@@ -173,7 +177,9 @@ void cachedFindMatchesSnapshot(
 
   // Compile before touching the cache: an invalid pattern throws here, leaving
   // the cache intact (prepareToFindMatches instead purges every cached regex).
-  auto matcher = folly::RegexMatchCache::compile(regex.view);
+  if (!sharedMatcher) {
+    sharedMatcher.emplace(folly::RegexMatchCache::compile(regex.view));
+  }
 
   // Under the lock, pin every map entry alive before registering the regex, so
   // queued string pointers cannot dangle if a callback is unregistered during
@@ -199,9 +205,7 @@ void cachedFindMatchesSnapshot(
         for (const auto& entry : w->map) {
           alive.emplace_back(entry);
         }
-        auto h =
-            w->matches.initPrepareToFindMatches(regex, std::move(matcher), now);
-        return h;
+        return w->matches.initPrepareToFindMatches(*sharedMatcher, now);
       });
   if (!handleOpt) {
     return;
@@ -235,6 +239,16 @@ void cachedFindMatchesSnapshot(
     auto r = w.moveFromWriteToRead();
     cachedFindMatchesCopyUnderSharedLock(out, r->matches, regex, now);
   }
+}
+
+template <typename SyncMap>
+void cachedFindMatchesSnapshot(
+    std::vector<std::string>& out,
+    SyncMap& map,
+    folly::RegexMatchCacheKeyAndView const& regex,
+    folly::RegexMatchCache::time_point const now) {
+  std::optional<folly::RegexMatchCache::Matcher> sharedMatcher;
+  cachedFindMatchesSnapshot(out, map, regex, now, sharedMatcher);
 }
 
 template <typename SyncMap>

@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <shared_mutex>
 #include <stop_token>
 #include <string>
@@ -364,4 +365,63 @@ TEST(RegexUtilTest, snapshot_build_serves_warm_regex_without_rebuilding) {
   std::sort(warm.begin(), warm.end());
   EXPECT_EQ(expectedMatchCount(), cold.size());
   EXPECT_EQ(cold, warm);
+}
+
+TEST(RegexUtilTest, snapshot_build_initializes_shared_matcher_lazily) {
+  auto const regex = makeRegex();
+  auto const key = RegexMatchCacheKeyAndView{regex};
+  std::optional<RegexMatchCache::Matcher> sharedMatcher;
+  std::vector<std::string> matches;
+
+  SyncTestMap empty;
+  cachedFindMatchesSnapshot(
+      matches, empty, key, RegexMatchCache::clock::now(), sharedMatcher);
+  EXPECT_FALSE(sharedMatcher);
+
+  SyncTestMap first;
+  SyncTestMap second;
+  populate(first);
+  populate(second);
+  cachedFindMatchesSnapshot(
+      matches, first, key, RegexMatchCache::clock::now(), sharedMatcher);
+  ASSERT_TRUE(sharedMatcher);
+
+  matches.clear();
+  cachedFindMatchesSnapshot(
+      matches, second, key, RegexMatchCache::clock::now(), sharedMatcher);
+  EXPECT_EQ(expectedMatchCount(), matches.size());
+
+  {
+    auto w = first.wlock();
+    cachedAddString(
+        *w, std::make_shared<TestMap::Entry>(makeKey(kNumKeys + 1)));
+  }
+  matches.clear();
+  cachedFindMatchesSnapshot(
+      matches, first, key, RegexMatchCache::clock::now(), sharedMatcher);
+  EXPECT_EQ(expectedMatchCount() + 1, matches.size());
+}
+
+TEST(RegexUtilTest, snapshot_warm_maps_leave_shared_matcher_disengaged) {
+  auto const regex = makeRegex();
+  auto const key = RegexMatchCacheKeyAndView{regex};
+  SyncTestMap first;
+  SyncTestMap second;
+  populate(first);
+  populate(second);
+
+  std::vector<std::string> matches;
+  cachedFindMatchesSnapshot(matches, first, key, RegexMatchCache::clock::now());
+  cachedFindMatchesSnapshot(
+      matches, second, key, RegexMatchCache::clock::now());
+
+  std::optional<RegexMatchCache::Matcher> sharedMatcher;
+  matches.clear();
+  cachedFindMatchesSnapshot(
+      matches, first, key, RegexMatchCache::clock::now(), sharedMatcher);
+  cachedFindMatchesSnapshot(
+      matches, second, key, RegexMatchCache::clock::now(), sharedMatcher);
+
+  EXPECT_FALSE(sharedMatcher);
+  EXPECT_EQ(2 * expectedMatchCount(), matches.size());
 }
