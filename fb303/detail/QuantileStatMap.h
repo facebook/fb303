@@ -183,7 +183,7 @@ class BasicQuantileStatMap {
     folly::F14VectorSet<EntryPtr, Hash, EqualTo> map;
     // The key to this map is the base of the stat name, e.g. MyStat.
     folly::F14NodeMap<std::string, StatMapEntry> bases;
-    folly::RegexMatchCache matches;
+    mutable folly::RegexMatchCache matches;
   };
   folly::Synchronized<CounterMap> counters_;
 

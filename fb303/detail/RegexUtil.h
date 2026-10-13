@@ -195,7 +195,10 @@ void cachedFindMatchesSnapshot(
           cachedFindMatchesCopyUnderSharedLock(out, r->matches, regex, now);
           return std::nullopt;
         }
-        alive.assign(w->map.begin(), w->map.end());
+        alive.reserve(w->map.size());
+        for (const auto& entry : w->map) {
+          alive.emplace_back(entry);
+        }
         auto h =
             w->matches.initPrepareToFindMatches(regex, std::move(matcher), now);
         return h;

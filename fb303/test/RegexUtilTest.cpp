@@ -17,10 +17,12 @@
 #include <fb303/detail/RegexUtil.h>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <functional>
 #include <memory>
+#include <shared_mutex>
 #include <stop_token>
 #include <string>
 #include <thread>
@@ -35,6 +37,7 @@
 #include <gtest/gtest.h>
 
 using facebook::fb303::detail::cachedAddString;
+using facebook::fb303::detail::cachedEraseString;
 using facebook::fb303::detail::cachedFindMatches;
 using facebook::fb303::detail::cachedFindMatchesSnapshot;
 using folly::RegexMatchCache;
@@ -80,6 +83,54 @@ struct TestMap {
 };
 
 using SyncTestMap = folly::Synchronized<TestMap>;
+
+class PausingSharedMutex {
+ public:
+  void lock() {
+    mutex_.lock();
+  }
+
+  void unlock() {
+    mutex_.unlock();
+    if (pause_.exchange(false, std::memory_order_acq_rel)) {
+      lock_released_.post();
+      resume_.wait();
+    }
+  }
+
+  void lock_shared() {
+    mutex_.lock_shared();
+  }
+
+  void unlock_shared() {
+    mutex_.unlock_shared();
+  }
+
+  void unlock_and_lock_shared() {
+    unlock();
+    lock_shared();
+  }
+
+  void pause_after_next_write_unlock() {
+    pause_.store(true, std::memory_order_release);
+  }
+
+  void wait_until_paused() {
+    lock_released_.wait();
+  }
+
+  void resume() {
+    resume_.post();
+  }
+
+ private:
+  std::shared_mutex mutex_;
+  std::atomic<bool> pause_{false};
+  folly::Baton<> lock_released_;
+  folly::Baton<> resume_;
+};
+
+using PausingSyncTestMap = folly::Synchronized<TestMap, PausingSharedMutex>;
 
 constexpr size_t kNumKeys = 2000;
 constexpr size_t kNumTokens = 2000;
@@ -212,6 +263,51 @@ TEST(RegexUtilTest, snapshot_build_releases_lock_across_the_scan) {
              released.scanWall)
              .count()
       << " ms scan";
+}
+
+TEST(RegexUtilTest, snapshot_build_pins_erased_entry_until_publication) {
+  PausingSyncTestMap sync;
+  auto& mutex = sync.unsafeGetMutex();
+  const auto key = RegexMatchCacheKeyAndView{"same"};
+  auto original = std::make_shared<TestMap::Entry>("same");
+  const std::weak_ptr<TestMap::Entry> originalWeak = original;
+  {
+    auto w = sync.wlock();
+    cachedAddString(*w, original);
+  }
+  original.reset();
+
+  mutex.pause_after_next_write_unlock();
+
+  std::vector<std::string> matches;
+  std::jthread build{[&] {
+    cachedFindMatchesSnapshot(
+        matches, sync, key, RegexMatchCache::clock::now());
+  }};
+
+  mutex.wait_until_paused();
+  auto originalDuringBuild = originalWeak.lock();
+  EXPECT_NE(nullptr, originalDuringBuild);
+
+  auto replacement = std::make_shared<TestMap::Entry>("same");
+  {
+    auto w = sync.wlock();
+    cachedEraseString(*w, w->map.begin());
+    cachedAddString(*w, replacement);
+  }
+  originalDuringBuild.reset();
+  EXPECT_FALSE(originalWeak.expired());
+
+  mutex.resume();
+  build.join();
+
+  EXPECT_TRUE(originalWeak.expired());
+  EXPECT_EQ(std::vector<std::string>{"same"}, matches);
+  const auto r = sync.rlock();
+  const auto cached =
+      r->matches.findMatches(key, RegexMatchCache::clock::now());
+  ASSERT_EQ(1, cached.size());
+  EXPECT_EQ(&replacement->name, cached.front());
 }
 
 /// The blast radius of a match-time throw: the in-flight regex is erased and an

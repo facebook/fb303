@@ -471,6 +471,66 @@ TEST(QuantileStatMapConcurrency, ConcurrentForgetAndRegister) {
   EXPECT_EQ(invalidSnapshots.load(), 0);
 }
 
+TEST(QuantileStatMapConcurrency, RegexKeysRemainCompleteDuringReRegistration) {
+  TestStatMap statMap;
+  const std::vector<TestStatMap::StatDef> statDefs = {
+      {ExportType::SUM, 0.0},
+      {ExportType::PERCENT, 0.99},
+  };
+  const std::set<std::string> completeFamily = {
+      "ConcurrentStat.p99",
+      "ConcurrentStat.p99.60",
+      "ConcurrentStat.p99.600",
+      "ConcurrentStat.p99.3600",
+      "ConcurrentStat.sum",
+      "ConcurrentStat.sum.60",
+      "ConcurrentStat.sum.600",
+      "ConcurrentStat.sum.3600",
+  };
+  for (int index = 0; index < 100; ++index) {
+    statMap.registerQuantileStat(
+        "FillerStat" + std::to_string(index),
+        std::make_shared<TestStat>(slidingWindowDefs),
+        statDefs);
+  }
+
+  std::atomic<bool> done{false};
+  std::atomic<uint64_t> reads{0};
+  std::atomic<uint64_t> invalidSnapshots{0};
+  std::barrier start{2};
+
+  std::thread writer([&] {
+    start.arrive_and_wait();
+    for (int iteration = 0; iteration < 100; ++iteration) {
+      statMap.registerQuantileStat(
+          "ConcurrentStat",
+          std::make_shared<TestStat>(slidingWindowDefs),
+          statDefs);
+      statMap.forgetStatsFor("ConcurrentStat");
+    }
+    done = true;
+  });
+
+  std::thread reader([&] {
+    start.arrive_and_wait();
+    while (!done) {
+      const auto regex =
+          "ConcurrentStat.*|NeverMatches" + std::to_string(reads.load());
+      const auto snapshot = getRegexKeySet(statMap, regex);
+      if (!snapshot.empty() && snapshot != completeFamily) {
+        ++invalidSnapshots;
+      }
+      ++reads;
+    }
+  });
+
+  writer.join();
+  reader.join();
+
+  EXPECT_GT(reads.load(), 0);
+  EXPECT_EQ(invalidSnapshots.load(), 0);
+}
+
 // Stress test: multiple stats being forgotten concurrently.
 TEST(QuantileStatMapConcurrency, ConcurrentForgetMultipleStats) {
   TestStatMap statMap;
