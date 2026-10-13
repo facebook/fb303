@@ -240,6 +240,17 @@ cpp_benchmark(
     ],
 )
 
+cpp_benchmark(
+    name = "quantile_stat_map_bench",
+    srcs = ["QuantileStatMapBench.cpp"],
+    deps = [
+        "fbsource//third-party/fmt:fmt",
+        "//fb303/detail:quantile_stat_map",
+        "//folly:benchmark",
+        "//folly/init:init",
+    ],
+)
+
 cpp_unittest(
     name = "quantile_stat_test",
     srcs = [
