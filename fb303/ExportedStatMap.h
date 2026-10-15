@@ -20,6 +20,7 @@
 
 #include <fb303/ExportType.h>
 #include <fb303/Timeseries.h>
+#include <fb303/detail/ExclusiveStatMutex.h>
 #include <folly/Synchronized.h>
 #include <folly/container/F14Map.h>
 
@@ -39,7 +40,8 @@ using TimePoint = ExportedStat::TimePoint;
 
 class ExportedStatMap {
  public:
-  using SyncStat = folly::Synchronized<ExportedStat>;
+  using SyncStat =
+      folly::Synchronized<ExportedStat, detail::ExclusiveStatMutex>;
   using StatPtr = std::shared_ptr<SyncStat>;
   using LockedStatPtr = SyncStat::WLockedPtr;
   using StatMap = folly::F14FastMap<std::string, StatPtr>;

@@ -86,6 +86,7 @@ cpp_library(
     exported_deps = [
         ":export_type",
         ":timeseries",
+        "//fb303/detail:exclusive_stat_mutex",
         "//folly:synchronized",
         "//folly/container:f14_hash",
     ],
@@ -335,6 +336,7 @@ cpp_library(
     exported_deps = [
         ":export_type",
         ":timeseries",
+        "//fb303/detail:exclusive_stat_mutex",
         "//folly:synchronized",
     ],
 )
