@@ -18,7 +18,6 @@
 
 #include <fb303/ExportType.h>
 #include <fb303/Timeseries.h>
-#include <fb303/detail/ExclusiveStatMutex.h>
 #include <folly/Synchronized.h>
 #include <chrono>
 
@@ -30,8 +29,7 @@ using ExportedStat = MultiLevelTimeSeries<CounterType>;
 
 class TimeseriesExporter {
  public:
-  using StatPtr = std::shared_ptr<
-      folly::Synchronized<ExportedStat, detail::ExclusiveStatMutex>>;
+  using StatPtr = std::shared_ptr<folly::Synchronized<ExportedStat>>;
 
   /**
    * Register the counter callback with the DynamicCounters object.
