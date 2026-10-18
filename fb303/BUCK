@@ -5,7 +5,7 @@ oncall("thrift")
 
 # Exposes the fb303 source tree (incl. the detail/, thrift/ and github/
 # sub-packages) so the conda fb303 feedstock can build OSS fb303 from the
-# in-fbsource sources via local_source_tree. Mirrors //folly:src-tree.
+# in-fbsource sources via local_source_tree. Mirrors fbsource//xplat/folly:src-tree.
 # @fb-only[end= ]: fb_native.export_file(
     # @fb-only[end= ]: name = "src-tree",
     # @fb-only[end= ]: src = ".",
@@ -26,10 +26,10 @@ cpp_library(
         "//thrift/lib/cpp2:flags",
     ],
     exported_deps = [
+        "fbsource//xplat/folly:small_vector",
+        "fbsource//xplat/folly/executors:cpu_thread_pool_executor",
         ":service_data",
         "//fb303/thrift:fb303_core-cpp2-services",
-        "//folly:small_vector",
-        "//folly/executors:cpu_thread_pool_executor",
         "//thrift/lib/cpp2/server:cpp2_conn_context",
     ],
 )
@@ -43,18 +43,18 @@ cpp_library(
     modular_headers = True,
     exported_deps = [
         "fbsource//third-party/glog:glog",
+        "fbsource//xplat/folly:chrono",
+        "fbsource//xplat/folly:map_util",
+        "fbsource//xplat/folly:range",
+        "fbsource//xplat/folly:synchronized",
+        "fbsource//xplat/folly/algorithm:binary_heap",
+        "fbsource//xplat/folly/container:f14_hash",
+        "fbsource//xplat/folly/container:regex_match_cache",
+        "fbsource//xplat/folly/container:reserve",
+        "fbsource//xplat/folly/functional:invoke",
+        "fbsource//xplat/folly/hash:hash",
+        "fbsource//xplat/folly/synchronization:relaxed_atomic",
         "//fb303/detail:regex_util",
-        "//folly:chrono",
-        "//folly:map_util",
-        "//folly:range",
-        "//folly:synchronized",
-        "//folly/algorithm:binary_heap",
-        "//folly/container:f14_hash",
-        "//folly/container:regex_match_cache",
-        "//folly/container:reserve",
-        "//folly/functional:invoke",
-        "//folly/hash:hash",
-        "//folly/synchronization:relaxed_atomic",
     ],
 )
 
@@ -72,7 +72,7 @@ cpp_library(
     srcs = ["ExportType.cpp"],
     headers = ["ExportType.h"],
     modular_headers = True,
-    exported_deps = ["//folly/container:array"],
+    exported_deps = ["fbsource//xplat/folly/container:array"],
 )
 
 cpp_library(
@@ -84,10 +84,10 @@ cpp_library(
         ":timeseries_exporter",
     ],
     exported_deps = [
+        "fbsource//xplat/folly:synchronized",
+        "fbsource//xplat/folly/container:f14_hash",
         ":export_type",
         ":timeseries",
-        "//folly:synchronized",
-        "//folly/container:f14_hash",
     ],
 )
 
@@ -113,9 +113,9 @@ cpp_library(
         ":service_data",
     ],
     exported_deps = [
+        "fbsource//xplat/folly/container:f14_hash",
+        "fbsource//xplat/folly/executors:function_scheduler",
         ":base_service",
-        "//folly/container:f14_hash",
-        "//folly/executors:function_scheduler",
         "//thrift/lib/cpp:event_handler_base",
     ],
 )
@@ -126,7 +126,7 @@ cpp_library(
     headers = ["LegacyClock.h"],
     modular_headers = True,
     deps = [
-        "//folly/lang:exception",
+        "fbsource//xplat/folly/lang:exception",
     ],
 )
 
@@ -140,13 +140,13 @@ cpp_library(
     ],
     modular_headers = True,
     deps = [
+        "fbsource//xplat/folly/json:dynamic",
+        "fbsource//xplat/folly/logging:init",
+        "fbsource//xplat/folly/logging:logging",
         ":service_data",
-        "//folly/json:dynamic",
-        "//folly/logging:init",
-        "//folly/logging:logging",
     ],
     exported_deps = [
-        "//folly:range",
+        "fbsource//xplat/folly:range",
     ],
 )
 
@@ -165,20 +165,20 @@ cpp_library(
     modular_headers = True,
     deps = [
         "fbsource//third-party/glog:glog",
+        "fbsource//xplat/folly:format",
         ":legacy_clock",
         ":timeseries_exporter",
-        "//folly:format",
     ],
     exported_deps = [
+        "fbsource//xplat/folly:function",
+        "fbsource//xplat/folly:map_util",
+        "fbsource//xplat/folly:small_vector",
+        "fbsource//xplat/folly:synchronized",
+        "fbsource//xplat/folly/container:f14_hash",
         ":dynamic_counters",
         ":export_type",
         ":exported_stat_map_impl",
         ":timeseries_histogram",
-        "//folly:function",
-        "//folly:map_util",
-        "//folly:small_vector",
-        "//folly:synchronized",
-        "//folly/container:f14_hash",
     ],
 )
 
@@ -188,26 +188,26 @@ cpp_library(
     headers = ["ServiceData.h"],
     modular_headers = True,
     deps = [
+        "fbsource//xplat/folly:conv",
+        "fbsource//xplat/folly:indestructible",
+        "fbsource//xplat/folly:map_util",
+        "fbsource//xplat/folly:string",
+        "fbsource//xplat/folly/container:reserve",
         "//fb303/detail:regex_util",
-        "//folly:conv",
-        "//folly:indestructible",
-        "//folly:map_util",
-        "//folly:string",
-        "//folly/container:reserve",
     ],
     exported_deps = [
+        "fbsource//xplat/folly:chrono",
+        "fbsource//xplat/folly:optional",
+        "fbsource//xplat/folly:range",
+        "fbsource//xplat/folly:synchronized",
+        "fbsource//xplat/folly/container:f14_hash",
+        "fbsource//xplat/folly/container:regex_match_cache",
+        "fbsource//xplat/folly/synchronization:relaxed_atomic",
         ":dynamic_counters",
         ":exported_stat_map_impl",
         ":histogram_exporter",
         ":legacy_clock",
         "//fb303/detail:quantile_stat_map",
-        "//folly:chrono",
-        "//folly:optional",
-        "//folly:range",
-        "//folly:synchronized",
-        "//folly/container:f14_hash",
-        "//folly/container:regex_match_cache",
-        "//folly/synchronization:relaxed_atomic",
     ],
     external_deps = [
         ("boost", None, "boost_regex"),
@@ -228,28 +228,28 @@ cpp_library(
     headers = ["ThreadCachedServiceData.h"],
     modular_headers = True,
     deps = [
-        "//folly:indestructible",
-        "//folly:memory",
-        "//folly:singleton",
+        "fbsource//xplat/folly:indestructible",
+        "fbsource//xplat/folly:memory",
+        "fbsource//xplat/folly:singleton",
     ],
     exported_deps = [
         "fbsource//third-party/fmt:fmt",
+        "fbsource//xplat/folly:concurrent_lazy",
+        "fbsource//xplat/folly:cpp_attributes",
+        "fbsource//xplat/folly:format",
+        "fbsource//xplat/folly:map_util",
+        "fbsource//xplat/folly:overload",
+        "fbsource//xplat/folly:range",
+        "fbsource//xplat/folly:synchronized",
+        "fbsource//xplat/folly:thread_local",
+        "fbsource//xplat/folly/container:f14_hash",
+        "fbsource//xplat/folly/executors:function_scheduler",
+        "fbsource//xplat/folly/hash:rapidhash",
+        "fbsource//xplat/folly/lang:align",
+        "fbsource//xplat/folly/synchronization:call_once",
         ":export_type",
         ":simple_lru_map",
         ":thread_local_stats_map",
-        "//folly:concurrent_lazy",
-        "//folly:cpp_attributes",
-        "//folly:format",
-        "//folly:map_util",
-        "//folly:overload",
-        "//folly:range",
-        "//folly:synchronized",
-        "//folly:thread_local",
-        "//folly/container:f14_hash",
-        "//folly/executors:function_scheduler",
-        "//folly/hash:rapidhash",
-        "//folly/lang:align",
-        "//folly/synchronization:call_once",
     ],
 )
 
@@ -262,26 +262,26 @@ cpp_library(
         "ThreadLocalStats-inl.h",
     ],
     modular_headers = True,
-    deps = ["//folly/system:hardware_concurrency"],
+    deps = ["fbsource//xplat/folly/system:hardware_concurrency"],
     exported_deps = [
         "fbsource//third-party/glog:glog",
+        "fbsource//xplat/folly:conv",
+        "fbsource//xplat/folly:cpp_attributes",
+        "fbsource//xplat/folly:portability",
+        "fbsource//xplat/folly:range",
+        "fbsource//xplat/folly:shared_mutex",
+        "fbsource//xplat/folly/container:f14_hash",
+        "fbsource//xplat/folly/portability:asm",
+        "fbsource//xplat/folly/stats:histogram",
+        "fbsource//xplat/folly/synchronization:atomic_util",
+        "fbsource//xplat/folly/synchronization:distributed_mutex",
+        "fbsource//xplat/folly/synchronization:relaxed_atomic",
         ":export_type",
         ":exported_stat_map_impl",
         ":histogram_exporter",
         ":legacy_clock",
         ":service_data",
         ":timeseries_exporter",
-        "//folly:conv",
-        "//folly:cpp_attributes",
-        "//folly:portability",
-        "//folly:range",
-        "//folly:shared_mutex",
-        "//folly/container:f14_hash",
-        "//folly/portability:asm",
-        "//folly/stats:histogram",
-        "//folly/synchronization:atomic_util",
-        "//folly/synchronization:distributed_mutex",
-        "//folly/synchronization:relaxed_atomic",
     ],
     external_deps = [
         "gflags",
@@ -299,12 +299,12 @@ cpp_library(
     ],
     modular_headers = True,
     exported_deps = [
+        "fbsource//xplat/folly:range",
+        "fbsource//xplat/folly:thread_local",
+        "fbsource//xplat/folly/container:f14_hash",
+        "fbsource//xplat/folly/hash:hash",
+        "fbsource//xplat/folly/memory:sanitize_leak",
         ":thread_local_stats",
-        "//folly:range",
-        "//folly:thread_local",
-        "//folly/container:f14_hash",
-        "//folly/hash:hash",
-        "//folly/memory:sanitize_leak",
     ],
 )
 
@@ -316,8 +316,8 @@ cpp_library(
     ],
     modular_headers = True,
     exported_deps = [
-        "//folly/stats:bucketed_time_series",
-        "//folly/stats:multi_level_time_series",
+        "fbsource//xplat/folly/stats:bucketed_time_series",
+        "fbsource//xplat/folly/stats:multi_level_time_series",
     ],
 )
 
@@ -328,14 +328,14 @@ cpp_library(
     modular_headers = True,
     deps = [
         "fbsource//third-party/glog:glog",
+        "fbsource//xplat/folly:small_vector",
         ":dynamic_counters",
         ":legacy_clock",
-        "//folly:small_vector",
     ],
     exported_deps = [
+        "fbsource//xplat/folly:synchronized",
         ":export_type",
         ":timeseries",
-        "//folly:synchronized",
     ],
 )
 
@@ -347,9 +347,9 @@ cpp_library(
     ],
     modular_headers = True,
     exported_deps = [
+        "fbsource//xplat/folly/stats:histogram",
+        "fbsource//xplat/folly/stats:timeseries_histogram",
         "//fb303:timeseries",
-        "//folly/stats:histogram",
-        "//folly/stats:timeseries_histogram",
     ],
 )
 
@@ -359,8 +359,8 @@ cpp_library(
     headers = ["TLStatsAsyncAggregator.h"],
     modular_headers = True,
     exported_deps = [
+        "fbsource//xplat/folly/io/async:async_base",
         ":thread_local_stats",
-        "//folly/io/async:async_base",
     ],
 )
 
@@ -375,7 +375,7 @@ cpp_library(
     ],
     modular_headers = True,
     exported_deps = [
-        "//folly/stats:quantile_estimator",
-        "//folly/stats:tdigest",
+        "fbsource//xplat/folly/stats:quantile_estimator",
+        "fbsource//xplat/folly/stats:tdigest",
     ],
 )

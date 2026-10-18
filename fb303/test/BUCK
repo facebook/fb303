@@ -55,12 +55,12 @@ cpp_benchmark(
         "GetRegexCountersClientBenchmark.cpp",
     ],
     deps = [
+        "fbsource//xplat/folly:benchmark",
+        "fbsource//xplat/folly:optional",
+        "fbsource//xplat/folly/init:init",
+        "fbsource//xplat/folly/json:dynamic",
         ":if-cpp2-services",
         "//fb303:base_service",
-        "//folly:benchmark",
-        "//folly:optional",
-        "//folly/init:init",
-        "//folly/json:dynamic",
         "//thrift/lib/cpp2/util:util",
     ],
     external_deps = [
@@ -75,11 +75,11 @@ cpp_benchmark(
     ],
     deps = [
         "fbsource//third-party/fmt:fmt",
+        "fbsource//xplat/folly:benchmark",
+        "fbsource//xplat/folly:string",
+        "fbsource//xplat/folly/init:init",
+        "fbsource//xplat/folly/json:dynamic",
         "//common/stats:service_data",
-        "//folly:benchmark",
-        "//folly:string",
-        "//folly/init:init",
-        "//folly/json:dynamic",
     ],
 )
 
@@ -87,11 +87,11 @@ cpp_benchmark(
     name = "get_counters_benchmark",
     srcs = ["GetCountersBenchmark.cpp"],
     deps = [
+        "fbsource//xplat/folly:benchmark",
+        "fbsource//xplat/folly:benchmark_util",
+        "fbsource//xplat/folly:conv",
+        "fbsource//xplat/folly/init:init",
         "//fb303:service_data",
-        "//folly:benchmark",
-        "//folly:benchmark_util",
-        "//folly:conv",
-        "//folly/init:init",
     ],
 )
 
@@ -100,11 +100,11 @@ cpp_benchmark(
     srcs = ["GetRegexCountersMtBench.cpp"],
     deps = [
         "fbsource//third-party/fmt:fmt",
+        "fbsource//xplat/folly:benchmark",
+        "fbsource//xplat/folly:random",
+        "fbsource//xplat/folly/init:init",
+        "fbsource//xplat/folly/synchronization:latch",
         "//fb303:service_data",
-        "//folly:benchmark",
-        "//folly:random",
-        "//folly/init:init",
-        "//folly/synchronization:latch",
     ],
 )
 
@@ -116,13 +116,13 @@ cpp_unittest(
     network_access = network_access_utils.all(),
     deps = [
         "fbsource//third-party/googletest:gtest",
+        "fbsource//xplat/folly:conv",
+        "fbsource//xplat/folly:memory",
+        "fbsource//xplat/folly:random",
+        "fbsource//xplat/folly:try",
+        "fbsource//xplat/folly/executors:cpu_thread_pool_executor",
         "//fb303:service_data",
         "//fb303/thrift:fb303_core-cpp2-services",
-        "//folly:conv",
-        "//folly:memory",
-        "//folly:random",
-        "//folly:try",
-        "//folly/executors:cpu_thread_pool_executor",
         "//thrift/lib/cpp2/async:async_processor",
         "//thrift/lib/cpp2/util:util",
     ],
@@ -135,8 +135,8 @@ cpp_unittest(
     deps = [
         "fbsource//third-party/fmt:fmt",
         "fbsource//third-party/googletest:gtest",
+        "fbsource//xplat/folly/synchronization:baton",
         "//fb303:callback_values_map",
-        "//folly/synchronization:baton",
     ],
     external_deps = [
         "boost",
@@ -150,12 +150,12 @@ cpp_unittest(
     deps = [
         "fbsource//third-party/fmt:fmt",
         "fbsource//third-party/googletest:gtest",
+        "fbsource//xplat/folly:synchronized",
+        "fbsource//xplat/folly/container:f14_hash",
+        "fbsource//xplat/folly/container:regex_match_cache",
+        "fbsource//xplat/folly/lang:hint",
+        "fbsource//xplat/folly/synchronization:baton",
         "//fb303/detail:regex_util",
-        "//folly:synchronized",
-        "//folly/container:f14_hash",
-        "//folly/container:regex_match_cache",
-        "//folly/lang:hint",
-        "//folly/synchronization:baton",
     ],
 )
 
@@ -215,11 +215,11 @@ cpp_benchmark(
         "ExportedStatMapBenchMark.cpp",
     ],
     deps = [
+        "fbsource//xplat/folly:benchmark",
+        "fbsource//xplat/folly:random",
+        "fbsource//xplat/folly/init:init",
         "//fb303:exported_stat_map_impl",
         "//fb303:histogram_exporter",
-        "//folly:benchmark",
-        "//folly:random",
-        "//folly/init:init",
     ],
     external_deps = [
         ("boost", None, "boost_lexical_cast"),
@@ -231,11 +231,11 @@ cpp_benchmark(
     srcs = ["QuantileStatBenchmark.cpp"],
     deps = [
         "fbsource//third-party/glog:glog",
+        "fbsource//xplat/folly:benchmark",
+        "fbsource//xplat/folly/init:init",
+        "fbsource//xplat/folly/lang:keep",
         "//common/stats:macros",
         "//fb303:thread_cached_service_data",
-        "//folly:benchmark",
-        "//folly/init:init",
-        "//folly/lang:keep",
     ],
     external_deps = [
         ("boost", None, "boost_thread"),
@@ -247,9 +247,9 @@ cpp_benchmark(
     srcs = ["QuantileStatMapBench.cpp"],
     deps = [
         "fbsource//third-party/fmt:fmt",
+        "fbsource//xplat/folly:benchmark",
+        "fbsource//xplat/folly/init:init",
         "//fb303/detail:quantile_stat_map",
-        "//folly:benchmark",
-        "//folly/init:init",
     ],
 )
 
@@ -312,12 +312,12 @@ cpp_unittest(
     deps = [
         "fbsource//third-party/glog:glog",
         "fbsource//third-party/googletest:gtest",
+        "fbsource//xplat/folly:conv",
+        "fbsource//xplat/folly:range",
+        "fbsource//xplat/folly:utility",
         "//common/base:stl_util",
         "//common/datastruct:simple_lru_map",
         "//common/time:time",
-        "//folly:conv",
-        "//folly:range",
-        "//folly:utility",
     ],
 )
 
@@ -325,9 +325,9 @@ cpp_benchmark(
     name = "thread_cached_service_data_bench",
     srcs = ["ThreadCachedServiceDataBench.cpp"],
     deps = [
+        "fbsource//xplat/folly:benchmark",
+        "fbsource//xplat/folly/init:init",
         "//fb303:thread_cached_service_data",
-        "//folly:benchmark",
-        "//folly/init:init",
     ],
 )
 
@@ -339,11 +339,11 @@ cpp_unittest(
     network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
+        "fbsource//xplat/folly:singleton",
+        "fbsource//xplat/folly/synchronization/test:barrier",
         "//fb303:service_data",
         "//fb303:thread_cached_service_data",
         "//fb303:thread_local_stats",
-        "//folly:singleton",
-        "//folly/synchronization/test:barrier",
     ],
     external_deps = [
         "gflags",
@@ -359,10 +359,10 @@ cpp_unittest(
     deps = [
         "fbsource//third-party/fmt:fmt",
         "fbsource//third-party/googletest:gtest",
+        "fbsource//xplat/folly:portability",
+        "fbsource//xplat/folly/synchronization/test:barrier",
         "//fb303:service_data",
         "//fb303:thread_local_stats",
-        "//folly:portability",
-        "//folly/synchronization/test:barrier",
     ],
 )
 
@@ -370,9 +370,9 @@ cpp_benchmark(
     name = "thread_local_stats_benchmark",
     srcs = ["ThreadLocalStatsBenchmark.cpp"],
     deps = [
+        "fbsource//xplat/folly:benchmark",
+        "fbsource//xplat/folly/init:init",
         "//fb303:thread_local_stats",
-        "//folly:benchmark",
-        "//folly/init:init",
     ],
 )
 
@@ -396,8 +396,8 @@ cpp_unittest(
     network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
+        "fbsource//xplat/folly/io/async:async_base",
         "//fb303:tl_stats_async_aggregator",
-        "//folly/io/async:async_base",
     ],
 )
 
@@ -433,9 +433,9 @@ cpp_unittest(
     network_access = network_access_utils.none(),
     deps = [
         "fbsource//third-party/googletest:gtest",
+        "fbsource//xplat/folly/logging:logging",
+        "fbsource//xplat/folly/test:json_test_util",
         "//fb303:logging",
         "//fb303:service_data",
-        "//folly/logging:logging",
-        "//folly/test:json_test_util",
     ],
 )
