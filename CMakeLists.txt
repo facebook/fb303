@@ -58,15 +58,26 @@ find_package(Gflags REQUIRED)
 
 find_package(Glog MODULE REQUIRED)
 
-find_package(folly CONFIG REQUIRED)
+# If folly is being built from source (FetchContent), skip find_package
+if (NOT DEFINED folly_SOURCE_DIR)
+  find_package(folly CONFIG REQUIRED)
+endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 find_package(fmt CONFIG REQUIRED)
-find_package(FBThrift CONFIG REQUIRED)
-find_package(fizz CONFIG REQUIRED)
-find_package(wangle CONFIG REQUIRED)
+# If fbthrift/fizz/wangle are being built from source (FetchContent), skip
+# find_package
+if (NOT DEFINED fbthrift_SOURCE_DIR)
+  find_package(FBThrift CONFIG REQUIRED)
+endif()
+if (NOT DEFINED fizz_SOURCE_DIR)
+  find_package(fizz CONFIG REQUIRED)
+endif()
+if (NOT DEFINED wangle_SOURCE_DIR)
+  find_package(wangle CONFIG REQUIRED)
+endif()
 
 include(FBThriftLibrary)
 
@@ -82,6 +93,7 @@ install(
 )
 
 add_library(fb303 ${fb303_SOURCES} ${fb303_HEADERS})
+add_library(fb303::fb303 ALIAS fb303)
 if (BUILD_SHARED_LIBS)
   set_property(TARGET fb303 PROPERTY VERSION ${PACKAGE_VERSION})
 endif ()
@@ -90,7 +102,7 @@ target_include_directories(fb303 PUBLIC
   ${GFLAGS_INCLUDE_DIR}
   ${GLOG_INCLUDE_DIR}
   ${DOUBLE_CONVERSION_INCLUDE_DIR}
-  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
   $<INSTALL_INTERFACE:${INCLUDE_INSTALL_DIR}>
 )
 
