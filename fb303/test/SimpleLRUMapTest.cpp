@@ -16,12 +16,12 @@
 
 #include "common/datastruct/SimpleLRUMap.h"
 
-#include "common/base/StlUtil.h"
 #include "common/time/Clock.h"
 
 #include <folly/Conv.h>
 #include <folly/Range.h>
 #include <folly/Utility.h>
+#include <folly/container/MapUtil.h>
 
 #include <glog/logging.h>
 #include <gtest/gtest.h>
@@ -646,32 +646,6 @@ TEST(SimpleLRUMap, Capacity) {
   EXPECT_EQ(2, lru.size());
   checkContents(lru, {{2, "2"}, {1, "1"}});
   EXPECT_EQ(2, lru.capacity());
-}
-
-TEST(SimpleLRUMap, MapGet) {
-  lru_map lru(2);
-
-  string out;
-  EXPECT_FALSE(stl::mapGet(lru, 0, &out));
-  checkContents(lru, {});
-
-  lru.set(0, "0");
-  checkContents(lru, {{0, "0"}});
-  EXPECT_TRUE(stl::mapGet(lru, 0, &out));
-  EXPECT_EQ("0", out);
-  checkContents(lru, {{0, "0"}});
-
-  lru.set(1, "1");
-  checkContents(lru, {{1, "1"}, {0, "0"}});
-  EXPECT_TRUE(stl::mapGet(lru, 1, &out));
-  EXPECT_EQ("1", out);
-  checkContents(lru, {{1, "1"}, {0, "0"}});
-  EXPECT_TRUE(stl::mapGet(lru, 0, &out));
-  EXPECT_EQ("0", out);
-  checkContents(lru, {{1, "1"}, {0, "0"}});
-
-  EXPECT_FALSE(stl::mapGet(lru, 9, &out));
-  checkContents(lru, {{1, "1"}, {0, "0"}});
 }
 
 TEST(SimpleLRUMap, MapGetPtr) {

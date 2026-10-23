@@ -315,9 +315,9 @@ cpp_unittest(
         "fbsource//xplat/folly:conv",
         "fbsource//xplat/folly:range",
         "fbsource//xplat/folly:utility",
-        "//common/base:stl_util",
         "//common/datastruct:simple_lru_map",
         "//common/time:time",
+        "//folly/container:map_util",
     ],
 )
 
