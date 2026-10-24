@@ -59,6 +59,7 @@ class GetCountersWithLimitTest : public testing::Test {
   std::shared_ptr<apache::thrift::ScopedServerInterfaceThread> server;
 
   void HandlerSetup() {
+    fbData->resetAllData();
     handler = std::make_shared<T>();
     server =
         std::make_shared<apache::thrift::ScopedServerInterfaceThread>(handler);
