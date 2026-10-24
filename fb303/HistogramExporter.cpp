@@ -19,7 +19,7 @@
 #include <fb303/ExportedHistogramMapImpl.h>
 #include <fb303/LegacyClock.h>
 #include <fb303/TimeseriesExporter.h>
-#include <folly/Format.h>
+#include <fmt/format.h>
 #include <folly/small_vector.h>
 #include <glog/logging.h>
 #include <functional>
@@ -94,12 +94,12 @@ void HistogramExporter::exportBuckets(
     std::string valueName;
     if (stat.getLevel(level).isAllTime()) {
       // example name: ad_request_elapsed_time.hist
-      valueName = sformat("{}.hist", name);
+      valueName = fmt::format("{}.hist", name);
     } else {
       // example name: ad_request_elapsed_time.hist.600
       const auto durationSecs =
           duration_cast<std::chrono::seconds>(stat.getLevel(level).duration());
-      valueName = sformat("{}.hist.{}", name, durationSecs.count());
+      valueName = fmt::format("{}.hist.{}", name, durationSecs.count());
     }
     // get the stat function callback and put it in a wrapper that will grab
     // the necessary lock and call update() on the stat
@@ -132,13 +132,13 @@ void HistogramExporter::forEachPercentileName(
     std::string counterName;
     if (stat.getLevel(level).isAllTime()) {
       // example name: ad_request_elapsed_time.p95
-      counterName = sformat("{}.p{}", name, percentile);
+      counterName = fmt::format("{}.p{}", name, percentile);
     } else {
       // example name: ad_request_elapsed_time.p95.600
       const auto durationSecs =
           duration_cast<std::chrono::seconds>(stat.getLevel(level).duration());
       counterName =
-          sformat("{}.p{}.{}", name, percentile, durationSecs.count());
+          fmt::format("{}.p{}.{}", name, percentile, durationSecs.count());
     }
 
     fn(counterName, level);
