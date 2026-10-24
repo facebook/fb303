@@ -87,11 +87,14 @@ cpp_benchmark(
     name = "get_counters_benchmark",
     srcs = ["GetCountersBenchmark.cpp"],
     deps = [
+        "fbsource//third-party/fmt:fmt",
         "fbsource//xplat/folly:benchmark",
         "fbsource//xplat/folly:benchmark_util",
-        "fbsource//xplat/folly:conv",
         "fbsource//xplat/folly/init:init",
-        "//fb303:service_data",
+        "//fb303:callback_values_map",
+        "//folly/algorithm:binary_heap",
+        "//folly/container:reserve",
+        "//folly/hash:hash",
     ],
 )
 
