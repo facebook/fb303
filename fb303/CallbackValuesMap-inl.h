@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <optional>
 #include <span>
+#include <string_view>
 #include <utility>
 
 #include <fb303/detail/RegexUtil.h>
@@ -31,14 +32,16 @@ namespace facebook {
 namespace fb303 {
 
 namespace detail {
-// K-way merges per-shard name-sorted entry snapshots in global sorted order,
-// invoking each callback and hint-inserting the result into output.
-template <typename ValuesMap, typename EntryPtr>
+// K-way merges per-shard name-sorted snapshots in global order, invoking each
+// callback and hint-inserting results. Versus a flat global sort, this uses
+// more CPU per entry but scales better with overall number of entries due to
+// better cache locality.
+template <typename ValuesMap, typename NamedEntry>
 void invokeAndMergeInto(
     ValuesMap* output,
-    std::span<const std::vector<EntryPtr>> shards) {
+    std::span<const std::vector<NamedEntry>> shards) {
   // Heap of remaining runs, one per non-empty shard.
-  std::vector<std::span<const EntryPtr>> heap;
+  std::vector<std::span<const NamedEntry>> heap;
   heap.reserve(shards.size());
   for (const auto& entries : shards) {
     if (!entries.empty()) {
@@ -47,13 +50,13 @@ void invokeAndMergeInto(
   }
   // Reversed: make_heap builds a max-heap, and the merge wants the least name.
   auto cmp = [](const auto& a, const auto& b) {
-    return a.front()->name() > b.front()->name();
+    return a.front().name > b.front().name;
   };
   std::make_heap(heap.begin(), heap.end(), cmp);
 
   auto hint = output->begin();
   while (!heap.empty()) {
-    const auto& entry = heap.front().front();
+    const auto& entry = heap.front().front().entry;
     typename ValuesMap::mapped_type result;
     // if the entry was unregistered underneath, getValue returns false
     if (entry->getValue(&result)) {
@@ -82,19 +85,23 @@ void CallbackValuesMap<T>::getValues(ValuesMap* output) const {
   // so copy under the shared lock and invoke after the lock is released.
   // Each shard is sorted while its entries are still hot, then all shards
   // are merged in key order for hinted insertion into the output map.
-  std::vector<std::vector<std::shared_ptr<CallbackEntry>>> shards;
+  struct NamedEntry {
+    std::string_view name;
+    std::shared_ptr<CallbackEntry> entry;
+  };
+  std::vector<std::vector<NamedEntry>> shards;
   shards.reserve(kNumShards);
   for (const auto& callbackMap : callbackMaps_) {
-    std::vector<std::shared_ptr<CallbackEntry>> entries;
-    entries.reserve(callbackMap.rlock()->map.size());
+    std::vector<NamedEntry> entries;
     callbackMap.withRLock([&](auto const& map) {
-      // avoid vector::assign() since std::distance() would walk the set
+      entries.reserve(map.map.size());
+      // Each cached view is paired with the shared_ptr that keeps it alive.
       for (const auto& entry : map.map) {
-        entries.push_back(entry);
+        entries.push_back({entry->name(), entry});
       }
     });
     std::sort(entries.begin(), entries.end(), [](const auto& a, const auto& b) {
-      return a->name() < b->name();
+      return a.name < b.name;
     });
     shards.push_back(std::move(entries));
   }
