@@ -271,7 +271,6 @@ void subkey_scan(unsigned int iters, size_t nSubkeys) {
         return &STATS_scan_64;
     }
     LOG(FATAL) << "unregistered subkey count " << nSubkeys;
-    return nullptr;
   }();
 
   auto const now = std::chrono::steady_clock::now();
