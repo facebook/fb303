@@ -103,6 +103,10 @@ class ServiceData {
    */
   static ServiceData* get();
 
+  /**
+   * A non-owning shared pointer to the immortal singleton, with no control
+   * block. Its use_count() is zero, and weak pointers made from it are expired.
+   */
   static std::shared_ptr<ServiceData> getShared();
 
   ServiceData(const ServiceData&) = delete;

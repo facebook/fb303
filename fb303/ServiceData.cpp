@@ -23,6 +23,7 @@
 #include <folly/Conv.h>
 #include <folly/Indestructible.h>
 #include <folly/MapUtil.h>
+#include <folly/Memory.h>
 #include <folly/String.h>
 #include <folly/container/Reserve.h>
 #include <gflags/gflags.h>
@@ -50,14 +51,12 @@ ServiceData::ServiceData()
 ServiceData::~ServiceData() = default;
 
 std::shared_ptr<ServiceData> ServiceData::getShared() {
-  static folly::Indestructible<std::shared_ptr<ServiceData>> serviceData(
-      std::make_unique<ServiceData>());
-  return *serviceData;
+  return folly::to_shared_ptr_non_owning(get());
 }
 
 ServiceData* ServiceData::get() {
-  static auto serviceData = getShared().get();
-  return serviceData;
+  static folly::Indestructible<ServiceData> serviceData;
+  return serviceData.get();
 }
 
 void ServiceData::flushAllData() {
