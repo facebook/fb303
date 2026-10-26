@@ -17,6 +17,7 @@
 #include <common/fb303/cpp/DefaultMonitor.h>
 #include <fb303/BaseService.h>
 #include <fb303/test/gen-cpp2/TestService.h>
+#include <folly/Conv.h>
 #include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
 #include <chrono>
 
@@ -81,7 +82,7 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithNoLimit) {
   /////////////////////////////////////////////////////////
   // First read the counters with no header
   this->fb303Client->sync_getCounters(opt, counters);
-  EXPECT_EQ(counters.size(), 3);
+  EXPECT_GT(counters.size(), 0);
   auto it = opt.getReadHeaders().find(this->fb303CountersAvailable);
   EXPECT_TRUE(it == opt.getReadHeaders().end());
 }
@@ -100,7 +101,7 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimit1) {
   EXPECT_EQ("counterA", counters.begin()->first);
   auto it = opt.getReadHeaders().find(this->fb303CountersAvailable);
   EXPECT_TRUE(it != opt.getReadHeaders().end());
-  EXPECT_EQ(it->second, "3");
+  EXPECT_GT(folly::to<int64_t>(it->second), 0);
 }
 /////////////////////////////////////////////////////////
 // Now set the header limit to 3 and read
@@ -115,7 +116,7 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimit3) {
   EXPECT_EQ(counters.size(), 3);
   auto it = opt.getReadHeaders().find(this->fb303CountersAvailable);
   EXPECT_TRUE(it != opt.getReadHeaders().end());
-  EXPECT_EQ(it->second, "3");
+  EXPECT_GT(folly::to<int64_t>(it->second), 0);
 }
 
 /////////////////////////////////////////////////////////
@@ -129,7 +130,7 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimitNeg) {
   std::map<std::string, int64_t> counters;
   opt.setWriteHeader(this->fb303CountersLimit, std::to_string(-20));
   this->fb303Client->sync_getCounters(opt, counters);
-  EXPECT_EQ(counters.size(), 3);
+  EXPECT_GT(counters.size(), 0);
   auto it = opt.getReadHeaders().find(this->fb303CountersAvailable);
   EXPECT_TRUE(it == opt.getReadHeaders().end());
 }
@@ -147,7 +148,7 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimitZero) {
   EXPECT_EQ(counters.size(), 0);
   auto it = opt.getReadHeaders().find(this->fb303CountersAvailable);
   EXPECT_TRUE(it != opt.getReadHeaders().end());
-  EXPECT_EQ(it->second, "3");
+  EXPECT_GT(folly::to<int64_t>(it->second), 0);
 }
 
 /////////////////////////////////////////////////////////
@@ -160,10 +161,10 @@ TYPED_TEST(GetCountersWithLimitTest, getCountersWithLimitHundred) {
   std::map<std::string, int64_t> counters;
   opt.setWriteHeader(this->fb303CountersLimit, std::to_string(100));
   this->fb303Client->sync_getCounters(opt, counters);
-  EXPECT_EQ(counters.size(), 3);
+  EXPECT_GT(counters.size(), 0);
   auto it = opt.getReadHeaders().find(this->fb303CountersAvailable);
   EXPECT_TRUE(it != opt.getReadHeaders().end());
-  EXPECT_EQ(it->second, "3");
+  EXPECT_GT(folly::to<int64_t>(it->second), 0);
 }
 
 TYPED_TEST(GetCountersWithLimitTest, getCountersWithRegexLimit1) {

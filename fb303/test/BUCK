@@ -45,6 +45,7 @@ cpp_unittest(
         ":if-cpp2-services",
         "//common/fb303/cpp:default_monitor",
         "//fb303:base_service",
+        "//folly:conv",
         "//thrift/lib/cpp2/util:util",
     ],
 )
