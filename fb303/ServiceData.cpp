@@ -54,7 +54,7 @@ std::shared_ptr<ServiceData> ServiceData::getShared() {
   return folly::to_shared_ptr_non_owning(get());
 }
 
-ServiceData* ServiceData::get() {
+ServiceData* FOLLY_NONNULL ServiceData::get() {
   static folly::Indestructible<ServiceData> serviceData;
   return serviceData.get();
 }

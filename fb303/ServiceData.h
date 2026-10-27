@@ -22,6 +22,7 @@
 #include <fb303/DynamicCounters.h>
 #include <fb303/detail/QuantileStatMap.h>
 #include <folly/Chrono.h>
+#include <folly/CppAttributes.h>
 #include <folly/Optional.h>
 #include <folly/Range.h>
 #include <folly/Synchronized.h>
@@ -101,7 +102,7 @@ class ServiceData {
    *
    * @author: Marcelo Juchem <marcelo@fb.com>
    */
-  static ServiceData* get();
+  static ServiceData* FOLLY_NONNULL get();
 
   /**
    * A non-owning shared pointer to the immortal singleton, with no control
@@ -690,14 +691,14 @@ struct ServiceDataWrapper {
    */
 
   /** provides ptr to the singleton ServiceData. */
-  ServiceData* operator->() const {
+  ServiceData* FOLLY_NONNULL operator->() const {
     DCHECK(*this) << "fbData used after singleton destruction; fix callsite "
                      "to use `if (fbData)` to check beforehand or see notes "
                      "at fburl.com/fbdata-fiascos";
     return ServiceData::get();
   }
 
-  ServiceData* ptr() const {
+  ServiceData* FOLLY_NONNULL ptr() const {
     return ServiceData::get();
   }
 

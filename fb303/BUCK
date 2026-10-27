@@ -199,6 +199,7 @@ cpp_library(
     ],
     exported_deps = [
         "fbsource//xplat/folly:chrono",
+        "fbsource//xplat/folly:cpp_attributes",
         "fbsource//xplat/folly:optional",
         "fbsource//xplat/folly:range",
         "fbsource//xplat/folly:synchronized",
