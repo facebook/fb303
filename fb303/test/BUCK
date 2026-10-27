@@ -42,10 +42,10 @@ cpp_unittest(
     network_access = network_access_utils.all(),
     deps = [
         "fbsource//third-party/googletest:gtest",
+        "fbsource//xplat/folly:conv",
         ":if-cpp2-services",
         "//common/fb303/cpp:default_monitor",
         "//fb303:base_service",
-        "//folly:conv",
         "//thrift/lib/cpp2/util:util",
     ],
 )
@@ -91,11 +91,11 @@ cpp_benchmark(
         "fbsource//third-party/fmt:fmt",
         "fbsource//xplat/folly:benchmark",
         "fbsource//xplat/folly:benchmark_util",
+        "fbsource//xplat/folly/algorithm:binary_heap",
+        "fbsource//xplat/folly/container:reserve",
+        "fbsource//xplat/folly/hash:hash",
         "fbsource//xplat/folly/init:init",
         "//fb303:callback_values_map",
-        "//folly/algorithm:binary_heap",
-        "//folly/container:reserve",
-        "//folly/hash:hash",
     ],
 )
 
@@ -319,9 +319,9 @@ cpp_unittest(
         "fbsource//xplat/folly:conv",
         "fbsource//xplat/folly:range",
         "fbsource//xplat/folly:utility",
+        "fbsource//xplat/folly/container:map_util",
         "//common/datastruct:simple_lru_map",
         "//common/time:time",
-        "//folly/container:map_util",
     ],
 )
 
