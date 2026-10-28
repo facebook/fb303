@@ -28,6 +28,10 @@ option(PYTHON_EXTENSIONS
   "Build Python bindings for fb303"
   ON
 )
+option(FB303_THRIFT_PYTHON
+  "Generate and install thrift-python modules for fb303_core.thrift"
+  OFF
+)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
