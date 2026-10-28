@@ -23,7 +23,6 @@
 #include <folly/Conv.h>
 #include <folly/Indestructible.h>
 #include <folly/MapUtil.h>
-#include <folly/Memory.h>
 #include <folly/String.h>
 #include <folly/container/Reserve.h>
 #include <gflags/gflags.h>
@@ -49,10 +48,6 @@ ServiceData::ServiceData()
           ExportedHistogram(1000, 0, 10000)) {}
 
 ServiceData::~ServiceData() = default;
-
-std::shared_ptr<ServiceData> ServiceData::getShared() {
-  return folly::to_shared_ptr_non_owning(get());
-}
 
 ServiceData* FOLLY_NONNULL ServiceData::get() {
   static folly::Indestructible<ServiceData> serviceData;

@@ -104,12 +104,6 @@ class ServiceData {
    */
   static ServiceData* FOLLY_NONNULL get();
 
-  /**
-   * A non-owning shared pointer to the immortal singleton, with no control
-   * block. Its use_count() is zero, and weak pointers made from it are expired.
-   */
-  static std::shared_ptr<ServiceData> getShared();
-
   ServiceData(const ServiceData&) = delete;
   ServiceData& operator=(const ServiceData&) = delete;
 
@@ -692,9 +686,6 @@ struct ServiceDataWrapper {
 
   /** provides ptr to the singleton ServiceData. */
   ServiceData* FOLLY_NONNULL operator->() const {
-    DCHECK(*this) << "fbData used after singleton destruction; fix callsite "
-                     "to use `if (fbData)` to check beforehand or see notes "
-                     "at fburl.com/fbdata-fiascos";
     return ServiceData::get();
   }
 
@@ -703,22 +694,11 @@ struct ServiceDataWrapper {
   }
 
   /**
-   * Returns true iff Singleton hasn't yet been destroyed.
-   * Should use this prior to trying to access the singleton
-   * with "get()" but note there's a possible race when doing
-   * so (off-chance the Singleton might go away between this call and "ptr()").
+   * Always true: the singleton is immortal.
    */
   /* implicit */
   operator bool() const {
     return true;
-  }
-
-  /**
-   * The only safe way to access ServiceData singleton. Other approaches end up
-   * racing against the singleton destructor.
-   */
-  std::shared_ptr<ServiceData> try_get() const {
-    return ServiceData::getShared();
   }
 };
 
