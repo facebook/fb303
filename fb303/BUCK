@@ -192,7 +192,6 @@ cpp_library(
         "fbsource//xplat/folly:conv",
         "fbsource//xplat/folly:indestructible",
         "fbsource//xplat/folly:map_util",
-        "fbsource//xplat/folly:memory",
         "fbsource//xplat/folly:string",
         "fbsource//xplat/folly/container:reserve",
         "//fb303/detail:regex_util",
