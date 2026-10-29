@@ -18,6 +18,7 @@
 
 #include <barrier>
 #include <cstdint>
+#include <memory>
 #include <set>
 #include <thread>
 #include <vector>
@@ -34,20 +35,31 @@ class ServiceDataTest : public Test {
   ServiceData data;
 };
 
-TEST_F(ServiceDataTest, GetReturnsSingleton) {
-  auto* singleton = ServiceData::get();
+TEST_F(ServiceDataTest, GetSharedIsNonOwning) {
+  auto shared = ServiceData::getShared();
+  const auto* singleton = ServiceData::get();
   ASSERT_NE(nullptr, singleton);
-  EXPECT_NE(&data, singleton);
-  EXPECT_EQ(singleton, ServiceData::get());
-  EXPECT_EQ(singleton, facebook::fbData.ptr());
+  EXPECT_TRUE(shared);
+  EXPECT_EQ(singleton, shared.get());
+  EXPECT_EQ(0, shared.use_count());
 
-  constexpr auto key = "ServiceDataTest.singleton";
-  singleton->setCounter(key, 7);
-  EXPECT_EQ(7, facebook::fbData->getCounter(key));
-  facebook::fbData->incrementCounter(key, 3);
-  EXPECT_EQ(10, singleton->getCounter(key));
-  EXPECT_FALSE(data.hasCounter(key));
-  singleton->clearCounter(key);
+  auto copy = shared;
+  shared.reset();
+  EXPECT_TRUE(copy);
+  EXPECT_EQ(singleton, copy.get());
+  EXPECT_EQ(0, copy.use_count());
+
+  const auto another = ServiceData::getShared();
+  EXPECT_EQ(copy, another);
+  EXPECT_EQ(0, another.use_count());
+
+  const weak_ptr<ServiceData> weak{another};
+  EXPECT_TRUE(weak.expired());
+  EXPECT_FALSE(weak.lock());
+
+  copy.reset();
+  EXPECT_EQ(singleton, ServiceData::get());
+  EXPECT_EQ(singleton, ServiceData::getShared().get());
 }
 
 TEST_F(ServiceDataTest, getCounters_rvo_example) {
