@@ -56,7 +56,7 @@ fb303 is a dependency of many other projects at Facebook which expose
 Thrift interfaces; some which have been open-sourced. Examples include
 [edenfs](https://github.com/facebook/sapling),
 [proxygen](https://github.com/facebook/proxygen), and
-[fboss](https://github.com/facebook/fboss).
+[fboss](https://github.com/meta/fboss).
 
 This project has evolved over many years, and parts of it predate
 C++11. While it provides useful functionality for service information
