@@ -63,7 +63,7 @@ inline TimePoint get_current_time() {
  *
  * ServiceData is a singleton: a single instance is created when the program is
  * started, and remains in existence until the program exits.  The global
- * ServiceData instance can be accessed via the static ServiceData::get()
+ * ServiceData instance can be accessed via the static ServiceData::getRef()
  * method, or via the global facebook::fbData pointer.
  */
 class ServiceData {
@@ -88,6 +88,12 @@ class ServiceData {
    * the global fbData singleton.
    */
   virtual ~ServiceData();
+
+  /**
+   * A reference to the immortal global singleton, safe to use from static
+   * initializers.
+   */
+  static ServiceData& getRef();
 
   /**
    * A pointer to the global ServiceData singleton, free of the
@@ -684,13 +690,18 @@ struct ServiceDataWrapper {
    * to initialize.
    */
 
+  /** provides a reference to the singleton ServiceData. */
+  ServiceData& ref() const {
+    return ServiceData::getRef();
+  }
+
   /** provides ptr to the singleton ServiceData. */
   ServiceData* FOLLY_NONNULL operator->() const {
-    return ServiceData::get();
+    return &ref();
   }
 
   ServiceData* FOLLY_NONNULL ptr() const {
-    return ServiceData::get();
+    return &ref();
   }
 
   /**

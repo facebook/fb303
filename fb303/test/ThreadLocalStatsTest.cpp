@@ -34,6 +34,20 @@
 
 using namespace facebook::fb303;
 
+TEST(ThreadCachedServiceData, ReferenceAccessorsUseSingleton) {
+  auto& singleton = ThreadCachedServiceData::getRef();
+  EXPECT_EQ(&singleton, ThreadCachedServiceData::get());
+  EXPECT_EQ(&singleton, &facebook::tcData());
+  EXPECT_EQ(&ServiceData::getRef(), &singleton.getServiceDataRef());
+  EXPECT_EQ(&singleton.getServiceDataRef(), singleton.getServiceData());
+
+  const auto& constSingleton = singleton;
+  constexpr auto key = "ThreadCachedServiceData.reference_accessors";
+  constSingleton.getServiceDataRef().setCounter(key, 7);
+  EXPECT_EQ(7, ServiceData::getRef().getCounter(key));
+  ServiceData::getRef().clearCounter(key);
+}
+
 // The point of the repack, pinned. Upper bounds rather than equalities: the
 // diffs above this one shrink these further, and an equality would have to be
 // edited in each of them for no benefit. What matters is that a later change

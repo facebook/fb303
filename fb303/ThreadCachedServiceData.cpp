@@ -141,9 +141,13 @@ ThreadCachedServiceData& ThreadCachedServiceData::getInternal() {
   return *instance;
 }
 
-ThreadCachedServiceData* ThreadCachedServiceData::get() {
+ThreadCachedServiceData& ThreadCachedServiceData::getRef() {
   publisherManager.vivify();
-  return &getInternal();
+  return getInternal();
+}
+
+ThreadCachedServiceData* ThreadCachedServiceData::get() {
+  return &getRef();
 }
 std::shared_ptr<ThreadCachedServiceData> ThreadCachedServiceData::getShared() {
   return folly::to_shared_ptr_non_owning(ThreadCachedServiceData::get());

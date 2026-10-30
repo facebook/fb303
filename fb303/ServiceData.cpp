@@ -49,9 +49,13 @@ ServiceData::ServiceData()
 
 ServiceData::~ServiceData() = default;
 
-ServiceData* FOLLY_NONNULL ServiceData::get() {
+ServiceData& ServiceData::getRef() {
   static folly::Indestructible<ServiceData> serviceData;
-  return serviceData.get();
+  return *serviceData;
+}
+
+ServiceData* FOLLY_NONNULL ServiceData::get() {
+  return &getRef();
 }
 
 void ServiceData::flushAllData() {

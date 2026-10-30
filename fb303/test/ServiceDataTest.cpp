@@ -35,19 +35,20 @@ class ServiceDataTest : public Test {
 };
 
 TEST_F(ServiceDataTest, GetReturnsSingleton) {
-  auto* singleton = ServiceData::get();
-  ASSERT_NE(nullptr, singleton);
-  EXPECT_NE(&data, singleton);
-  EXPECT_EQ(singleton, ServiceData::get());
-  EXPECT_EQ(singleton, facebook::fbData.ptr());
+  auto& singleton = ServiceData::getRef();
+  ASSERT_NE(nullptr, ServiceData::get());
+  EXPECT_NE(&data, &singleton);
+  EXPECT_EQ(&singleton, ServiceData::get());
+  EXPECT_EQ(&singleton, &facebook::fbData.ref());
+  EXPECT_EQ(&singleton, facebook::fbData.ptr());
 
   constexpr auto key = "ServiceDataTest.singleton";
-  singleton->setCounter(key, 7);
+  singleton.setCounter(key, 7);
   EXPECT_EQ(7, facebook::fbData->getCounter(key));
-  facebook::fbData->incrementCounter(key, 3);
-  EXPECT_EQ(10, singleton->getCounter(key));
+  facebook::fbData.ref().incrementCounter(key, 3);
+  EXPECT_EQ(10, singleton.getCounter(key));
   EXPECT_FALSE(data.hasCounter(key));
-  singleton->clearCounter(key);
+  singleton.clearCounter(key);
 }
 
 TEST_F(ServiceDataTest, getCounters_rvo_example) {

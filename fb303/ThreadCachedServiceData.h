@@ -80,13 +80,22 @@ class ThreadCachedServiceData {
   /**
    * Get the ServiceData object that this ThreadCachedServiceData object wraps.
    */
+  ServiceData& getServiceDataRef() const {
+    return *serviceData_;
+  }
+
   ServiceData* getServiceData() const {
-    return serviceData_;
+    return &getServiceDataRef();
   }
 
   /**
+   * Get a reference to the immortal ThreadCachedServiceData singleton.
+   */
+  static ThreadCachedServiceData& getRef();
+
+  /**
    * Get a shared pointer to the singleton ThreadCachedServiceData object.
-   * Deprecated; use `get()` instead
+   * Deprecated; use `getRef()` instead
    */
   static std::shared_ptr<ThreadCachedServiceData> getShared();
 
@@ -1631,7 +1640,7 @@ namespace facebook {
  * which wraps ServiceData::get().
  */
 inline fb303::ThreadCachedServiceData& tcData() {
-  return *(fb303::ThreadCachedServiceData::get());
+  return fb303::ThreadCachedServiceData::getRef();
 }
 
 } // namespace facebook
