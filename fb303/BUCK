@@ -166,7 +166,6 @@ cpp_library(
     deps = [
         "fbsource//third-party/fmt:fmt",
         "fbsource//third-party/glog:glog",
-        "fbsource//xplat/folly:format",
         ":legacy_clock",
         ":timeseries_exporter",
     ],
@@ -238,7 +237,6 @@ cpp_library(
         "fbsource//third-party/fmt:fmt",
         "fbsource//xplat/folly:concurrent_lazy",
         "fbsource//xplat/folly:cpp_attributes",
-        "fbsource//xplat/folly:format",
         "fbsource//xplat/folly:map_util",
         "fbsource//xplat/folly:overload",
         "fbsource//xplat/folly:range",

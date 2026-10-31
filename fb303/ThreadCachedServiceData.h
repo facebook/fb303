@@ -35,7 +35,6 @@
 #include <fb303/ThreadLocalStatsMap.h>
 #include <folly/ConcurrentLazy.h>
 #include <folly/CppAttributes.h>
-#include <folly/Format.h>
 #include <folly/MapUtil.h>
 #include <folly/Overload.h>
 #include <folly/Range.h>
