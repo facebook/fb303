@@ -204,26 +204,26 @@ class ThreadCachedServiceData {
    */
 
   std::chrono::seconds getAliveSince() const {
-    return getServiceData()->getAliveSince();
+    return getServiceDataRef().getAliveSince();
   }
   ExportedStatMapImpl* getStatMap() {
-    return getServiceData()->getStatMap();
+    return getServiceDataRef().getStatMap();
   }
   ExportedHistogramMapImpl* getHistogramMap() {
-    return getServiceData()->getHistogramMap();
+    return getServiceDataRef().getHistogramMap();
   }
   DynamicCounters* getDynamicCounters() {
-    return getServiceData()->getDynamicCounters();
+    return getServiceDataRef().getDynamicCounters();
   }
   DynamicStrings* getDynamicStrings() {
-    return getServiceData()->getDynamicStrings();
+    return getServiceDataRef().getDynamicStrings();
   }
 
   void addStatExportType(
       folly::StringPiece key,
       ExportType exportType = ExportType::AVG,
       const ExportedStat* statPrototype = nullptr) {
-    getServiceData()->addStatExportType(key, exportType, statPrototype);
+    getServiceDataRef().addStatExportType(key, exportType, statPrototype);
   }
   void addStatExports(
       folly::StringPiece key,
@@ -231,82 +231,82 @@ class ThreadCachedServiceData {
       int64_t bucketWidth = 0,
       int64_t min = 0,
       int64_t max = 0) {
-    getServiceData()->addStatExports(key, stats, bucketWidth, min, max);
+    getServiceDataRef().addStatExports(key, stats, bucketWidth, min, max);
   }
   bool addHistogram(
       folly::StringPiece key,
       int64_t bucketWidth,
       int64_t min,
       int64_t max) {
-    return getServiceData()->addHistogram(key, bucketWidth, min, max);
+    return getServiceDataRef().addHistogram(key, bucketWidth, min, max);
   }
   bool addHistogram(
       folly::StringPiece key,
       const ExportedHistogram& prototype) {
-    return getServiceData()->addHistogram(key, prototype);
+    return getServiceDataRef().addHistogram(key, prototype);
   }
   void exportHistogramPercentile(folly::StringPiece key, int pct) {
-    getServiceData()->exportHistogramPercentile(key, pct);
+    getServiceDataRef().exportHistogramPercentile(key, pct);
   }
   template <typename... Args>
   void exportHistogramPercentile(
       folly::StringPiece key,
       int pct,
       const Args&... args) {
-    getServiceData()->exportHistogramPercentile(key, pct, args...);
+    getServiceDataRef().exportHistogramPercentile(key, pct, args...);
   }
   template <typename... Args>
   void exportHistogram(folly::StringPiece key, const Args&... args) {
-    getServiceData()->exportHistogram(key, args...);
+    getServiceDataRef().exportHistogram(key, args...);
   }
 
   int64_t getCounter(folly::StringPiece key) const {
-    return getServiceData()->getCounter(key);
+    return getServiceDataRef().getCounter(key);
   }
   void getCounters(std::map<std::string, int64_t>& _return) const {
-    getServiceData()->getCounters(_return);
+    getServiceDataRef().getCounters(_return);
   }
   void getSelectedCounters(
       std::map<std::string, int64_t>& _return,
       const std::vector<std::string>& keys) const {
-    getServiceData()->getSelectedCounters(_return, keys);
+    getServiceDataRef().getSelectedCounters(_return, keys);
   }
   bool hasCounter(folly::StringPiece key) const {
-    return getServiceData()->hasCounter(key);
+    return getServiceDataRef().hasCounter(key);
   }
 
   void setExportedValue(folly::StringPiece key, std::string value) {
-    getServiceData()->setExportedValue(key, std::move(value));
+    getServiceDataRef().setExportedValue(key, std::move(value));
   }
   void getExportedValue(std::string& _return, folly::StringPiece key) {
-    getServiceData()->getExportedValue(_return, key);
+    getServiceDataRef().getExportedValue(_return, key);
   }
   void getExportedValues(std::map<std::string, std::string>& _return) {
-    getServiceData()->getExportedValues(_return);
+    getServiceDataRef().getExportedValues(_return);
   }
   void getSelectedExportedValues(
       std::map<std::string, std::string>& _return,
       const std::vector<std::string>& keys) {
-    getServiceData()->getSelectedExportedValues(_return, keys);
+    getServiceDataRef().getSelectedExportedValues(_return, keys);
   }
 
   void setUseOptionsAsFlags(bool useOptionsAsFlags) {
-    getServiceData()->setUseOptionsAsFlags(useOptionsAsFlags);
+    getServiceDataRef().setUseOptionsAsFlags(useOptionsAsFlags);
   }
   bool getUseOptionsAsFlags() const {
-    return getServiceData()->getUseOptionsAsFlags();
+    return getServiceDataRef().getUseOptionsAsFlags();
   }
   void setOption(folly::StringPiece key, folly::StringPiece value) {
-    getServiceData()->setOption(key, value);
+    getServiceDataRef().setOption(key, value);
   }
   static void setVModuleOption(std::string_view key, std::string_view value) {
     ServiceData::setVModuleOption(key, value);
   }
   std::string getOption(folly::StringPiece key) const {
-    return getServiceData()->getOption(key);
+    return getServiceDataRef().getOption(key);
   }
   void getOptions(std::map<std::string, std::string>& _return) const {
-    getServiceData()->getOptions(_return);
+    getServiceDataRef().getOptions(_return);
   }
 
   using DynamicOptionGetter = ServiceData::DynamicOptionGetter;
@@ -316,7 +316,7 @@ class ThreadCachedServiceData {
       folly::StringPiece name,
       DynamicOptionGetter getter,
       DynamicOptionSetter setter) {
-    getServiceData()->registerDynamicOption(
+    getServiceDataRef().registerDynamicOption(
         name, std::move(getter), std::move(setter));
   }
 
@@ -364,7 +364,7 @@ struct TLMinuteOnlyTimeseries : public ThreadCachedServiceData::TLTimeseries {
   template <typename... ExportTypes>
   explicit TLMinuteOnlyTimeseries(folly::StringPiece name, ExportTypes... types)
       : TLTimeseries(
-            ThreadCachedServiceData::get()->getThreadStats(),
+            ThreadCachedServiceData::getRef().getThreadStats(),
             name,
             (size_t)60,
             (size_t)1,
@@ -1005,7 +1005,7 @@ class TimeseriesWrapper {
   template <typename... Args>
   void exportStats(const ExportedStat* statPrototype, const Args&... args) {
     int _[] = {
-        (ServiceData::get()->addStatExportType(
+        (ServiceData::getRef().addStatExportType(
              key_, args, statPrototype, detail::shouldUpdateGlobalStatOnRead()),
          0)...};
     (void)_;
@@ -1086,7 +1086,7 @@ class TimeseriesPolymorphicWrapper : public TimeseriesWrapperBase {
   void exportStats(const Args&... args) {
     // Created counters will export with fb303::kMinuteTenMinuteHourDurations
     // levels.
-    int _[] = {(ServiceData::get()->addStatExportType(key_, args), 0)...};
+    int _[] = {(ServiceData::getRef().addStatExportType(key_, args), 0)...};
     (void)_;
   }
 };
@@ -1112,7 +1112,7 @@ struct MinuteTimeseriesWrapper : public TimeseriesWrapperBase {
     // Created counters will export with fb303::kMinuteDurations
     // levels.
     int _[] = {
-        (ServiceData::get()->addStatExportType(
+        (ServiceData::getRef().addStatExportType(
              key_, args, &templateExportedStat()),
          0)...};
     (void)_;
@@ -1144,7 +1144,7 @@ class QuarterMinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
     // Created counters will export with fb303::kQuarterMinuteOnlyDurations
     // levels.
     int _[] = {
-        (ServiceData::get()->addStatExportType(
+        (ServiceData::getRef().addStatExportType(
              key_, args, &templateExportedStat()),
          0)...};
     (void)_;
@@ -1174,7 +1174,7 @@ struct MinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
     // Created counters will export with fb303::kMinuteOnlyDurations
     // levels.
     int _[] = {
-        (ServiceData::get()->addStatExportType(
+        (ServiceData::getRef().addStatExportType(
              key_, args, &templateExportedStat()),
          0)...};
     (void)_;
@@ -1206,7 +1206,7 @@ struct SubminuteMinuteTimeseriesWrapper : public TimeseriesWrapperBase {
     // Created counters will export with fb303::kSubminuteMinuteDurations
     // levels.
     int _[] = {
-        (ServiceData::get()->addStatExportType(
+        (ServiceData::getRef().addStatExportType(
              key_, args, &templateExportedStat()),
          0)...};
     (void)_;
@@ -1238,7 +1238,7 @@ struct SubminuteMinuteOnlyTimeseriesWrapper : public TimeseriesWrapperBase {
     // Created counters will export with fb303::kSubminuteMinuteOnlyDurations
     // levels.
     int _[] = {
-        (ServiceData::get()->addStatExportType(
+        (ServiceData::getRef().addStatExportType(
              key_, args, &templateExportedStat()),
          0)...};
     (void)_;
@@ -1290,7 +1290,8 @@ class MultiLevelTimeseriesWrapper : public TimeseriesWrapperBase {
   template <typename... Args>
   void exportStats(const Args&... args) {
     // Created counters will export with durations specified in the template
-    (ServiceData::get()->addStatExportType(key_, args, &templateExportedStat()),
+    (ServiceData::getRef().addStatExportType(
+         key_, args, &templateExportedStat()),
      ...);
   }
   static const ExportedStat& templateExportedStat() {
@@ -1481,7 +1482,7 @@ class DynamicTimeseriesWrapper {
   void clear(Args&&... subkeys) {
     auto const& key = key_.getFormattedKey(subkeys...);
     for (const auto exportType : exportTypes_) {
-      ThreadCachedServiceData::get()->clearStat(key, exportType);
+      ThreadCachedServiceData::getRef().clearStat(key, exportType);
     }
     tcData().clearTimeseriesSafe(key);
     key_.eraseFormattedKey(std::forward<Args>(subkeys)...);
@@ -1550,7 +1551,7 @@ class DynamicTimeseriesWrapper {
       const std::string& key,
       const ExportedStat* prototype = nullptr) {
     for (const auto exportType : exportTypes_) {
-      ServiceData::get()->addStatExportType(key, exportType, prototype);
+      ServiceData::getRef().addStatExportType(key, exportType, prototype);
     }
   }
 
@@ -1597,7 +1598,7 @@ class DynamicHistogramWrapper {
 
  private:
   void prepareKey(const std::string& key) {
-    spec_.apply(key, fbData.ptr());
+    spec_.apply(key, &fbData.ref());
   }
 
   internal::FormattedKeyHolder<N> key_;
@@ -1637,7 +1638,7 @@ namespace facebook {
 
 /**
  * convenience function; returns the ThreadCachedServiceData singleton
- * which wraps ServiceData::get().
+ * which wraps ServiceData::getRef().
  */
 inline fb303::ThreadCachedServiceData& tcData() {
   return fb303::ThreadCachedServiceData::getRef();

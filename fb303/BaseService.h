@@ -85,74 +85,74 @@ class BaseService : virtual public cpp2::BaseServiceSvIf {
 
   /*** Retrieves all counters, both regular-style and dynamic counters */
   virtual void getCounters(std::map<std::string, int64_t>& _return) {
-    ServiceData::get()->getCounters(_return);
+    ServiceData::getRef().getCounters(_return);
   }
 
   /*** Retrieves all counters that match a regex */
   virtual void getRegexCounters(
       std::map<std::string, int64_t>& _return,
       std::unique_ptr<std::string> regex) {
-    ServiceData::get()->getRegexCounters(_return, *regex);
+    ServiceData::getRef().getRegexCounters(_return, *regex);
   }
 
   /*** Returns a list of counter values */
   virtual void getSelectedCounters(
       std::map<std::string, int64_t>& _return,
       std::unique_ptr<std::vector<std::string>> keys) {
-    ServiceData::get()->getSelectedCounters(_return, *keys);
+    ServiceData::getRef().getSelectedCounters(_return, *keys);
   }
 
   /*** Retrieves a counter value for given key (could be regular or dynamic) */
   int64_t getCounter(std::unique_ptr<std::string> key) override {
     try {
-      return ServiceData::get()->getCounter(*key);
+      return ServiceData::getRef().getCounter(*key);
     } catch (const std::invalid_argument&) {
       return 0;
     }
   }
 
   void getExportedValues(std::map<std::string, std::string>& _return) override {
-    ServiceData::get()->getExportedValues(_return);
+    ServiceData::getRef().getExportedValues(_return);
   }
 
   void getSelectedExportedValues(
       std::map<std::string, std::string>& _return,
       std::unique_ptr<std::vector<std::string>> keys) override {
-    ServiceData::get()->getSelectedExportedValues(_return, *keys);
+    ServiceData::getRef().getSelectedExportedValues(_return, *keys);
   }
 
   void getRegexExportedValues(
       std::map<std::string, std::string>& _return,
       std::unique_ptr<std::string> regex) override {
-    ServiceData::get()->getRegexExportedValues(_return, *regex);
+    ServiceData::getRef().getRegexExportedValues(_return, *regex);
   }
 
   void getExportedValue(std::string& _return, std::unique_ptr<std::string> key)
       override {
-    ServiceData::get()->getExportedValue(_return, *key);
+    ServiceData::getRef().getExportedValue(_return, *key);
   }
 
   void setOption(
       std::unique_ptr<std::string> key,
       std::unique_ptr<std::string> value) override {
-    ServiceData::get()->setOption(*key, *value);
+    ServiceData::getRef().setOption(*key, *value);
   }
 
   void getOption(std::string& _return, std::unique_ptr<std::string> key)
       override {
     try {
-      _return = ServiceData::get()->getOption(*key);
+      _return = ServiceData::getRef().getOption(*key);
     } catch (const std::invalid_argument&) {
       _return = "";
     }
   }
 
   void getOptions(std::map<std::string, std::string>& _return) override {
-    ServiceData::get()->getOptions(_return);
+    ServiceData::getRef().getOptions(_return);
   }
 
   int64_t aliveSince() override {
-    return ServiceData::get()->getAliveSince().count();
+    return ServiceData::getRef().getAliveSince().count();
   }
 
   /**

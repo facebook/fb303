@@ -96,7 +96,7 @@ auto DynamicQuantileStatWrapper<N>::getOrCreateGlobal(SubkeyArray subkeyArray)
 
   auto formattedKey =
       internal::SubkeyUtils<N>::formatKey(keyFormat_, subkeyArray);
-  auto stat = ServiceData::get()->getQuantileStat(
+  auto stat = ServiceData::getRef().getQuantileStat(
       formattedKey, spec_.stats, spec_.quantiles, spec_.timeseriesLengths);
 
   auto wlock = ulock.moveFromUpgradeToWrite();

@@ -50,8 +50,8 @@ class PublisherManager {
       fs_.addFunction(
           [] {
             ThreadCachedServiceData::getInternal()
-                .getServiceData()
-                ->trimRegexCache(kPurgeMaxStale);
+                .getServiceDataRef()
+                .trimRegexCache(kPurgeMaxStale);
           },
           kPurgeInterval,
           kPurgeFunctionId);
@@ -115,7 +115,7 @@ SubminuteMinuteOnlyTimeseriesWrapper::templateExportedStat() {
 }
 
 FOLLY_NOINLINE void HistogramWrapper::doApplySpecLocked() {
-  std::exchange(spec_, {})->apply(key_, ServiceData::get());
+  std::exchange(spec_, {})->apply(key_, &ServiceData::getRef());
 }
 
 FOLLY_NOINLINE ThreadCachedServiceData::TLHistogram*
@@ -131,7 +131,7 @@ ThreadCachedServiceData::StatsThreadLocal&
 ThreadCachedServiceData::getStatsThreadLocal() {
   static folly::Indestructible<ThreadCachedServiceData::StatsThreadLocal>
       threadLocal{[]() {
-        return ThreadCachedServiceData::ThreadLocalStatsMap{fbData.ptr()};
+        return ThreadCachedServiceData::ThreadLocalStatsMap{&fbData.ref()};
       }};
   return *threadLocal;
 }
@@ -150,11 +150,11 @@ ThreadCachedServiceData* ThreadCachedServiceData::get() {
   return &getRef();
 }
 std::shared_ptr<ThreadCachedServiceData> ThreadCachedServiceData::getShared() {
-  return folly::to_shared_ptr_non_owning(ThreadCachedServiceData::get());
+  return folly::to_shared_ptr_non_owning(&ThreadCachedServiceData::getRef());
 }
 
 ThreadCachedServiceData::ThreadCachedServiceData()
-    : serviceData_{fbData.ptr()},
+    : serviceData_{&fbData.ref()},
       threadLocalStats_{&ThreadCachedServiceData::getStatsThreadLocal()} {}
 
 void ThreadCachedServiceData::publishStats() {
@@ -227,20 +227,20 @@ int64_t ThreadCachedServiceData::setCounter(
   // internally and then periodically call setCounter() once every several
   // seconds to replace the exported ServiceData counter with their up-to-date
   // internal version.
-  return getServiceData()->setCounter(key, value);
+  return getServiceDataRef().setCounter(key, value);
 }
 
 void ThreadCachedServiceData::clearCounter(folly::StringPiece key) {
   // As with setCounter(), clearCounter() is not easily cachable on a
   // per-thread basis, and is similarly non performance sensitive.
-  getServiceData()->clearCounter(key);
+  getServiceDataRef().clearCounter(key);
 }
 
 void ThreadCachedServiceData::zeroStats() {
   // Call publishStats() to clear out all thread-cached data
   publishStats();
   // Then zero out the ServiceData stats
-  getServiceData()->zeroStats();
+  getServiceDataRef().zeroStats();
 }
 
 void ThreadCachedServiceData::addHistAndStatValue(
@@ -258,7 +258,7 @@ void ThreadCachedServiceData::addHistAndStatValues(
     int64_t sum,
     int64_t nsamples,
     bool checkContains) {
-  getServiceData()->addHistAndStatValues(
+  getServiceDataRef().addHistAndStatValues(
       key, values, now, sum, nsamples, checkContains);
 }
 

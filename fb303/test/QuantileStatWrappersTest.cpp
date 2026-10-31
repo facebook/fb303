@@ -52,7 +52,7 @@ void populateAndRetouch(DynamicQuantileStatWrapper<1>& wrapper, size_t n) {
 // the first touch. Comparing one map of key to value in a single EXPECT_EQ
 // checks both key presence and value correctness together.
 void expectRetouchedValues(const std::string& keyPrefix, size_t n) {
-  ServiceData::get()->flushAllData();
+  ServiceData::getRef().flushAllData();
 
   std::map<std::string, int64_t> expected;
   for (size_t i = 0; i < n; ++i) {
@@ -62,9 +62,9 @@ void expectRetouchedValues(const std::string& keyPrefix, size_t n) {
   }
 
   std::map<std::string, int64_t> actual;
-  for (auto const& key : ServiceData::get()->getCounterKeys()) {
+  for (auto const& key : ServiceData::getRef().getCounterKeys()) {
     if (key.rfind(keyPrefix + ".", 0) == 0) {
-      actual[key] = ServiceData::get()->getCounter(key);
+      actual[key] = ServiceData::getRef().getCounter(key);
     }
   }
 
